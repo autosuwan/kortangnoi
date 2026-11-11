@@ -103,6 +103,7 @@ erDiagram
 - `donations.amount_satang`: `CHECK (amount_satang > 0 AND amount_satang <= 10000000)`
 - `donations.slip_attempts`: `CHECK (slip_attempts BETWEEN 0 AND 3)`
 - `payment_settings.min_amount_satang`: `CHECK (BETWEEN 100 AND 1000000)`
+- `payment_settings`: `promptpay_id` ยาว 0 / 10 / 13 หลัก, ชื่อยาว ≤ 100, `enabled` ⇒ `promptpay_id` และ `account_name_th` ไม่ว่าง (สำรอง validation ใน API)
 - `alert_settings`: `CHECK (duration_sec BETWEEN 3 AND 20)`, `CHECK (volume BETWEEN 0 AND 100)`
 - **กันสลิปซ้ำ** — partial unique index นับเฉพาะรายการที่ "ใช้สลิปไปแล้ว":
   ```sql
@@ -128,12 +129,13 @@ erDiagram
 
 เปิด RLS ทุกตาราง ค่าเริ่มต้นคือปฏิเสธทั้งหมด
 
-| ตาราง           | anon | เจ้าของ (authenticated)                               | server (secret key) |
-| --------------- | ---- | ---------------------------------------------------- | ------------------- |
-| `profiles`      | –    | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด               |
-| `*_settings`    | –    | select / update แถวตัวเอง                             | ทั้งหมด               |
-| `donations`     | –    | select แถวที่ `streamer_id = auth.uid()`               | ทั้งหมด               |
-| `system_errors` | –    | –                                                    | ทั้งหมด               |
+| ตาราง                                | anon | เจ้าของ (authenticated)                               | server (secret key) |
+| ------------------------------------ | ---- | ---------------------------------------------------- | ------------------- |
+| `profiles`                           | –    | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด               |
+| `payment_settings`                   | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)                    | ทั้งหมด               |
+| `alert_settings`, `webhook_settings` | –    | select / update แถวตัวเอง                             | ทั้งหมด               |
+| `donations`                          | –    | select แถวที่ `streamer_id = auth.uid()`               | ทั้งหมด               |
+| `system_errors`                      | –    | –                                                    | ทั้งหมด               |
 
 - หน้าโดเนท, overlay และการตรวจสลิปไม่ให้ client อ่าน DB ตรง ทุกอย่างผ่าน API ของเราที่ใช้ service role
 - `select` ของเจ้าของบน `donations` ทำให้ dashboard ใช้ Realtime `postgres_changes` แจ้งรายการรอตรวจใหม่ได้

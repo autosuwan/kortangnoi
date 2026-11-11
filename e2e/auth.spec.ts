@@ -1,17 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import {
-  createTestUser,
-  TEST_PASSWORD,
-  uniqueUsername,
-} from "../test/supabase";
+import { createTestUser, uniqueUsername } from "../test/supabase";
 
-async function loginWithPassword(page: Page, email: string) {
-  await page.goto("/login");
-  await page.getByLabel("อีเมล").fill(email);
-  await page.getByLabel("รหัสผ่าน").fill(TEST_PASSWORD);
-  await page.getByRole("button", { name: "เข้าสู่ระบบด้วยรหัสผ่าน" }).click();
-}
+import { loginWithPassword } from "./helpers";
 
 test("ไม่ได้ล็อกอินเข้า /dashboard ถูกพาไป /login", async ({ page }) => {
   await page.goto("/dashboard");

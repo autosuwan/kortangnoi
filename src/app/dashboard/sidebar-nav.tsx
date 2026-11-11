@@ -37,7 +37,6 @@ const items: NavItem[] = [
     href: "/dashboard/payment",
     label: "ช่องทางรับเงิน",
     icon: Wallet,
-    soon: true,
   },
   { href: "/dashboard/alert", label: "ตั้งค่า alert", icon: Bell, soon: true },
 ];

@@ -42,7 +42,7 @@ const features = [
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="app-bg flex flex-1 flex-col">
       <header className="border-b">
         <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-medium">

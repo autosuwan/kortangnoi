@@ -142,3 +142,42 @@
     @apply font-sans;
   }
 }
+
+/* พื้นหลังลายคลื่น + gradient จางๆ (ใช้กับหน้าเว็บ ไม่ใช้กับ overlay OBS) */
+@utility app-bg {
+  --pattern-from: var(--primary);
+  --pattern-to: #f43f5e;
+  --pattern-opacity: 0.06;
+  position: relative;
+  isolation: isolate;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      60rem 40rem at 0% 0%,
+      color-mix(in oklab, var(--primary) 7%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      50rem 40rem at 100% 100%,
+      color-mix(in oklab, var(--pattern-to) 5%, transparent),
+      transparent 70%
+    );
+  background-attachment: fixed;
+
+  .dark & {
+    --pattern-opacity: 0.05;
+  }
+
+  &::before {
+    content: "";
+    position: fixed;
+    inset: -50%;
+    z-index: -1;
+    pointer-events: none;
+    transform: rotate(-58deg);
+    background: linear-gradient(90deg, var(--pattern-from), var(--pattern-to));
+    opacity: var(--pattern-opacity);
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='12'%3E%3Cpath d='M0 9 L10 3 L14 5 L28 9' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E");
+    mask-size: 28px 12px;
+  }
+}

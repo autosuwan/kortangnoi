@@ -5,6 +5,7 @@
 ## Feature
 
 ### MVP
+
 1. ล็อกอินด้วย Google / Discord (Supabase Auth)
 2. หน้าตั้งค่าช่องทางรับเงิน: ประเภท PromptPay (เบอร์/เลขบัตร), เลข PromptPay, ชื่อบัญชีไทย + อังกฤษ (ไม่บังคับ), สวิตช์แสดง/ซ่อนชื่อ, ยอดขั้นต่ำ, Discord webhook (ไม่บังคับ)
 3. ตั้งค่า alert: **ค้นหา GIF ในเว็บ** (KLIPY API ผ่าน server route) หรืออัปโหลดรูป/GIF เอง 1 รูป (มีค่าเริ่มต้นให้), ระยะเวลาแสดง
@@ -16,31 +17,35 @@
 9. หน้า admin ดูโควตา SlipOK
 
 ### v2
+
 ตรวจสลิปซ้ำอัตโนมัติ (error 1010/1009), TTS, goal bar, ตารางอันดับ, alert ตามช่วงยอด, กรองคำหยาบ, ธีม alert, TrueMoney, ส่งต่อแจ้งเตือนจาก Android
 
 ### อนาคต: ย้ายการใช้งานไป Discord
+
 หลังระบบเว็บเสร็จ จะทำ Discord bot ให้สตรีมเมอร์ทำทุกอย่างผ่าน Discord ได้ (ดูยอด, อนุมัติ/ปฏิเสธรายการรอตรวจ, ตั้งค่า, รับแจ้งเตือน) สิ่งที่ต้องเตรียมตั้งแต่ MVP:
+
 - business logic อยู่ใน service layer (`src/server/services/`) แยกจาก route handler และ UI เพื่อให้ bot เรียกใช้ซ้ำได้
 - ล็อกอินด้วย Discord ได้ตั้งแต่แรก เก็บ Discord user ID ไว้ผูกบัญชี
 - bot ใช้ Discord Interactions แบบ HTTP endpoint (slash commands) ซึ่งรันบน Vercel ได้ ไม่ต้องมี server เปิดค้าง
 
 ## Tech stack
 
-| ส่วน | เลือก | เหตุผล |
-|---|---|---|
-| Framework | Next.js (App Router) + TypeScript | หน้าเว็บ + API ในโปรเจกต์เดียว |
-| DB / Auth / Realtime / Storage | Supabase (free) | ครบในที่เดียว, Realtime ใช้กับ overlay, Storage เก็บรูป/GIF alert |
-| Deploy | Vercel Hobby | ฟรี, deploy จาก GitHub |
-| UI | Tailwind CSS + shadcn/ui | ทำ UI สะอาดได้เร็ว |
-| Icon | Lucide (`lucide-react`) | ไอคอนเส้นเรียบ เข้ากับ reference และเป็นชุดที่ shadcn/ui ใช้อยู่แล้ว ใช้ชุดเดียวทั้งเว็บ |
-| ค้นหา GIF | KLIPY API (ฟรี) | Tenor API ปิดไปแล้ว 30 มิ.ย. 2026; GIPHY เป็นตัวสำรอง (beta 100 ครั้ง/ชม., ต้องแสดง "Powered by GIPHY") |
-| QR PromptPay | `promptpay-qr` + `qrcode` | สร้าง QR ล็อกยอด |
-| อ่าน QR สลิป | `jsqr` + `sharp` | กันสลิปซ้ำ/รูปไม่มี QR ก่อนเสียโควตา SlipOK |
-| ตรวจสลิป | SlipOK API (key กลาง, แพ็กเกจฟรี 100 สลิป/เดือน) | ไม่มีค่าธรรมเนียม % |
-| Test | Vitest + Playwright | |
-| ตรวจคุณภาพ | ESLint, Prettier, `tsc --noEmit` | |
+| ส่วน                            | เลือก                                         | เหตุผล                                                                                           |
+| ------------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Framework                      | Next.js (App Router) + TypeScript            | หน้าเว็บ + API ในโปรเจกต์เดียว                                                                      |
+| DB / Auth / Realtime / Storage | Supabase (free)                              | ครบในที่เดียว, Realtime ใช้กับ overlay, Storage เก็บรูป/GIF alert                                      |
+| Deploy                         | Vercel Hobby                                 | ฟรี, deploy จาก GitHub                                                                           |
+| UI                             | Tailwind CSS + shadcn/ui                     | ทำ UI สะอาดได้เร็ว                                                                                |
+| Icon                           | Lucide (`lucide-react`)                      | ไอคอนเส้นเรียบ เข้ากับ reference และเป็นชุดที่ shadcn/ui ใช้อยู่แล้ว ใช้ชุดเดียวทั้งเว็บ                          |
+| ค้นหา GIF                       | KLIPY API (ฟรี)                               | Tenor API ปิดไปแล้ว 30 มิ.ย. 2026; GIPHY เป็นตัวสำรอง (beta 100 ครั้ง/ชม., ต้องแสดง "Powered by GIPHY") |
+| QR PromptPay                   | `promptpay-qr` + `qrcode`                    | สร้าง QR ล็อกยอด                                                                                  |
+| อ่าน QR สลิป                     | `jsqr` + `sharp`                             | กันสลิปซ้ำ/รูปไม่มี QR ก่อนเสียโควตา SlipOK                                                             |
+| ตรวจสลิป                        | SlipOK API (key กลาง, แพ็กเกจฟรี 100 สลิป/เดือน) | ไม่มีค่าธรรมเนียม %                                                                                 |
+| Test                           | Vitest + Playwright                          |                                                                                                 |
+| ตรวจคุณภาพ                      | ESLint, Prettier, `tsc --noEmit`             |                                                                                                 |
 
 ### คำสั่งตรวจคุณภาพ
+
 - `npm run lint` — ESLint
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run test` — Vitest (unit)
@@ -54,6 +59,7 @@
 **อารมณ์:** มินิมอล อบอุ่น สะอาด — Clean UI
 
 **Reference:** Neutrade UI Kit (dashboard) — เอาโครงมาใช้ ไม่เอาสีน้ำเงิน:
+
 - พื้นหลังเทาอ่อน, การ์ดสีขาวมุมโค้งมาก, เส้นขอบบางมากหรือไม่มี เงาแทบไม่มี
 - Sidebar ซ้ายเรียบ ไอคอนเส้น + ข้อความ, เมนูที่เลือกเป็นพื้นเทาอ่อนทรงโค้ง
 - ตัวเลขใหญ่หนา ส่วนทศนิยมเป็นสีเทา (เช่น ฿3,200.80)
@@ -63,26 +69,28 @@
 
 ### สี
 
-| Token | Light | Dark |
-|---|---|---|
-| background | `#F7F5F2` (เทาอุ่น) | `#14110F` |
-| card | `#FFFFFF` | `#1E1A17` |
-| border | `#EDE9E4` | `#2C2622` |
-| text | `#1C1917` | `#F5F1EC` |
-| text-muted | `#78716C` | `#A8A29E` |
-| primary (ส้ม) | `#F97316` | `#FB923C` |
-| primary-soft | `#FFF1E6` | `#3A2414` |
-| success | `#16A34A` | `#4ADE80` |
-| warning (รอตรวจ) | `#F59E0B` | `#FBBF24` |
-| danger | `#DC2626` | `#F87171` |
+| Token            | Light             | Dark      |
+| ---------------- | ----------------- | --------- |
+| background       | `#F7F5F2` (เทาอุ่น) | `#14110F` |
+| card             | `#FFFFFF`         | `#1E1A17` |
+| border           | `#EDE9E4`         | `#2C2622` |
+| text             | `#1C1917`         | `#F5F1EC` |
+| text-muted       | `#78716C`         | `#A8A29E` |
+| primary (ส้ม)     | `#F97316`         | `#FB923C` |
+| primary-soft     | `#FFF1E6`         | `#3A2414` |
+| success          | `#16A34A`         | `#4ADE80` |
+| warning (รอตรวจ) | `#F59E0B`         | `#FBBF24` |
+| danger           | `#DC2626`         | `#F87171` |
 
 ใช้ส้มเฉพาะจุดสำคัญ (ปุ่มหลัก, ยอดเงิน, สถานะ active) ไม่ทาเป็นพื้นใหญ่
 
 ### ฟอนต์
+
 - **Noto Sans Thai** (ไทย) + **Noto Sans** (อังกฤษ/ตัวเลข) จาก Google Fonts
 - หัวข้อ 600–700, เนื้อหา 400, ตัวเลขยอดเงินใช้ tabular numbers
 
 ### รูปทรง
+
 - การ์ด radius 20–24px, ปุ่ม/อินพุต pill หรือ 12px
 - ระยะห่างโปร่ง (padding การ์ด 24px)
 

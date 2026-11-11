@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Write(./.env)",
+      "Write(./.env.*)",
+      "Read(./supabase/.temp/**)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts|*.tsx|*.js|*.mjs|*.mts|*.css|*.json|*.md) npx prettier --write --log-level warn \"$f\" >/dev/null 2>&1; case \"$f\" in *.ts|*.tsx|*.js|*.mjs|*.mts) npx eslint --fix \"$f\" 1>&2 || exit 2 ;; esac ;; esac; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -90,12 +90,12 @@ erDiagram
 
 ## Enum
 
-| Enum | ค่า |
-|---|---|
-| `donation_status` | `awaiting_slip`, `verifying`, `approved`, `pending_review`, `rejected`, `expired` |
-| `promptpay_type` | `phone`, `national_id` |
-| `alert_media_type` | `default`, `gif`, `upload` |
-| `approval_method` | `auto`, `manual` |
+| Enum               | ค่า                                                                                |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `donation_status`  | `awaiting_slip`, `verifying`, `approved`, `pending_review`, `rejected`, `expired` |
+| `promptpay_type`   | `phone`, `national_id`                                                            |
+| `alert_media_type` | `default`, `gif`, `upload`                                                        |
+| `approval_method`  | `auto`, `manual`                                                                  |
 
 ## Constraint สำคัญ
 
@@ -116,31 +116,31 @@ erDiagram
 
 ## Index
 
-| Index | ใช้กับ |
-|---|---|
-| `donations (streamer_id, status, created_at DESC)` | ประวัติ + ตัวกรองสถานะ (F5), นับรอตรวจ |
-| `donations (streamer_id, created_at) WHERE status = 'approved'` | ยอดรวมวันนี้/เดือนนี้ |
-| `donations (streamer_id, created_at) WHERE status = 'approved' AND alert_acked_at IS NULL` | overlay ดึงรายการที่พลาด (F4) |
-| `donations (ip_hash, created_at)` | rate limit สร้างรายการ (F8) |
-| `system_errors (created_at DESC)` | หน้าแอดมิน (F12) |
+| Index                                                                                      | ใช้กับ                               |
+| ------------------------------------------------------------------------------------------ | ---------------------------------- |
+| `donations (streamer_id, status, created_at DESC)`                                         | ประวัติ + ตัวกรองสถานะ (F5), นับรอตรวจ |
+| `donations (streamer_id, created_at) WHERE status = 'approved'`                            | ยอดรวมวันนี้/เดือนนี้                    |
+| `donations (streamer_id, created_at) WHERE status = 'approved' AND alert_acked_at IS NULL` | overlay ดึงรายการที่พลาด (F4)         |
+| `donations (ip_hash, created_at)`                                                          | rate limit สร้างรายการ (F8)         |
+| `system_errors (created_at DESC)`                                                          | หน้าแอดมิน (F12)                     |
 
 ## Row Level Security
 
 เปิด RLS ทุกตาราง ค่าเริ่มต้นคือปฏิเสธทั้งหมด
 
-| ตาราง | anon | เจ้าของ (authenticated) | server (service role) |
-|---|---|---|---|
-| `profiles` | – | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด |
-| `*_settings` | – | select / update แถวตัวเอง | ทั้งหมด |
-| `donations` | – | select แถวที่ `streamer_id = auth.uid()` | ทั้งหมด |
-| `system_errors` | – | – | ทั้งหมด |
+| ตาราง           | anon | เจ้าของ (authenticated)                               | server (service role) |
+| --------------- | ---- | ---------------------------------------------------- | --------------------- |
+| `profiles`      | –    | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด                 |
+| `*_settings`    | –    | select / update แถวตัวเอง                             | ทั้งหมด                 |
+| `donations`     | –    | select แถวที่ `streamer_id = auth.uid()`               | ทั้งหมด                 |
+| `system_errors` | –    | –                                                    | ทั้งหมด                 |
 
 - หน้าโดเนท, overlay และการตรวจสลิปไม่ให้ client อ่าน DB ตรง ทุกอย่างผ่าน API ของเราที่ใช้ service role
 - `select` ของเจ้าของบน `donations` ทำให้ dashboard ใช้ Realtime `postgres_changes` แจ้งรายการรอตรวจใหม่ได้
 
 ## Storage
 
-| Bucket | Public | Path | สิทธิ์ |
-|---|---|---|---|
-| `alert-media` | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}` | เขียน/ลบได้เฉพาะโฟลเดอร์ตัวเอง, ≤ 5 MB |
-| `slips` | private | `{streamer_id}/{donation_id}/{attempt}.{ext}` | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที |
+| Bucket        | Public       | Path                                          | สิทธิ์                                        |
+| ------------- | ------------ | --------------------------------------------- | ------------------------------------------ |
+| `alert-media` | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`                      | เขียน/ลบได้เฉพาะโฟลเดอร์ตัวเอง, ≤ 5 MB         |
+| `slips`       | private      | `{streamer_id}/{donation_id}/{attempt}.{ext}` | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที |

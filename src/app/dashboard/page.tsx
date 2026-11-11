@@ -10,6 +10,7 @@ import { getPaymentSettings } from "@/server/services/payment";
 import { getMe } from "@/server/services/profile";
 
 import { PageHeader } from "./page-header";
+import { WelcomeSkeleton } from "./skeletons";
 
 export const metadata: Metadata = { title: "หน้าหลัก · KORTANGNOI" };
 
@@ -18,9 +19,7 @@ export default function DashboardPage() {
     <>
       <PageHeader title="หน้าหลัก" />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <Suspense
-          fallback={<div className="h-40 rounded-2xl border bg-card" />}
-        >
+        <Suspense fallback={<WelcomeSkeleton />}>
           <Welcome />
         </Suspense>
       </main>

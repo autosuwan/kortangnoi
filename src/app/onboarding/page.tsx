@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { publicEnv } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getMe } from "@/server/services/profile";
@@ -19,7 +20,22 @@ export default function OnboardingPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           ผู้ชมจะเข้าหน้าโดเนทผ่านลิงก์นี้ เปลี่ยนทีหลังได้
         </p>
-        <Suspense fallback={<div className="mt-6 h-32" />}>
+        <Suspense
+          fallback={
+            <div
+              role="status"
+              aria-label="กำลังโหลด"
+              className="mt-6 flex flex-col gap-4"
+            >
+              <div className="grid gap-1.5">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-8 w-full rounded-lg" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+              <Skeleton className="h-9 w-full rounded-lg" />
+            </div>
+          }
+        >
           <OnboardingForm />
         </Suspense>
       </div>

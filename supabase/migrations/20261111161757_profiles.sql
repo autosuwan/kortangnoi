@@ -162,3 +162,27 @@ grant update (username, display_name) on public.profiles to authenticated;
 -- anon ไม่มีสิทธิ์ใดๆ กับตารางเหล่านี้ (หน้า public ผ่าน API ของเรา)
 revoke all on public.profiles, public.payment_settings, public.alert_settings, public.webhook_settings
   from anon;
+
+-- ---------------------------------------------------------------------------
+-- backfill: ผู้ใช้ที่สมัครไว้ก่อน migration นี้ (ยังไม่มี profile) ให้มี profile + settings
+-- ---------------------------------------------------------------------------
+insert into public.profiles (id, display_name, discord_id)
+select
+  u.id,
+  left(coalesce(
+    u.raw_user_meta_data ->> 'full_name',
+    u.raw_user_meta_data ->> 'name',
+    split_part(coalesce(u.email, ''), '@', 1),
+    ''
+  ), 50),
+  case when u.raw_app_meta_data ->> 'provider' = 'discord'
+    then u.raw_user_meta_data ->> 'provider_id' end
+from auth.users u
+where not exists (select 1 from public.profiles p where p.id = u.id);
+
+insert into public.payment_settings (user_id)
+select id from public.profiles on conflict do nothing;
+insert into public.alert_settings (user_id)
+select id from public.profiles on conflict do nothing;
+insert into public.webhook_settings (user_id)
+select id from public.profiles on conflict do nothing;

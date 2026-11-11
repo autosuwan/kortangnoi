@@ -53,3 +53,33 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  # ลง migration ใหม่ขึ้น Supabase cloud หลัง test ผ่านทุกตัว (เฉพาะ push เข้า main)
+  # ต้องมี secret SUPABASE_ACCESS_TOKEN (Personal access token จาก supabase.com/dashboard/account/tokens)
+  migrate:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [secrets, verify, e2e]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # กันสอง run ลง migration พร้อมกัน
+    concurrency:
+      group: migrate-production
+      cancel-in-progress: false
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ubqqxnhwohdcyeeiilht
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check token
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::ยังไม่ได้ตั้ง secret SUPABASE_ACCESS_TOKEN"
+            exit 1
+          fi
+      # ไม่มี migration ใหม่ก็ผ่านเฉยๆ
+      - run: npx supabase db push --remote="$SUPABASE_PROJECT_REF" --yes

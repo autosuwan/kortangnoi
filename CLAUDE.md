@@ -7,7 +7,7 @@ Next.js (App Router) + TypeScript + Supabase + Tailwind/shadcn/ui + lucide-react
 
 - `npm run dev` · `npm run lint` · `npm run typecheck` · `npm run test` · `npm run test:e2e` · `npm run build`
 - `npm run verify` = lint + format:check + typecheck + test + build ต้องผ่านก่อน commit ทุกครั้ง
-- Supabase ในเครื่อง (Docker): `npm run db:start` · `npm run db:reset` (ลง migration ใหม่) · `npm run db:types` (สร้าง `src/lib/supabase/database.types.ts` หลังแก้ schema) · `npm run db:push` ส่ง migration ขึ้น cloud (CLI v3 ค่าเริ่มต้นคือ local ต้องมี `--remote`)
+- Supabase ในเครื่อง (Docker): `npm run db:start` · `npm run db:reset` (ลง migration ใหม่) · `npm run db:types` (สร้าง `src/lib/supabase/database.types.ts` หลังแก้ schema) · migration ขึ้น cloud อัตโนมัติจาก CI job `migrate` หลัง test ผ่านบน main (`npm run db:push` ไว้รันเองกรณีฉุกเฉิน)
 - `npm run dev:local` รัน dev กับ Supabase ในเครื่อง (ดึง key จาก `supabase status` ไม่ต้องมี `.env`) · `npm run test:int` integration test กับ DB จริง (`*.int.test.ts`) · `test:e2e` ต้องเปิด Supabase ในเครื่องก่อน
 - `npm run format` จัดรูปแบบทั้งโปรเจกต์ (hook ใน `.claude/settings.json` รัน Prettier + ESLint ให้หลังแก้ไฟล์)
 - Next.js รุ่นนี้ (16.x) ต่างจากที่คุ้นเคย — อ่าน @AGENTS.md ก่อนเขียนโค้ด
@@ -28,6 +28,7 @@ Next.js (App Router) + TypeScript + Supabase + Tailwind/shadcn/ui + lucide-react
 - เปลี่ยนสถานะ donation ด้วย conditional update (`WHERE status = ...`) เสมอ
 - อ่าน session ด้วย `getCurrentUser()`/`requireUser()` ใน `src/server/auth.ts` และห่อด้วย `<Suspense>` (Cache Components)
 - schema เปลี่ยน → `npx supabase migration new <ชื่อ>` ห้ามแก้ migration ที่ push ขึ้น cloud แล้ว
+- Vercel deploy โค้ดก่อน migration ลงเสร็จได้ → migration ต้องไม่ทำให้โค้ดเวอร์ชันก่อนหน้าพัง (เพิ่มก่อน ลบทีหลังใน commit ถัดไป)
 - ไอคอนใช้ lucide-react เท่านั้น, ฟอนต์ Noto Sans Thai + Noto Sans, สีจาก token ใน design brief
 
 ## ข้อห้าม

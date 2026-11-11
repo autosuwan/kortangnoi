@@ -9,8 +9,13 @@ import {
 
 import { alertImageUrl, resolveDonorAlertStyle } from "@/lib/alert-settings";
 import { AppError } from "@/lib/api-error";
-import { DONATION_TTL_MS, validateDonationInput } from "@/lib/donation";
-import { buildPromptpayPayload, type PromptpayType } from "@/lib/promptpay";
+import {
+  DONATION_TTL_MS,
+  MAX_SLIP_ATTEMPTS,
+  validateDonationInput,
+  type ReceiverSnapshot,
+} from "@/lib/donation";
+import { buildPromptpayPayload } from "@/lib/promptpay";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import { getAlertSettings } from "@/server/services/alert";
@@ -18,7 +23,7 @@ import { getPaymentSettings } from "@/server/services/payment";
 
 type DonationStatus = Database["public"]["Enums"]["donation_status"];
 
-const MAX_SLIP_ATTEMPTS = 3;
+const STUCK_VERIFYING_MS = 2 * 60 * 1000;
 const RATE_LIMIT = { count: 10, windowMs: 10 * 60 * 1000 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
@@ -35,15 +40,6 @@ export type PublicStreamer = {
     canPickSupportText: boolean;
     defaults: { imageUrl: string; nameColor: string; supportText: string };
   };
-};
-
-/** snapshot ผู้รับ ณ ตอนสร้างรายการ (F10 เช็กผู้รับกับข้อมูลนี้) */
-type ReceiverSnapshot = {
-  promptpayType: PromptpayType;
-  promptpayId: string;
-  accountNameTh: string;
-  accountNameEn: string | null;
-  showAccountName: boolean;
 };
 
 const notFound = () => new AppError(404, "NOT_FOUND", "ไม่พบหน้านี้");
@@ -216,7 +212,7 @@ export async function getDonationForDonor(
   const { data, error } = await admin
     .from("donations")
     .select(
-      "id, status, amount_satang, expires_at, slip_attempts, result_message, qr_payload, receiver_snapshot, access_token_hash, profiles!inner(username, display_name)",
+      "id, status, amount_satang, expires_at, updated_at, slip_attempts, result_message, qr_payload, receiver_snapshot, access_token_hash, profiles!inner(username, display_name)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -234,6 +230,22 @@ export async function getDonationForDonor(
       .select("status")
       .maybeSingle();
     status = updated?.status ?? "expired";
+  }
+  // request ตายกลางทาง (เช่น Vercel timeout) ค้างที่ verifying เกิน 2 นาที → ให้สตรีมเมอร์ตรวจเอง
+  if (
+    status === "verifying" &&
+    Date.now() - Date.parse(data.updated_at) > STUCK_VERIFYING_MS
+  ) {
+    const message = "ส่งให้สตรีมเมอร์ตรวจสอบแล้ว";
+    const { data: updated } = await admin
+      .from("donations")
+      .update({ status: "pending_review", result_message: message })
+      .eq("id", id)
+      .eq("status", "verifying")
+      .select("status")
+      .maybeSingle();
+    status = updated?.status ?? status;
+    data.result_message = message;
   }
 
   const receiver = data.receiver_snapshot as unknown as ReceiverSnapshot;

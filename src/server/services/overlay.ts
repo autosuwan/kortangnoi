@@ -124,3 +124,47 @@ export async function sendTestAlert(userId: string): Promise<{ ok: true }> {
   await broadcastToOverlay(token, OVERLAY_EVENTS.donation, alert);
   return { ok: true };
 }
+
+/**
+ * ส่ง alert ของโดเนทที่ผ่านแล้วไป overlay — ใช้ทั้งตรวจสลิปอัตโนมัติ (F10) และกดอนุมัติ (F6)
+ * payload มีเฉพาะสิ่งที่ผู้บริจาคกรอก/เลือก ห้ามมีชื่อจริงหรือข้อมูลบัญชีจากสลิป
+ */
+export async function sendDonationAlert(donationId: string): Promise<void> {
+  const { data, error } = await createAdminClient()
+    .from("donations")
+    .select(
+      "id, streamer_id, status, donor_name, amount_satang, message, donor_media_url, donor_name_color, donor_support_text",
+    )
+    .eq("id", donationId)
+    .single();
+  if (error) throw error;
+  if (data.status !== "approved") return;
+
+  const [settings, token] = await Promise.all([
+    getAlertSettings(data.streamer_id),
+    getOverlayToken(data.streamer_id),
+  ]);
+  if (!token) return;
+
+  const style = effectiveAlertStyle(settings, {
+    mediaUrl: data.donor_media_url,
+    nameColor: data.donor_name_color,
+    supportText: data.donor_support_text,
+  });
+  const content = {
+    donorName: data.donor_name,
+    amountSatang: data.amount_satang,
+    message: data.message,
+  };
+  const alert: OverlayAlert = {
+    donationId: data.id,
+    ...content,
+    isTest: false,
+    ...style,
+    ...(await prepareAlertSpeech(data.streamer_id, settings, {
+      ...content,
+      supportText: style.supportText,
+    })),
+  };
+  await broadcastToOverlay(token, OVERLAY_EVENTS.donation, alert);
+}

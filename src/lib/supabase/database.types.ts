@@ -290,6 +290,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      system_errors: {
+        Row: {
+          code: string;
+          context: Json | null;
+          created_at: string;
+          id: number;
+          message: string;
+          source: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          code: string;
+          context?: Json | null;
+          created_at?: string;
+          id?: never;
+          message: string;
+          source: string;
+        };
+        Update: {
+          code?: string;
+          context?: Json | null;
+          created_at?: string;
+          id?: never;
+          message?: string;
+          source?: string;
+        };
+        Relationships: [];
+      };
       webhook_settings: {
         Row: {
           discord_webhook_url: string | null;

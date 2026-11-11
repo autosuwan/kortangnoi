@@ -1,6 +1,16 @@
 "use client";
 
-import { Download, Loader2, Paperclip, TimerOff } from "lucide-react";
+import {
+  CircleCheck,
+  CircleX,
+  Download,
+  Hourglass,
+  ImageUp,
+  Loader2,
+  Paperclip,
+  Send,
+  TimerOff,
+} from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
@@ -8,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { formatSatangNumber } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import type { DonorDonationView } from "@/server/services/donation";
 
 import { DonateShell } from "../../donate-shell";
@@ -29,6 +40,7 @@ const formatCountdown = (ms: number) => {
 export function DonationStatus({ id }: { id: string }) {
   const token = useSearchParams().get("t") ?? "";
   const [view, setView] = useState<DonorDonationView | null>(null);
+  const [attaching, setAttaching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -75,10 +87,34 @@ export function DonationStatus({ id }: { id: string }) {
     );
   }
 
+  const attachingNow =
+    attaching || (view.status === "awaiting_slip" && view.attemptsLeft < 3);
+  const step =
+    view.status === "awaiting_slip" && !attachingNow
+      ? 2
+      : view.status === "expired" && !attaching
+        ? 2
+        : 3;
+
   return (
-    <DonateShell streamerName={view.streamer.displayName} step={2}>
-      {view.status === "awaiting_slip" ? (
-        <PayStep view={view} onExpired={load} />
+    <DonateShell streamerName={view.streamer.displayName} step={step}>
+      {(view.status === "awaiting_slip" || view.status === "expired") &&
+      attachingNow ? (
+        <SlipStep
+          id={id}
+          token={token}
+          view={view}
+          onBack={
+            view.status === "awaiting_slip" ? () => setAttaching(false) : null
+          }
+          onDone={load}
+        />
+      ) : view.status === "awaiting_slip" ? (
+        <PayStep
+          view={view}
+          onExpired={load}
+          onAttach={() => setAttaching(true)}
+        />
       ) : view.status === "expired" ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <TimerOff className="size-8 text-muted-foreground" aria-hidden />
@@ -92,22 +128,237 @@ export function DonationStatus({ id }: { id: string }) {
           >
             สร้างรายการใหม่
           </Link>
+          <Button variant="ghost" size="sm" onClick={() => setAttaching(true)}>
+            <Paperclip />
+            โอนไปแล้ว? แนบสลิป
+          </Button>
         </div>
+      ) : view.status === "verifying" ? (
+        <Checking />
       ) : (
-        <p role="status" className="py-6 text-center text-muted-foreground">
-          {view.resultMessage ?? "รายการนี้ดำเนินการแล้ว"}
-        </p>
+        <ResultCard view={view} />
       )}
     </DonateShell>
+  );
+}
+
+function Checking() {
+  return (
+    <div
+      role="status"
+      className="flex flex-col items-center gap-3 py-10 text-center"
+    >
+      <Loader2 className="size-8 animate-spin text-primary" aria-hidden />
+      <p>กำลังตรวจสอบสลิป...</p>
+    </div>
+  );
+}
+
+/** ผลสุดท้ายของรายการ: ผ่าน / รอสตรีมเมอร์ตรวจ / ไม่ผ่าน */
+function ResultCard({ view }: { view: DonorDonationView }) {
+  const ui = {
+    approved: {
+      icon: CircleCheck,
+      className: "text-green-600",
+      title: "สำเร็จ",
+    },
+    pending_review: {
+      icon: Hourglass,
+      className: "text-amber-600",
+      title: "รอสตรีมเมอร์ตรวจสอบ",
+    },
+    rejected: { icon: CircleX, className: "text-destructive", title: "ไม่ผ่าน" },
+  } as const;
+  const item =
+    view.status in ui ? ui[view.status as keyof typeof ui] : ui.pending_review;
+  const Icon = item.icon;
+  return (
+    <div
+      role="status"
+      data-testid="slip-result"
+      data-status={view.status}
+      className="flex flex-col items-center gap-3 py-6 text-center"
+    >
+      <Icon className={cn("size-10", item.className)} aria-hidden />
+      <p className="text-lg font-medium">{item.title}</p>
+      {view.resultMessage && (
+        <p className="text-sm text-muted-foreground">{view.resultMessage}</p>
+      )}
+      {view.status === "rejected" && (
+        <Link
+          href={`/${view.streamer.username}`}
+          className="mt-2 text-sm font-medium text-primary underline underline-offset-2"
+        >
+          สร้างรายการใหม่
+        </Link>
+      )}
+    </div>
+  );
+}
+
+const MAX_SIDE = 1600;
+const SEND_AS_IS_BYTES = 3.5 * 1024 * 1024;
+
+/** ย่อรูปก่อนส่ง (Vercel รับ body ≤ 4.5 MB) — รูปเล็กพอแล้วส่งไฟล์เดิม จะได้ QR คมที่สุด */
+async function prepareSlip(file: File): Promise<Blob> {
+  if (
+    file.size <= SEND_AS_IS_BYTES &&
+    /^image\/(jpeg|png|webp)$/.test(file.type)
+  ) {
+    return file;
+  }
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("encode failed"))),
+      "image/jpeg",
+      0.92,
+    ),
+  );
+}
+
+function SlipStep({
+  id,
+  token,
+  view,
+  onBack,
+  onDone,
+}: {
+  id: string;
+  token: string;
+  view: DonorDonationView;
+  onBack: (() => void) | null;
+  onDone: () => Promise<void>;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const retryMessage = view.attemptsLeft < 3 ? view.resultMessage : null;
+
+  function choose(next: File | undefined) {
+    if (!next) return;
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(next);
+    setPreview(URL.createObjectURL(next));
+    setError(null);
+  }
+
+  async function send() {
+    if (!file) return;
+    setSending(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", await prepareSlip(file), "slip");
+      const res = await fetch(
+        `/api/public/donations/${encodeURIComponent(id)}/slip?t=${encodeURIComponent(token)}`,
+        { method: "POST", body: form },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error?.message ?? "ส่งสลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
+        setSending(false);
+        return;
+      }
+      setFile(null);
+      setPreview(null);
+      await onDone();
+    } catch {
+      setError("ส่งสลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+    setSending(false);
+  }
+
+  if (sending) return <Checking />;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {retryMessage && (
+        <div
+          role="alert"
+          data-testid="slip-retry"
+          className="flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
+        >
+          <CircleX
+            className="mt-0.5 size-4 shrink-0 text-destructive"
+            aria-hidden
+          />
+          <div>
+            <p>{retryMessage}</p>
+            <p className="mt-0.5 text-muted-foreground">
+              แนบใหม่ได้อีก {view.attemptsLeft} ครั้ง
+            </p>
+          </div>
+        </div>
+      )}
+
+      <p className="text-sm text-muted-foreground">
+        แนบรูปสลิปที่เห็น QR มุมขวาล่างชัดๆ ระบบจะตรวจให้อัตโนมัติ
+      </p>
+
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        aria-label="เลือกรูปสลิป"
+        onChange={(e) => choose(e.target.files?.[0])}
+      />
+      {preview ? (
+        // eslint-disable-next-line @next/next/no-img-element -- พรีวิวไฟล์ในเครื่อง
+        <img
+          src={preview}
+          alt="พรีวิวสลิป"
+          className="mx-auto max-h-80 rounded-lg border object-contain"
+        />
+      ) : null}
+
+      <Button
+        variant={file ? "outline" : "default"}
+        size="lg"
+        className="h-11"
+        onClick={() => input.current?.click()}
+      >
+        <ImageUp />
+        {file ? "เลือกรูปใหม่" : "เลือกรูปสลิป"}
+      </Button>
+      {file && (
+        <Button size="lg" className="h-11" onClick={send}>
+          <Send />
+          ส่งตรวจ
+        </Button>
+      )}
+
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {onBack && (
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          กลับไปดู QR
+        </Button>
+      )}
+    </div>
   );
 }
 
 function PayStep({
   view,
   onExpired,
+  onAttach,
 }: {
   view: DonorDonationView;
   onExpired: () => void;
+  onAttach: () => void;
 }) {
   const [qrSrc, setQrSrc] = useState<string | null>(null);
   const now = useNow();
@@ -178,9 +429,9 @@ function PayStep({
           <Download />
           บันทึก QR
         </Button>
-        <Button disabled>
+        <Button size="lg" className="h-11" onClick={onAttach}>
           <Paperclip />
-          โอนแล้ว แนบสลิป · เร็วๆ นี้
+          โอนแล้ว แนบสลิป
         </Button>
       </div>
     </div>

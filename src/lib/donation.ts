@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { parseBahtToSatang } from "@/lib/money";
+import type { PromptpayType } from "@/lib/promptpay";
 
 export const DONOR_NAME_MAX = 30;
 export const MESSAGE_MAX = 150;
@@ -114,3 +115,14 @@ export function validateDonationInput(
     },
   };
 }
+
+/** ข้อมูลผู้รับ ณ ตอนสร้างรายการ (เก็บใน donations.receiver_snapshot) — F10 เช็กผู้รับกับข้อมูลนี้ */
+export type ReceiverSnapshot = {
+  promptpayType: PromptpayType;
+  promptpayId: string;
+  accountNameTh: string;
+  accountNameEn: string | null;
+  showAccountName: boolean;
+};
+
+export const MAX_SLIP_ATTEMPTS = 3;

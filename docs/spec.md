@@ -547,13 +547,15 @@ type OverlayAlert = {
 ### หน้าจอ (การ์ด "เสียงอ่านข้อความ" ใน `/dashboard/alert`)
 
 - สวิตช์เปิด/ปิด, โหมด "อ่านเฉพาะข้อความ" / "อ่านชื่อ ยอด และข้อความ", ยอดขั้นต่ำที่จะอ่าน (บาท), เลือกเสียง, ระดับเสียง
-- ปุ่ม "ฟังตัวอย่าง" สร้างเสียงจากค่าที่กำลังแก้ (ยังไม่ต้องบันทึก)
+- ปุ่ม "ฟังตัวอย่าง" สร้างเสียงจากค่าที่กำลังแก้ (ยังไม่ต้องบันทึก) — เสียง translate เล่นในเบราว์เซอร์เลย, เสียง Cloud ผ่าน server
 - บันทึกผ่านแถบ "ยังไม่บันทึก"
 
 ### Flow
 
 1. ตอนส่ง alert ไป overlay (ทดสอบ alert / โดเนทผ่านใน F8) → `buildTtsText` (ใน `src/lib/tts.ts`) ตัดสินว่าต้องอ่านไหมและอ่านว่าอะไร
-2. ต้องอ่าน → เรียก Google Cloud TTS ฝั่ง server → เก็บ MP3 ใน bucket `tts-audio` (private) → ใส่ signed URL อายุ 10 นาทีเป็น `ttsUrl` ใน payload ของ overlay
+2. **เสียง Google แปลภาษา (`translate`, ค่าเริ่มต้น, ฟรีไม่ต้องผูกบัตร):** ใส่ข้อความเป็น `ttsText` ใน payload → overlay หั่นเป็นท่อนละ ≤ 180 ตัว แล้วเล่น `https://translate.google.com/translate_tts?...&tl=th&q=<ท่อน>` ทีละท่อน **จากเครื่องสตรีมเมอร์โดยตรง** (ไม่ผ่าน server เรา, ส่ง `no-referrer`)
+   - ⚠️ ไม่ใช่ API ทางการ (ผิดเงื่อนไขการใช้งานของ Google) อาจถูกเปลี่ยน/บล็อกได้ทุกเมื่อ — ผู้ใช้รับทราบและเลือกเองเมื่อ 2026-11-12 เพราะไม่อยากผูกบัตร; ถ้าพังให้เปลี่ยนเป็นเสียง Cloud
+     **เสียง Google Cloud TTS (ต้องมี `GOOGLE_TTS_API_KEY`):** server สร้าง MP3 → เก็บใน bucket `tts-audio` (private) → ใส่ signed URL อายุ 10 นาทีเป็น `ttsUrl`
 3. overlay เล่นเสียงแจ้งเตือน → ~0.8 วิ → เล่นเสียงอ่าน; alert อยู่จนอ่านจบ (อย่างน้อย `durationSec` ไม่เกิน +30 วิ)
 
 ### API
@@ -566,7 +568,7 @@ type OverlayAlert = {
 
 ### Validation
 
-- `ttsVoice` ต้องอยู่ใน allowlist: `th-TH-Chirp3-HD-Kore` (ค่าเริ่มต้น), `th-TH-Chirp3-HD-Charon`, `th-TH-Neural2-C`, `th-TH-Standard-A`
+- `ttsVoice` ต้องอยู่ใน allowlist: `translate` (ค่าเริ่มต้น), `th-TH-Chirp3-HD-Kore`, `th-TH-Chirp3-HD-Charon`, `th-TH-Neural2-C`, `th-TH-Standard-A`
 - `ttsMinAmountSatang` 100–10,000,000 (ค่าเริ่มต้น 2,000), `ttsVolume` 0–100
 - ข้อความที่อ่าน: ตัด control characters, URL → "ลิงก์", อักษรซ้ำเกิน 5 ตัวย่อเหลือ 5, ยาวไม่เกิน 300 ตัว; ยอดอ่านเป็น "1234 บาท 50 สตางค์"
 - อ่านเฉพาะสิ่งที่ผู้บริจาคกรอก ห้ามมีชื่อจริง/ข้อมูลบัญชีจากสลิป

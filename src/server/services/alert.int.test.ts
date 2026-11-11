@@ -56,7 +56,7 @@ describe("alert settings service", () => {
       ttsEnabled: false,
       ttsMode: "message" as const,
       ttsMinAmountSatang: 2000,
-      ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+      ttsVoice: "translate" as const,
       ttsVolume: 100,
     });
     expect(saved).toEqual({
@@ -72,7 +72,7 @@ describe("alert settings service", () => {
       ttsEnabled: false,
       ttsMode: "message" as const,
       ttsMinAmountSatang: 2000,
-      ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+      ttsVoice: "translate" as const,
       ttsVolume: 100,
     });
   });
@@ -92,7 +92,7 @@ describe("alert settings service", () => {
         ttsEnabled: false,
         ttsMode: "message" as const,
         ttsMinAmountSatang: 2000,
-        ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+        ttsVoice: "translate" as const,
         ttsVolume: 100,
       }),
     ).rejects.toMatchObject({ status: 400, code: "ALERT_SETTINGS_INVALID" });
@@ -127,7 +127,7 @@ describe("alert settings service", () => {
       ttsEnabled: false,
       ttsMode: "message" as const,
       ttsMinAmountSatang: 2000,
-      ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+      ttsVoice: "translate" as const,
       ttsVolume: 100,
     });
     expect(reset).toEqual(DEFAULT_ALERT_SETTINGS);
@@ -154,7 +154,7 @@ describe("alert settings service", () => {
       ttsEnabled: false,
       ttsMode: "message" as const,
       ttsMinAmountSatang: 2000,
-      ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+      ttsVoice: "translate" as const,
       ttsVolume: 100,
     });
     expect(saved).toMatchObject({ mediaType: "gif", mediaUrl: gifUrl });
@@ -183,7 +183,7 @@ describe("alert settings service", () => {
         ttsEnabled: false,
         ttsMode: "message" as const,
         ttsMinAmountSatang: 2000,
-        ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+        ttsVoice: "translate" as const,
         ttsVolume: 100,
       }),
     ).rejects.toMatchObject({ status: 400, code: "MEDIA_URL_NOT_ALLOWED" });

@@ -46,8 +46,21 @@ async function testAlertFor(patch: Partial<AlertSettings>) {
 }
 
 describe("TTS ใน alert", () => {
-  it("เปิดอ่าน → alert มี ttsUrl ที่โหลดเสียงได้", async () => {
+  it("เสียง Google แปลภาษา (ค่าเริ่มต้น) → ส่งข้อความให้ overlay ไม่สร้างไฟล์", async () => {
     const { alert } = await testAlertFor({ ttsEnabled: true, ttsMode: "full" });
+    expect(alert.ttsText).toBe(
+      "ผู้ชมใจดี โดเนท 100 บาท ทดสอบ alert จาก KORTANGNOI",
+    );
+    expect(alert.ttsUrl).toBeNull();
+  });
+
+  it("เสียง Cloud → alert มี ttsUrl ที่โหลดเสียงได้", async () => {
+    const { alert } = await testAlertFor({
+      ttsEnabled: true,
+      ttsMode: "full",
+      ttsVoice: "th-TH-Chirp3-HD-Kore",
+    });
+    expect(alert.ttsText).toBeNull();
     expect(alert.ttsUrl).toMatch(/\/storage\/v1\/object\/sign\/tts-audio\//);
     const res = await fetch(alert.ttsUrl!);
     expect(res.status).toBe(200);
@@ -59,13 +72,15 @@ describe("TTS ใน alert", () => {
     ["ยอดต่ำกว่าขั้นต่ำที่อ่าน", { ttsEnabled: true, ttsMinAmountSatang: 20000 }],
   ])("ไม่อ่าน: %s", async (_, patch) => {
     const { alert } = await testAlertFor(patch);
+    expect(alert.ttsText).toBeNull();
     expect(alert.ttsUrl).toBeNull();
   });
 
-  it("TTS ล่ม → alert ยังส่งได้ แค่ไม่มีเสียงอ่าน", async () => {
+  it("Cloud TTS ล่ม → alert ยังส่งได้ แค่ไม่มีเสียงอ่าน", async () => {
     const { alert } = await testAlertFor({
       ttsEnabled: true,
       ttsMode: "full",
+      ttsVoice: "th-TH-Standard-A",
       supportText: "[tts-fail]",
     });
     expect(alert.donorName).toBe("ผู้ชมใจดี");
@@ -87,13 +102,16 @@ describe("ฟังตัวอย่าง", () => {
     ).rejects.toMatchObject({ status: 429, code: "RATE_LIMITED" });
   });
 
-  it("เสียงนอก allowlist → 400", async () => {
-    const user = await createTestUser("tts-voice");
-    await expect(
-      previewSpeech(user.id, { ttsVoice: "en-US-Standard-A" }),
-    ).rejects.toMatchObject({ status: 400, code: "TTS_VOICE_INVALID" });
-  });
-
+  it.each(["en-US-Standard-A", "translate"])(
+    "เสียง %s ไม่ผ่าน server preview → 400",
+    async (ttsVoice) => {
+      const user = await createTestUser("tts-voice");
+      await expect(previewSpeech(user.id, { ttsVoice })).rejects.toMatchObject({
+        status: 400,
+        code: "TTS_VOICE_INVALID",
+      });
+    },
+  );
   it("TTS ล่ม → 502 TTS_UNAVAILABLE", async () => {
     const user = await createTestUser("tts-down");
     await expect(

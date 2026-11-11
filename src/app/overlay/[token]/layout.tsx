@@ -11,6 +11,8 @@ export default function OverlayLayout({
 }: LayoutProps<"/overlay/[token]">) {
   return (
     <>
+      {/* เสียง Google แปลภาษา (F13) ไม่ส่ง referrer ของเว็บเรา */}
+      <meta name="referrer" content="no-referrer" />
       <style>{`html, body { background: transparent !important; overflow: hidden; }`}</style>
       {children}
     </>

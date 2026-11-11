@@ -26,7 +26,14 @@ import {
   SUPPORT_TEXT_MAX,
   type AlertSettings,
 } from "@/lib/alert-settings";
-import { TTS_MIN_AMOUNT, TTS_VOICES, type TtsVoice } from "@/lib/tts";
+import { playSpeech } from "@/lib/speech-player";
+import {
+  isCloudVoice,
+  previewTtsText,
+  TTS_MIN_AMOUNT,
+  TTS_VOICES,
+  type TtsVoice,
+} from "@/lib/tts";
 import { cn } from "@/lib/utils";
 
 import { UnsavedBar } from "../unsaved-bar";
@@ -598,6 +605,20 @@ function TtsCard({
   async function preview() {
     setPreviewing(true);
     onError(null);
+    // เสียง Google แปลภาษา: เล่นจากเบราว์เซอร์เลย ไม่ผ่าน server
+    if (!isCloudVoice(draft.ttsVoice)) {
+      try {
+        await playSpeech(
+          { text: previewTtsText(draft.ttsMode, draft.supportText) },
+          draft.ttsVolume / 100,
+        );
+      } catch {
+        onError("เล่นเสียงอ่านไม่ได้ตอนนี้ (Google แปลภาษาอาจปิดกั้นชั่วคราว)");
+      } finally {
+        setPreviewing(false);
+      }
+      return;
+    }
     try {
       const res = await fetch("/api/settings/alert/tts-preview", {
         method: "POST",

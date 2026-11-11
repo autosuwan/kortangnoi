@@ -3,7 +3,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { TtsVoice } from "@/lib/tts";
+import type { CloudTtsVoice } from "@/lib/tts";
 
 export type SpeechAudio = {
   bytes: Uint8Array;
@@ -27,7 +27,7 @@ const TIMEOUT_MS = 8000;
  */
 export async function synthesizeSpeech(
   text: string,
-  voice: TtsVoice,
+  voice: CloudTtsVoice,
 ): Promise<SpeechAudio> {
   if (process.env.TTS_PROVIDER === "fake") {
     if (text.includes("[tts-fail]"))

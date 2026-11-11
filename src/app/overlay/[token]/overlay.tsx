@@ -23,6 +23,7 @@ import {
   type OverlayConfig,
   type OverlaySettings,
 } from "@/lib/overlay";
+import { playSpeech } from "@/lib/speech-player";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -101,7 +102,8 @@ export function Overlay({ token }: { token: string }) {
 
     // alert อยู่จนครบเวลาที่ตั้ง และจนเสียงอ่าน (F13) จบ — แต่ไม่เกิน +30 วิ
     let timeUp = false;
-    let speechDone = !next.ttsUrl;
+    const hasSpeech = Boolean(next.ttsText || next.ttsUrl);
+    let speechDone = !hasSpeech;
     let finished = false;
     const finish = () => {
       if (finished) return;
@@ -122,20 +124,20 @@ export function Overlay({ token }: { token: string }) {
     }, duration);
     setTimeout(finish, duration + MAX_SPEECH_EXTRA_MS);
 
-    if (next.ttsUrl) {
-      const speech = new Audio(next.ttsUrl);
-      speech.volume = (s?.ttsVolume ?? 100) / 100;
-      const done = () => {
-        speechDone = true;
-        maybeFinish();
-      };
-      speech.addEventListener("ended", done);
-      speech.addEventListener("error", done);
+    if (hasSpeech) {
       setTimeout(() => {
-        speech.play().catch(() => {
-          setSoundBlocked(true);
-          done();
-        });
+        playSpeech(
+          { text: next.ttsText, url: next.ttsUrl },
+          (s?.ttsVolume ?? 100) / 100,
+        )
+          .catch((e) => {
+            // เสียงแปลภาษาถูกบล็อก/เน็ตหลุด → ข้ามไป alert ยังแสดงตามปกติ
+            console.error("speech failed", e);
+          })
+          .finally(() => {
+            speechDone = true;
+            maybeFinish();
+          });
       }, SPEECH_DELAY_MS);
     }
   }, []);

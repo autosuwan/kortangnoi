@@ -15,6 +15,8 @@ export const metadata: Metadata = { title: "ตั้งค่า alert · KORTA
 export default function AlertPage() {
   return (
     <>
+      {/* ปุ่มฟังเสียงอ่าน (Google แปลภาษา) ไม่ส่ง referrer ของเว็บเรา */}
+      <meta name="referrer" content="no-referrer" />
       <PageHeader title="ตั้งค่า alert" />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
         <h1 className="text-2xl font-medium">ตั้งค่า alert</h1>

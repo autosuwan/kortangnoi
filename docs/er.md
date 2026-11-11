@@ -49,7 +49,7 @@ erDiagram
     boolean tts_enabled "default false"
     text tts_mode "message | full"
     int tts_min_amount_satang "default 2000"
-    text tts_voice "allowlist, default th-TH-Chirp3-HD-Kore"
+    text tts_voice "allowlist, default translate"
     smallint tts_volume "0-100, default 100"
     timestamptz tts_preview_at "nullable, rate limit ฟังตัวอย่าง"
     timestamptz updated_at

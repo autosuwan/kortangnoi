@@ -116,10 +116,10 @@ export async function sendTestAlert(userId: string): Promise<{ ok: true }> {
     ...content,
     isTest: true,
     ...style,
-    ttsUrl: await prepareAlertSpeech(userId, settings, {
+    ...(await prepareAlertSpeech(userId, settings, {
       ...content,
       supportText: style.supportText,
-    }),
+    })),
   };
   await broadcastToOverlay(token, OVERLAY_EVENTS.donation, alert);
   return { ok: true };

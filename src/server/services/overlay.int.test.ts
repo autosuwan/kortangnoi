@@ -60,7 +60,7 @@ describe("overlay service", () => {
       ttsEnabled: false,
       ttsMode: "message" as const,
       ttsMinAmountSatang: 2000,
-      ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+      ttsVoice: "translate" as const,
       ttsVolume: 100,
     });
     const overlay = await subscribeAsOverlay(
@@ -130,7 +130,7 @@ describe("overlay service", () => {
       ttsEnabled: false,
       ttsMode: "message" as const,
       ttsMinAmountSatang: 2000,
-      ttsVoice: "th-TH-Chirp3-HD-Kore" as const,
+      ttsVoice: "translate" as const,
       ttsVolume: 100,
     });
     await expect.poll(() => overlay.received.length, { timeout: 5000 }).toBe(1);

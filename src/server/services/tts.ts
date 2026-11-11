@@ -7,6 +7,8 @@ import { AppError } from "@/lib/api-error";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildTtsText,
+  isCloudVoice,
+  previewTtsText,
   TTS_VOICE_IDS,
   type TtsMode,
   type TtsVoice,
@@ -34,9 +36,13 @@ async function cleanupOldAudio(userId: string) {
   if (old.length) await storage.remove(old);
 }
 
+export type AlertSpeech = { ttsText: string | null; ttsUrl: string | null };
+
 /**
- * สร้างเสียงอ่านของ alert แล้วคืน signed URL ให้ overlay — null ถ้าไม่ต้องอ่าน
- * TTS ล่ม/ไม่มี key → คืน null (alert ยังขึ้นได้ แค่ไม่มีเสียงอ่าน)
+ * เตรียมเสียงอ่านของ alert
+ * - เสียง translate (ค่าเริ่มต้น): ส่งแค่ข้อความ overlay ดึงเสียงจาก Google แปลภาษาเอง
+ * - เสียง Cloud: สร้างไฟล์ฝั่ง server แล้วส่ง signed URL
+ * ไม่ต้องอ่าน → null ทั้งคู่; Cloud TTS ล่ม/ไม่มี key → null (alert ยังขึ้นได้)
  */
 export async function prepareAlertSpeech(
   userId: string,
@@ -50,14 +56,16 @@ export async function prepareAlertSpeech(
     amountSatang: number;
     message: string | null;
   },
-): Promise<string | null> {
+): Promise<AlertSpeech> {
+  const none = { ttsText: null, ttsUrl: null };
   const text = buildTtsText({
     enabled: settings.ttsEnabled,
     mode: settings.ttsMode,
     minAmountSatang: settings.ttsMinAmountSatang,
     ...alert,
   });
-  if (!text) return null;
+  if (!text) return none;
+  if (!isCloudVoice(settings.ttsVoice)) return { ttsText: text, ttsUrl: null };
 
   try {
     const audio = await synthesizeSpeech(text, settings.ttsVoice);
@@ -70,17 +78,17 @@ export async function prepareAlertSpeech(
     const signed = await storage.createSignedUrl(path, SIGNED_URL_SECONDS);
     if (signed.error) throw signed.error;
     await cleanupOldAudio(userId).catch(() => {});
-    return signed.data.signedUrl;
+    return { ttsText: null, ttsUrl: signed.data.signedUrl };
   } catch (error) {
     console.error(
       "prepare alert speech failed",
       error instanceof Error ? error.message : error,
     );
-    return null;
+    return none;
   }
 }
 
-/** ฟังตัวอย่างในหน้าตั้งค่า (ค่าที่กำลังแก้) — จำกัด 1 ครั้ง/3 วินาที */
+/** ฟังตัวอย่างเสียง Cloud ในหน้าตั้งค่า (เสียง translate เล่นในเบราว์เซอร์เอง) — จำกัด 1 ครั้ง/3 วินาที */
 export async function previewSpeech(
   userId: string,
   input: unknown,
@@ -94,7 +102,8 @@ export async function previewSpeech(
   const voice = TTS_VOICE_IDS.includes(body?.ttsVoice as TtsVoice)
     ? (body!.ttsVoice as TtsVoice)
     : null;
-  if (!voice) throw new AppError(400, "TTS_VOICE_INVALID", "ไม่รู้จักเสียงนี้");
+  if (!voice || !isCloudVoice(voice))
+    throw new AppError(400, "TTS_VOICE_INVALID", "ไม่รู้จักเสียงนี้");
   const supportText =
     typeof body?.supportText === "string" && body.supportText.trim()
       ? body.supportText.slice(0, 40)
@@ -112,15 +121,7 @@ export async function previewSpeech(
     throw new AppError(429, "RATE_LIMITED", "รอสักครู่แล้วลองใหม่");
   }
 
-  const text = buildTtsText({
-    enabled: true,
-    mode,
-    minAmountSatang: 0,
-    donorName: "ผู้ชมใจดี",
-    supportText,
-    amountSatang: 10000,
-    message: "สู้ๆ นะครับ ไลฟ์สนุกมาก",
-  })!;
+  const text = previewTtsText(mode, supportText);
   try {
     return await synthesizeSpeech(text, voice);
   } catch (error) {

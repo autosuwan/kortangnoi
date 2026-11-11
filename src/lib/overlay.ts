@@ -13,7 +13,9 @@ export type OverlayAlert = {
   imageUrl: string;
   nameColor: string;
   supportText: string;
-  /** F13 signed URL ของเสียงอ่าน (อายุ 10 นาที) — null = ไม่อ่าน */
+  /** F13 เสียงอ่าน: ข้อความสำหรับเสียง Google แปลภาษา (overlay ดึงเสียงเอง) */
+  ttsText: string | null;
+  /** F13 เสียงอ่าน: signed URL ของไฟล์จาก Google Cloud TTS (อายุ 10 นาที) */
   ttsUrl: string | null;
 };
 

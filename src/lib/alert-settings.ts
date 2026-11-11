@@ -46,7 +46,7 @@ export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
   ttsEnabled: false,
   ttsMode: "message",
   ttsMinAmountSatang: 2000,
-  ttsVoice: "th-TH-Chirp3-HD-Kore",
+  ttsVoice: "translate",
   ttsVolume: 100,
 };
 

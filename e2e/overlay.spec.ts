@@ -156,3 +156,57 @@ test("TTS: ตั้งค่า → ฟังตัวอย่าง → ท�
   });
   await speechRequest;
 });
+
+test("TTS เสียง Google แปลภาษา: overlay ดึงเสียงจากเบราว์เซอร์โดยตรง", async ({
+  page,
+  context,
+}) => {
+  // จำลอง Google แปลภาษา — ไม่เรียกของจริงใน test
+  const wav = await import("node:fs").then((fs) =>
+    fs.readFileSync("public/sounds/alert.wav"),
+  );
+  const spoken: string[] = [];
+  await context.route(
+    "https://translate.google.com/translate_tts**",
+    (route) => {
+      spoken.push(new URL(route.request().url()).searchParams.get("q") ?? "");
+      return route.fulfill({ contentType: "audio/wav", body: wav });
+    },
+  );
+
+  const user = await loginAsStreamer(page, "tts-translate");
+  await page.goto("/dashboard/alert");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("switch", { name: "เปิดเสียงอ่านข้อความ" }).click();
+  await page.getByRole("radio", { name: "อ่านชื่อ ยอด และข้อความ" }).click();
+  await expect(page.getByLabel("เสียง", { exact: true })).toHaveValue(
+    "translate",
+  );
+
+  // ฟังตัวอย่าง: เล่นในเบราว์เซอร์ ไม่เรียก server
+  await page.getByRole("button", { name: "ฟังตัวอย่าง" }).click();
+  await expect.poll(() => spoken.length).toBeGreaterThan(0);
+  expect(spoken[0]).toContain("ผู้ชมใจดี");
+
+  const unsaved = page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" });
+  await unsaved.getByRole("button", { name: "บันทึก" }).click();
+  await expect(unsaved).toBeHidden();
+
+  const overlay = await context.newPage();
+  await overlay.goto(await overlayPathOf(user.id));
+  await expect(overlay.getByTestId("overlay")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
+  await overlay.waitForTimeout(1500);
+  spoken.length = 0;
+
+  await page.waitForTimeout(3100); // พ้น rate limit ของปุ่มทดสอบ
+  await page.getByRole("button", { name: "ทดสอบ alert ใน OBS" }).click();
+  await expect(overlay.getByTestId("alert-headline")).toBeVisible({
+    timeout: 5000,
+  });
+  await expect
+    .poll(() => spoken, { timeout: 5000 })
+    .toEqual(["ผู้ชมใจดี โดเนท 100 บาท ทดสอบ alert จาก KORTANGNOI"]);
+});

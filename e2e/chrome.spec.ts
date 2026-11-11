@@ -15,17 +15,27 @@ test("loading bar สีส้มขอบบน: ค้างเต็มตล
   expect(box.y).toBe(0);
   expect(box.width).toBe(page.viewportSize()!.width);
 
-  // หน่วงการโหลดหน้าถัดไปให้เห็นช่วงกำลังโหลด
-  await page.route("**/dashboard/payment**", async (route) => {
-    await new Promise((r) => setTimeout(r, 800));
-    await route.continue();
+  // จดทุกค่าของ data-loading ระหว่างเปลี่ยนหน้า (หน้าที่ prefetch แล้วอาจโหลดเสร็จเร็วมาก
+  // เช็กแค่จังหวะเดียวจะพลาดได้)
+  await page.evaluate(() => {
+    const el = document.querySelector('[data-testid="top-progress"]')!;
+    const seen: string[] = [];
+    (window as unknown as { __barStates: string[] }).__barStates = seen;
+    new MutationObserver(() =>
+      seen.push(el.getAttribute("data-loading")!),
+    ).observe(el, { attributes: true, attributeFilter: ["data-loading"] });
   });
-  await page.goto("/dashboard"); // ให้ route มีผลกับการนำทางฝั่ง client
-  await page.waitForLoadState("networkidle");
-  await page.getByRole("link", { name: "ช่องทางรับเงิน" }).click();
-  await expect(bar).toHaveAttribute("data-loading", "true");
+  await page
+    .getByRole("navigation", { name: "เมนูหลัก" })
+    .getByRole("link", { name: "ช่องทางรับเงิน" })
+    .click();
   await expect(page).toHaveURL(/\/dashboard\/payment$/);
   await expect(bar).toHaveAttribute("data-loading", "false");
+  const states = await page.evaluate(
+    () => (window as unknown as { __barStates: string[] }).__barStates,
+  );
+  expect(states).toContain("true");
+  expect(states.at(-1)).toBe("false");
 
   // พื้นหลังลายเหมือนหน้าแรกใน dashboard
   const bg = await page

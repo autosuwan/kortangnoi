@@ -1,0 +1,146 @@
+# KORTANGNOI — ER Diagram
+
+Database: Supabase Postgres · เงินเป็นสตางค์ (`int`) · เวลาเป็น `timestamptz`
+
+```mermaid
+erDiagram
+  auth_users ||--|| profiles : "1:1"
+  profiles ||--|| payment_settings : has
+  profiles ||--|| alert_settings : has
+  profiles ||--|| webhook_settings : has
+  profiles ||--o{ donations : receives
+
+  profiles {
+    uuid id PK "FK auth.users.id"
+    citext username UK "3-20 ตัว"
+    text display_name
+    text discord_id UK "nullable"
+    text overlay_token UK "สุ่ม 32 bytes"
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  payment_settings {
+    uuid user_id PK "FK profiles.id"
+    boolean enabled "default false"
+    promptpay_type promptpay_type "phone | national_id"
+    text promptpay_id "ตัวเลขล้วน"
+    text account_name_th
+    text account_name_en "nullable, ตัวพิมพ์ใหญ่"
+    boolean show_account_name "default true"
+    int min_amount_satang "default 2000"
+    timestamptz updated_at
+  }
+
+  alert_settings {
+    uuid user_id PK "FK profiles.id"
+    alert_media_type media_type "default | gif | upload"
+    text media_url "nullable"
+    text media_storage_path "nullable, เฉพาะ upload"
+    smallint duration_sec "3-20, default 8"
+    boolean sound_enabled "default true"
+    smallint volume "0-100, default 80"
+    timestamptz updated_at
+  }
+
+  webhook_settings {
+    uuid user_id PK "FK profiles.id"
+    boolean enabled "default false"
+    text discord_webhook_url "nullable"
+    timestamptz updated_at
+  }
+
+  donations {
+    uuid id PK
+    uuid streamer_id FK "profiles.id"
+    text donor_name "1-30 ตัว"
+    text message "nullable, ≤150 ตัว"
+    int amount_satang
+    donation_status status
+    text access_token_hash "sha256"
+    jsonb receiver_snapshot "ข้อมูลผู้รับ ณ ตอนสร้าง"
+    text qr_payload
+    timestamptz expires_at "created_at + 30 นาที"
+    smallint slip_attempts "default 0, ≤3"
+    text slip_storage_path "nullable"
+    text slip_qr_hash "nullable"
+    text trans_ref "nullable"
+    timestamptz trans_at "nullable, เวลาโอนในสลิป"
+    jsonb verify_result "nullable, มีชื่อจริงผู้โอน"
+    text result_message "ข้อความที่แสดงผู้บริจาค"
+    approval_method approved_via "nullable: auto | manual"
+    text review_note "nullable"
+    timestamptz reviewed_at "nullable"
+    timestamptz alert_acked_at "nullable"
+    text webhook_error "nullable"
+    text ip_hash
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  system_errors {
+    bigint id PK
+    text source "slipok | klipy | discord | ..."
+    text code
+    text message
+    jsonb context
+    timestamptz created_at
+  }
+```
+
+## Enum
+
+| Enum | ค่า |
+|---|---|
+| `donation_status` | `awaiting_slip`, `verifying`, `approved`, `pending_review`, `rejected`, `expired` |
+| `promptpay_type` | `phone`, `national_id` |
+| `alert_media_type` | `default`, `gif`, `upload` |
+| `approval_method` | `auto`, `manual` |
+
+## Constraint สำคัญ
+
+- `profiles.username`: `citext` + unique + `CHECK (username ~ '^[a-z0-9_-]{3,20}$')` — unique index ตัดสินกรณีจองพร้อมกัน
+- `donations.amount_satang`: `CHECK (amount_satang > 0 AND amount_satang <= 10000000)`
+- `donations.slip_attempts`: `CHECK (slip_attempts BETWEEN 0 AND 3)`
+- `payment_settings.min_amount_satang`: `CHECK (BETWEEN 100 AND 1000000)`
+- `alert_settings`: `CHECK (duration_sec BETWEEN 3 AND 20)`, `CHECK (volume BETWEEN 0 AND 100)`
+- **กันสลิปซ้ำ** — partial unique index นับเฉพาะรายการที่ "ใช้สลิปไปแล้ว":
+  ```sql
+  CREATE UNIQUE INDEX donations_trans_ref_used
+    ON donations (trans_ref) WHERE status IN ('approved', 'pending_review');
+  CREATE UNIQUE INDEX donations_slip_qr_hash_used
+    ON donations (slip_qr_hash) WHERE status IN ('approved', 'pending_review');
+  ```
+  เหตุผล: ถ้าคนร้ายเอาสลิปของคนอื่นมาส่งในหน้าสตรีมเมอร์ผิดคนแล้วถูก `rejected` สลิปนั้นต้องยังใช้กับเจ้าของจริงได้
+- แถว `payment_settings`, `alert_settings`, `webhook_settings` สร้างพร้อม `profiles` (ค่าเริ่มต้น) ด้วย trigger ตอนสร้าง profile
+
+## Index
+
+| Index | ใช้กับ |
+|---|---|
+| `donations (streamer_id, status, created_at DESC)` | ประวัติ + ตัวกรองสถานะ (F5), นับรอตรวจ |
+| `donations (streamer_id, created_at) WHERE status = 'approved'` | ยอดรวมวันนี้/เดือนนี้ |
+| `donations (streamer_id, created_at) WHERE status = 'approved' AND alert_acked_at IS NULL` | overlay ดึงรายการที่พลาด (F4) |
+| `donations (ip_hash, created_at)` | rate limit สร้างรายการ (F8) |
+| `system_errors (created_at DESC)` | หน้าแอดมิน (F12) |
+
+## Row Level Security
+
+เปิด RLS ทุกตาราง ค่าเริ่มต้นคือปฏิเสธทั้งหมด
+
+| ตาราง | anon | เจ้าของ (authenticated) | server (service role) |
+|---|---|---|---|
+| `profiles` | – | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด |
+| `*_settings` | – | select / update แถวตัวเอง | ทั้งหมด |
+| `donations` | – | select แถวที่ `streamer_id = auth.uid()` | ทั้งหมด |
+| `system_errors` | – | – | ทั้งหมด |
+
+- หน้าโดเนท, overlay และการตรวจสลิปไม่ให้ client อ่าน DB ตรง ทุกอย่างผ่าน API ของเราที่ใช้ service role
+- `select` ของเจ้าของบน `donations` ทำให้ dashboard ใช้ Realtime `postgres_changes` แจ้งรายการรอตรวจใหม่ได้
+
+## Storage
+
+| Bucket | Public | Path | สิทธิ์ |
+|---|---|---|---|
+| `alert-media` | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}` | เขียน/ลบได้เฉพาะโฟลเดอร์ตัวเอง, ≤ 5 MB |
+| `slips` | private | `{streamer_id}/{donation_id}/{attempt}.{ext}` | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที |

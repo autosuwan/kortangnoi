@@ -152,13 +152,14 @@
   isolation: isolate;
   background-color: var(--background);
   background-image:
+    /* แสงส้ม-ชมพูจางๆ รวมอยู่มุมขวาล่าง */
     radial-gradient(
-      60rem 40rem at 0% 0%,
-      color-mix(in oklab, var(--primary) 7%, transparent),
+      60rem 40rem at 100% 100%,
+      color-mix(in oklab, var(--primary) 8%, transparent),
       transparent 70%
     ),
     radial-gradient(
-      50rem 40rem at 100% 100%,
+      40rem 30rem at 70% 100%,
       color-mix(in oklab, var(--pattern-to) 5%, transparent),
       transparent 70%
     );

@@ -10,6 +10,7 @@
   --font-sans:
     var(--font-noto-sans), var(--font-noto-sans-thai), ui-sans-serif, system-ui,
     sans-serif;
+  --font-mono: var(--font-noto-sans-mono), ui-monospace, monospace;
   --font-heading:
     var(--font-noto-sans), var(--font-noto-sans-thai), ui-sans-serif, system-ui,
     sans-serif;
@@ -56,7 +57,7 @@
 
 /* KORTANGNOI tokens — ดู docs/design-brief.md */
 :root {
-  --background: #f7f5f2;
+  --background: #fcfbf9;
   --foreground: #1c1917;
   --card: #ffffff;
   --card-foreground: #1c1917;
@@ -82,7 +83,7 @@
   --chart-3: #fdba74;
   --chart-4: #78716c;
   --chart-5: #a8a29e;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #1c1917;
   --sidebar-primary: #f97316;

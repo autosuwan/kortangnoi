@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans, Noto_Sans_Thai } from "next/font/google";
+import { Noto_Sans, Noto_Sans_Mono, Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
 const notoSans = Noto_Sans({
@@ -12,6 +12,11 @@ const notoSansThai = Noto_Sans_Thai({
   subsets: ["thai"],
 });
 
+const notoSansMono = Noto_Sans_Mono({
+  variable: "--font-noto-sans-mono",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "KORTANGNOI",
   description: "รับโดเนทผ่านพร้อมเพย์ ไม่มีค่าธรรมเนียม ขึ้นจอ OBS อัตโนมัติ",
@@ -21,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="th"
-      className={`${notoSans.variable} ${notoSansThai.variable} h-full antialiased`}
+      className={`${notoSans.variable} ${notoSansThai.variable} ${notoSansMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>

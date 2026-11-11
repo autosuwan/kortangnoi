@@ -177,20 +177,22 @@ type PaymentSettings = {
 ### หน้าจอ `/dashboard/alert`
 
 - พรีวิว alert ขนาดจริงด้านขวา (อัปเดตทันทีเมื่อเปลี่ยนค่า)
-- **รูป/GIF:** แท็บ "ค้นหา GIF" (ช่องค้นหา + grid ผลลัพธ์ + โลโก้ผู้ให้บริการ) และแท็บ "อัปโหลด"; ปุ่ม "ใช้ค่าเริ่มต้น"
+- **รูป/GIF:** แท็บ "ค้นหา GIF" (ช่องค้นหา + grid ผลลัพธ์ + โลโก้ผู้ให้บริการ) และแท็บ "อัปโหลด"; ปุ่ม "ใช้ค่าเริ่มต้น" (รูปแมวกวัก)
+- อัปโหลดรูป / ใช้ค่าเริ่มต้น **บันทึกทันที** และลบไฟล์เก่า; ระยะเวลาและเสียงผ่านแถบ "ยังไม่บันทึก" แบบ F2
+- ปุ่ม "เล่นพรีวิว" เล่น animation เข้า/ออกบนพรีวิวตาม `durationSec`
 - **ระยะเวลาแสดง:** slider 3–20 วินาที (ค่าเริ่มต้น 8)
-- **เสียง:** เปิด/ปิด + ระดับเสียง 0–100 (ใช้เสียงเริ่มต้น 1 เสียง)
+- **เสียง:** เปิด/ปิด + ระดับเสียง 0–100 + ปุ่มฟังเสียง (ใช้เสียงเริ่มต้น 1 เสียง `public/sounds/alert.wav`)
 - ปุ่ม **"ทดสอบ alert"** ส่ง alert ตัวอย่างไป overlay จริง
 
 ### API
 
-| Method | Path                        | Request                          | Response                                                        |
-| ------ | --------------------------- | -------------------------------- | --------------------------------------------------------------- |
-| GET    | `/api/settings/alert`       | –                                | `AlertSettings`                                                 |
-| PUT    | `/api/settings/alert`       | `AlertSettings` (ยกเว้นการอัปโหลด) | `AlertSettings`                                                 |
-| POST   | `/api/settings/alert/media` | multipart `file`                 | `{ mediaUrl }`                                                  |
-| GET    | `/api/gifs/search?q=&page=` | –                                | `{ items: { id, previewUrl, url, width, height }[], nextPage }` |
-| POST   | `/api/alerts/test`          | –                                | `{ ok: true }`                                                  |
+| Method | Path                        | Request                                                        | Response                                                        |
+| ------ | --------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- |
+| GET    | `/api/settings/alert`       | –                                                              | `AlertSettings`                                                 |
+| PUT    | `/api/settings/alert`       | `{ mediaType?: "default", durationSec, soundEnabled, volume }` | `AlertSettings` (`mediaType: "default"` = กลับไปใช้รูปเริ่มต้น)       |
+| POST   | `/api/settings/alert/media` | multipart `file`                                               | `{ mediaUrl }`                                                  |
+| GET    | `/api/gifs/search?q=&page=` | –                                                              | `{ items: { id, previewUrl, url, width, height }[], nextPage }` |
+| POST   | `/api/alerts/test`          | –                                                              | `{ ok: true }`                                                  |
 
 ```ts
 type AlertSettings = {
@@ -204,7 +206,7 @@ type AlertSettings = {
 
 ### Validation
 
-- อัปโหลด: png / jpg / gif / webp, ไม่เกิน 5 MB, เช็กชนิดจาก magic bytes ไม่ใช่แค่นามสกุล → เก็บใน Supabase Storage bucket `alert-media` (public) ที่ `{userId}/{uuid}.{ext}`
+- อัปโหลด: png / jpg / gif / webp, ไม่เกิน **4 MB** (Vercel จำกัด body 4.5 MB), เช็กชนิดจาก magic bytes ไม่ใช่แค่นามสกุล → เก็บใน Supabase Storage bucket `alert-media` (public) ที่ `{userId}/{uuid}.{ext}` เขียนผ่าน server เท่านั้น
 - GIF ที่เลือก: `mediaUrl` ต้องเป็นโดเมนของผู้ให้บริการ GIF ที่อนุญาต (allowlist) เท่านั้น
 - ค้นหา GIF: `q` 1–50 ตัว, ต้องล็อกอิน, จำกัด 30 ครั้ง/นาที/ผู้ใช้, เรียก KLIPY จาก server เท่านั้น (key อยู่ใน env)
 - ทดสอบ alert: จำกัด 1 ครั้ง/3 วินาที

@@ -104,7 +104,7 @@ erDiagram
 - `donations.slip_attempts`: `CHECK (slip_attempts BETWEEN 0 AND 3)`
 - `payment_settings.min_amount_satang`: `CHECK (BETWEEN 100 AND 1000000)`
 - `payment_settings`: `promptpay_id` ยาว 0 / 10 / 13 หลัก, ชื่อยาว ≤ 100, `enabled` ⇒ `promptpay_id` และ `account_name_th` ไม่ว่าง (สำรอง validation ใน API)
-- `alert_settings`: `CHECK (duration_sec BETWEEN 3 AND 20)`, `CHECK (volume BETWEEN 0 AND 100)`
+- `alert_settings`: `CHECK (duration_sec BETWEEN 3 AND 20)`, `CHECK (volume BETWEEN 0 AND 100)`, `media_type = 'upload'` ⇒ มี `media_url` และ `media_storage_path`
 - **กันสลิปซ้ำ** — partial unique index นับเฉพาะรายการที่ "ใช้สลิปไปแล้ว":
   ```sql
   CREATE UNIQUE INDEX donations_trans_ref_used
@@ -129,13 +129,14 @@ erDiagram
 
 เปิด RLS ทุกตาราง ค่าเริ่มต้นคือปฏิเสธทั้งหมด
 
-| ตาราง                                | anon | เจ้าของ (authenticated)                               | server (secret key) |
-| ------------------------------------ | ---- | ---------------------------------------------------- | ------------------- |
-| `profiles`                           | –    | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด               |
-| `payment_settings`                   | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)                    | ทั้งหมด               |
-| `alert_settings`, `webhook_settings` | –    | select / update แถวตัวเอง                             | ทั้งหมด               |
-| `donations`                          | –    | select แถวที่ `streamer_id = auth.uid()`               | ทั้งหมด               |
-| `system_errors`                      | –    | –                                                    | ทั้งหมด               |
+| ตาราง              | anon | เจ้าของ (authenticated)                               | server (secret key) |
+| ------------------ | ---- | ---------------------------------------------------- | ------------------- |
+| `profiles`         | –    | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด               |
+| `payment_settings` | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)                    | ทั้งหมด               |
+| `alert_settings`   | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)                    | ทั้งหมด               |
+| `webhook_settings` | –    | select / update แถวตัวเอง                             | ทั้งหมด               |
+| `donations`        | –    | select แถวที่ `streamer_id = auth.uid()`               | ทั้งหมด               |
+| `system_errors`    | –    | –                                                    | ทั้งหมด               |
 
 - หน้าโดเนท, overlay และการตรวจสลิปไม่ให้ client อ่าน DB ตรง ทุกอย่างผ่าน API ของเราที่ใช้ service role
 - `select` ของเจ้าของบน `donations` ทำให้ dashboard ใช้ Realtime `postgres_changes` แจ้งรายการรอตรวจใหม่ได้
@@ -144,5 +145,5 @@ erDiagram
 
 | Bucket        | Public       | Path                                          | สิทธิ์                                        |
 | ------------- | ------------ | --------------------------------------------- | ------------------------------------------ |
-| `alert-media` | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`                      | เขียน/ลบได้เฉพาะโฟลเดอร์ตัวเอง, ≤ 5 MB         |
+| `alert-media` | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`                      | server เท่านั้น (ผ่าน API), ≤ 4 MB             |
 | `slips`       | private      | `{streamer_id}/{donation_id}/{attempt}.{ext}` | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที |

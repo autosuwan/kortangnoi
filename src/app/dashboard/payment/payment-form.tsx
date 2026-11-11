@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Minus, Plus, QrCode } from "lucide-react";
+import { Minus, Plus, QrCode } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -16,6 +16,7 @@ import {
 import type { PromptpayType } from "@/lib/promptpay";
 import { cn } from "@/lib/utils";
 
+import { UnsavedBar } from "../unsaved-bar";
 import { QrPreviewDialog } from "./qr-preview-dialog";
 
 type Field = keyof PaymentSettings;
@@ -267,29 +268,14 @@ export function PaymentForm({ initial }: { initial: PaymentSettings }) {
       />
 
       {dirty && (
-        <div
-          role="region"
-          aria-label="การแก้ไขที่ยังไม่บันทึก"
-          className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-[calc(100%-2rem)] max-w-xl items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3"
-        >
-          <span className="text-sm">ยังไม่บันทึก</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              disabled={saving}
-              onClick={() => {
-                setDraft(saved);
-                setError(null);
-              }}
-            >
-              ยกเลิก
-            </Button>
-            <Button disabled={saving} onClick={save}>
-              {saving && <Loader2 className="animate-spin" />}
-              บันทึก
-            </Button>
-          </div>
-        </div>
+        <UnsavedBar
+          saving={saving}
+          onCancel={() => {
+            setDraft(saved);
+            setError(null);
+          }}
+          onSave={save}
+        />
       )}
     </div>
   );

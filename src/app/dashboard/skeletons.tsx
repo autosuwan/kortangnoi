@@ -64,3 +64,47 @@ export function PaymentFormSkeleton() {
     </div>
   );
 }
+
+/** โครงตอนโหลดของหน้าตั้งค่า alert (การ์ดตั้งค่าซ้าย + พรีวิวขวา) */
+export function AlertFormSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="กำลังโหลด"
+      className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start"
+    >
+      <div className="flex flex-col gap-4">
+        <section className="rounded-2xl border bg-card p-6">
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="mt-2 h-4 w-72 max-w-full" />
+          <Skeleton className="mt-4 h-9 w-56 rounded-lg" />
+          <Skeleton className="mt-4 h-8 w-32 rounded-lg" />
+        </section>
+        <section className="rounded-2xl border bg-card p-6">
+          <div className="flex justify-between">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+          <Skeleton className="mt-6 h-1 w-full" />
+        </section>
+        <section className="rounded-2xl border bg-card p-6">
+          <div className="flex justify-between">
+            <div>
+              <Skeleton className="h-5 w-12" />
+              <Skeleton className="mt-2 h-4 w-44" />
+            </div>
+            <Skeleton className="h-[18px] w-8 rounded-full" />
+          </div>
+          <Skeleton className="mt-6 h-7 w-full rounded-lg" />
+        </section>
+      </div>
+      <section className="rounded-2xl border bg-card p-4">
+        <div className="flex justify-between px-2 pb-3">
+          <Skeleton className="h-5 w-14" />
+          <Skeleton className="h-7 w-24 rounded-lg" />
+        </div>
+        <Skeleton className="h-[420px] w-full rounded-xl" />
+      </section>
+    </div>
+  );
+}

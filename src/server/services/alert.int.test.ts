@@ -94,6 +94,41 @@ describe("alert settings service", () => {
     expect(await fileExists(secondPath)).toBe(false);
   });
 
+  it("เลือก GIF จาก KLIPY ลบไฟล์อัปโหลดเก่า และเก็บ URL ตามเดิม", async () => {
+    const user = await createTestUser("alert-gif");
+    await uploadAlertMedia(user.id, pngFile());
+    const uploaded = (await storagePath(user.id))!;
+
+    const gifUrl = "https://static.klipy.com/ii/abc/14/af/um0L4dFH.gif";
+    const saved = await updateAlertSettings(user.id, {
+      mediaType: "gif",
+      mediaUrl: gifUrl,
+      durationSec: 8,
+      soundEnabled: true,
+      volume: 80,
+    });
+    expect(saved).toMatchObject({ mediaType: "gif", mediaUrl: gifUrl });
+    expect(await storagePath(user.id)).toBeNull();
+    expect(await fileExists(uploaded)).toBe(false);
+  });
+
+  it.each([
+    "https://evil.example/x.gif",
+    "http://static.klipy.com/x.gif",
+    "https://static.klipy.com.evil.example/x.gif",
+  ])("GIF นอก allowlist ถูกปฏิเสธ: %s", async (mediaUrl) => {
+    const user = await createTestUser("alert-gif-bad");
+    await expect(
+      updateAlertSettings(user.id, {
+        mediaType: "gif",
+        mediaUrl,
+        durationSec: 8,
+        soundEnabled: true,
+        volume: 80,
+      }),
+    ).rejects.toMatchObject({ status: 400, code: "MEDIA_URL_NOT_ALLOWED" });
+  });
+
   it("ไฟล์ที่ไม่ใช่รูปถูกปฏิเสธ", async () => {
     const user = await createTestUser("alert-fake");
     const fake = new File(["<svg onload=alert(1)>"], "x.png", {

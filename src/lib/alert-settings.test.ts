@@ -15,6 +15,13 @@ describe("alertSettingsUpdateSchema", () => {
       alertSettingsUpdateSchema.safeParse({ ...valid, mediaType: "default" })
         .success,
     ).toBe(true);
+    expect(
+      alertSettingsUpdateSchema.safeParse({
+        ...valid,
+        mediaType: "gif",
+        mediaUrl: "https://static.klipy.com/ii/a.gif",
+      }).success,
+    ).toBe(true);
   });
 
   it.each([

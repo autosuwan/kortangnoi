@@ -16,7 +16,7 @@ Next.js (App Router) + TypeScript + Supabase + Tailwind/shadcn/ui + lucide-react
 
 - `src/app/` — หน้าเว็บ + route handler ใต้ `src/app/api/`
 - `src/server/services/` — business logic ทั้งหมด (route handler และ Discord bot ในอนาคตเรียกจากที่นี่)
-- `src/server/integrations/` — SlipOK, KLIPY, Discord webhook
+- `src/server/integrations/` — SlipOK, Discord webhook (KLIPY เรียกจากเบราว์เซอร์ใน `src/lib/klipy.ts` ตามข้อกำหนด KLIPY)
 - `src/lib/` — โค้ดที่ใช้ร่วมกัน client/server (format เงิน, schema Zod)
 - `supabase/migrations/` — SQL migration
 

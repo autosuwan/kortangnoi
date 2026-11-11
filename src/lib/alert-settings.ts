@@ -23,13 +23,26 @@ export const ALERT_SOUND = "/sounds/alert.wav";
 export const ALERT_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
 export const DURATION_RANGE = { min: 3, max: 20 } as const;
 
-/** body ของ PUT — รูปที่อัปโหลดเปลี่ยนผ่าน POST /media เท่านั้น ส่วน PUT ทำได้แค่กลับไปใช้ค่าเริ่มต้น */
-export const alertSettingsUpdateSchema = z.object({
-  mediaType: z.literal("default").optional(),
-  durationSec: z.number().int().min(DURATION_RANGE.min).max(DURATION_RANGE.max),
-  soundEnabled: z.boolean(),
-  volume: z.number().int().min(0).max(100),
-});
+/**
+ * body ของ PUT — รูปที่อัปโหลดเปลี่ยนผ่าน POST /media เท่านั้น
+ * ส่วน PUT เปลี่ยนเป็นค่าเริ่มต้น หรือ GIF จาก KLIPY (โดเมนตาม allowlist) ได้
+ */
+export const alertSettingsUpdateSchema = z
+  .object({
+    mediaType: z.enum(["default", "gif"]).optional(),
+    mediaUrl: z.string().max(2000).optional(),
+    durationSec: z
+      .number()
+      .int()
+      .min(DURATION_RANGE.min)
+      .max(DURATION_RANGE.max),
+    soundEnabled: z.boolean(),
+    volume: z.number().int().min(0).max(100),
+  })
+  // เลือก GIF ต้องส่ง URL มาด้วย (โดเมนเช็กต่อใน service → MEDIA_URL_NOT_ALLOWED)
+  .refine((v) => v.mediaType !== "gif" || Boolean(v.mediaUrl), {
+    path: ["mediaUrl"],
+  });
 
 export type AlertSettingsUpdate = z.infer<typeof alertSettingsUpdateSchema>;
 

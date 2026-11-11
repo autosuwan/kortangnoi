@@ -27,4 +27,8 @@ export const publicEnv = {
   get passwordLoginEnabled() {
     return process.env.NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN === "true";
   },
+  /** app key ของ KLIPY — KLIPY กำหนดให้เรียกจากเบราว์เซอร์ จึงเป็น public ได้ (ไม่มีก็ปิดค้นหา GIF) */
+  get klipyAppKey() {
+    return process.env.NEXT_PUBLIC_KLIPY_APP_KEY ?? "";
+  },
 };

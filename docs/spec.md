@@ -177,8 +177,8 @@ type PaymentSettings = {
 ### หน้าจอ `/dashboard/alert`
 
 - พรีวิว alert ขนาดจริงด้านขวา (อัปเดตทันทีเมื่อเปลี่ยนค่า)
-- **รูป/GIF:** แท็บ "ค้นหา GIF" (ช่องค้นหา + grid ผลลัพธ์ + โลโก้ผู้ให้บริการ) และแท็บ "อัปโหลด"; ปุ่ม "ใช้ค่าเริ่มต้น" (รูปแมวกวัก)
-- อัปโหลดรูป / ใช้ค่าเริ่มต้น **บันทึกทันที** และลบไฟล์เก่า; ระยะเวลาและเสียงผ่านแถบ "ยังไม่บันทึก" แบบ F2
+- **รูป/GIF:** แท็บ "ค้นหา GIF" (ช่องค้นหา placeholder **"Search KLIPY"** + grid ผลลัพธ์เรียงตามที่ KLIPY ส่งมา + ข้อความ **"Powered by KLIPY"**; ช่องว่างแสดง trending) และแท็บ "อัปโหลด"; ปุ่ม "ใช้ค่าเริ่มต้น" (รูปแมวกวัก)
+- เลือก GIF / อัปโหลดรูป / ใช้ค่าเริ่มต้น **บันทึกทันที** และลบไฟล์อัปโหลดเก่า; ระยะเวลาและเสียงผ่านแถบ "ยังไม่บันทึก" แบบ F2
 - ปุ่ม "เล่นพรีวิว" เล่น animation เข้า/ออกบนพรีวิวตาม `durationSec`
 - **ระยะเวลาแสดง:** slider 3–20 วินาที (ค่าเริ่มต้น 8)
 - **เสียง:** เปิด/ปิด + ระดับเสียง 0–100 + ปุ่มฟังเสียง (ใช้เสียงเริ่มต้น 1 เสียง `public/sounds/alert.wav`)
@@ -186,13 +186,12 @@ type PaymentSettings = {
 
 ### API
 
-| Method | Path                        | Request                                                        | Response                                                        |
-| ------ | --------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- |
-| GET    | `/api/settings/alert`       | –                                                              | `AlertSettings`                                                 |
-| PUT    | `/api/settings/alert`       | `{ mediaType?: "default", durationSec, soundEnabled, volume }` | `AlertSettings` (`mediaType: "default"` = กลับไปใช้รูปเริ่มต้น)       |
-| POST   | `/api/settings/alert/media` | multipart `file`                                               | `{ mediaUrl }`                                                  |
-| GET    | `/api/gifs/search?q=&page=` | –                                                              | `{ items: { id, previewUrl, url, width, height }[], nextPage }` |
-| POST   | `/api/alerts/test`          | –                                                              | `{ ok: true }`                                                  |
+| Method | Path                        | Request                                                                            | Response                                                                                |
+| ------ | --------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/api/settings/alert`       | –                                                                                  | `AlertSettings`                                                                         |
+| PUT    | `/api/settings/alert`       | `{ mediaType?: "default" \| "gif", mediaUrl?, durationSec, soundEnabled, volume }` | `AlertSettings` (`"default"` = กลับไปใช้รูปเริ่มต้น, `"gif"` + `mediaUrl` = ใช้ GIF จาก KLIPY) |
+| POST   | `/api/settings/alert/media` | multipart `file`                                                                   | `{ mediaUrl }`                                                                          |
+| POST   | `/api/alerts/test`          | –                                                                                  | `{ ok: true }`                                                                          |
 
 ```ts
 type AlertSettings = {
@@ -207,17 +206,18 @@ type AlertSettings = {
 ### Validation
 
 - อัปโหลด: png / jpg / gif / webp, ไม่เกิน **4 MB** (Vercel จำกัด body 4.5 MB), เช็กชนิดจาก magic bytes ไม่ใช่แค่นามสกุล → เก็บใน Supabase Storage bucket `alert-media` (public) ที่ `{userId}/{uuid}.{ext}` เขียนผ่าน server เท่านั้น
-- GIF ที่เลือก: `mediaUrl` ต้องเป็นโดเมนของผู้ให้บริการ GIF ที่อนุญาต (allowlist) เท่านั้น
-- ค้นหา GIF: `q` 1–50 ตัว, ต้องล็อกอิน, จำกัด 30 ครั้ง/นาที/ผู้ใช้, เรียก KLIPY จาก server เท่านั้น (key อยู่ใน env)
+- GIF ที่เลือก: `mediaUrl` ต้องเป็น `https://` บนโดเมน `static.klipy.com`, `static1.klipy.com`, `static2.klipy.com` เท่านั้น เก็บ URL ตามที่ KLIPY ส่งมา (ห้ามแก้/ดาวน์โหลดไปเก็บเอง)
+- ค้นหา GIF: **เรียก KLIPY จากเบราว์เซอร์โดยตรง** ตาม Integration Requirements ของ KLIPY (ห้าม proxy ผ่าน server เว้นแต่ได้อนุมัติ) — app key เป็น `NEXT_PUBLIC_KLIPY_APP_KEY` ซึ่งเปิดเผยได้ตามที่ KLIPY ออกแบบ; `q` ≤ 50 ตัว, debounce 400ms, ส่ง `customer_id` = SHA-256 ของ user id (ไม่ส่ง id ตรง), `content_filter=medium`, `locale=th`
+- ใช้ไฟล์ขนาด `md` (`gif` → `webp`) เป็นรูป alert, ขนาด `sm` เป็นภาพย่อใน grid
 - ทดสอบ alert: จำกัด 1 ครั้ง/3 วินาที
 
 ### Error case
 
-| กรณี                      | ผล                                                                         |
-| ------------------------ | -------------------------------------------------------------------------- |
-| ไฟล์ใหญ่/ชนิดไม่รองรับ        | 400 `MEDIA_INVALID`                                                        |
-| KLIPY ล่ม/โควตาหมด        | 502 `GIF_SEARCH_UNAVAILABLE` → UI แสดง "ค้นหา GIF ไม่ได้ตอนนี้ ลองอัปโหลดเองแทน" |
-| ส่ง URL ที่ไม่อยู่ใน allowlist | 400 `MEDIA_URL_NOT_ALLOWED`                                                |
+| กรณี                            | ผล                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| ไฟล์ใหญ่/ชนิดไม่รองรับ              | 400 `MEDIA_INVALID`                                                             |
+| KLIPY ล่ม/โควตาหมด / ไม่ได้ตั้ง key | UI แสดง "ค้นหา GIF ไม่ได้ตอนนี้ ลองอัปโหลดเองแทน" (key โหมด Testing จำกัด 100 ครั้ง/ชม.) |
+| ส่ง URL ที่ไม่อยู่ใน allowlist       | 400 `MEDIA_URL_NOT_ALLOWED`                                                     |
 
 ### พังได้ยังไง
 
@@ -555,15 +555,15 @@ type OverlayAlert = {
 
 ## Environment variables
 
-| ชื่อ                                     | ใช้ที่             | หมายเหตุ                                           |
-| -------------------------------------- | --------------- | ------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | client + server |                                                   |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | client + server |                                                   |
-| `SUPABASE_SECRET_KEY`                  | server เท่านั้น    | ใช้ใน service ที่ต้องข้าม RLS (เช่น ตรวจสลิป, broadcast) |
-| `SLIPOK_API_KEY`                       | server เท่านั้น    |                                                   |
-| `SLIPOK_BRANCH_ID`                     | server เท่านั้น    |                                                   |
-| `KLIPY_API_KEY`                        | server เท่านั้น    |                                                   |
-| `ADMIN_USER_IDS`                       | server เท่านั้น    |                                                   |
-| `IP_HASH_SALT`                         | server เท่านั้น    | สำหรับ hash IP ใน rate limit                       |
-| `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN`    | client + server | `true` เฉพาะ dev/test                             |
-| `NEXT_PUBLIC_SITE_URL`                 | client + server | สร้างลิงก์โดเนท/overlay                              |
+| ชื่อ                                     | ใช้ที่             | หมายเหตุ                                                          |
+| -------------------------------------- | --------------- | ---------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | client + server |                                                                  |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | client + server |                                                                  |
+| `SUPABASE_SECRET_KEY`                  | server เท่านั้น    | ใช้ใน service ที่ต้องข้าม RLS (เช่น ตรวจสลิป, broadcast)                |
+| `SLIPOK_API_KEY`                       | server เท่านั้น    |                                                                  |
+| `SLIPOK_BRANCH_ID`                     | server เท่านั้น    |                                                                  |
+| `NEXT_PUBLIC_KLIPY_APP_KEY`            | client          | KLIPY กำหนดให้เรียกจากเบราว์เซอร์ จึงเปิดเผยได้; ถ้าโดนใช้ผิดให้ออก key ใหม่ |
+| `ADMIN_USER_IDS`                       | server เท่านั้น    |                                                                  |
+| `IP_HASH_SALT`                         | server เท่านั้น    | สำหรับ hash IP ใน rate limit                                      |
+| `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN`    | client + server | `true` เฉพาะ dev/test                                            |
+| `NEXT_PUBLIC_SITE_URL`                 | client + server | สร้างลิงก์โดเนท/overlay                                             |

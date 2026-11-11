@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { UnsavedBar } from "../unsaved-bar";
+import { GifPicker } from "./gif-picker";
 
 type Editable = Pick<AlertSettings, "durationSec" | "soundEnabled" | "volume">;
 type Media = Pick<AlertSettings, "mediaType" | "mediaUrl">;
@@ -50,12 +51,23 @@ async function readError(res: Response, fallback: string) {
 const sliderValue = (v: number | readonly number[]) =>
   Array.isArray(v) ? v[0] : (v as number);
 
-export function AlertForm({ initial }: { initial: AlertSettings }) {
+export function AlertForm({
+  initial,
+  userId,
+}: {
+  initial: AlertSettings;
+  userId: string;
+}) {
   const [media, setMedia] = useState<Media>(initial);
   const [saved, setSaved] = useState<Editable>(pick(initial));
   const [draft, setDraft] = useState<Editable>(pick(initial));
   const [saving, setSaving] = useState(false);
-  const [mediaBusy, setMediaBusy] = useState<"upload" | "reset" | null>(null);
+  const [mediaBusy, setMediaBusy] = useState<"upload" | "reset" | "gif" | null>(
+    null,
+  );
+  const [tab, setTab] = useState<"upload" | "gif">(
+    initial.mediaType === "gif" ? "gif" : "upload",
+  );
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -116,15 +128,18 @@ export function AlertForm({ initial }: { initial: AlertSettings }) {
     }
   }
 
-  async function resetMedia() {
-    setMediaBusy("reset");
+  /** เปลี่ยนรูปเป็นค่าเริ่มต้นหรือ GIF — บันทึกทันที */
+  async function changeMedia(
+    change: { mediaType: "default" } | { mediaType: "gif"; mediaUrl: string },
+  ) {
+    setMediaBusy(change.mediaType === "default" ? "reset" : "gif");
     setError(null);
     try {
-      // ส่งค่าที่บันทึกแล้ว — การกลับไปใช้รูปเริ่มต้นไม่ควรบันทึกค่าที่ยังแก้ค้างอยู่ไปด้วย
+      // ส่งค่าที่บันทึกแล้ว — การเปลี่ยนรูปไม่ควรบันทึกค่าที่ยังแก้ค้างอยู่ไปด้วย
       const res = await fetch("/api/settings/alert", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...saved, mediaType: "default" }),
+        body: JSON.stringify({ ...saved, ...change }),
       });
       if (!res.ok) {
         setError(await readError(res, "เปลี่ยนรูปไม่สำเร็จ"));
@@ -153,18 +168,48 @@ export function AlertForm({ initial }: { initial: AlertSettings }) {
             แสดงด้านบนของ alert · PNG, JPG, GIF หรือ WebP ไม่เกิน 4 MB
           </p>
 
-          <div className="mt-4 inline-flex rounded-lg border p-0.5 text-sm">
-            <span className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground">
-              อัปโหลด
-            </span>
-            <span
-              aria-disabled
-              className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground opacity-60"
-            >
-              <Search className="size-3.5" aria-hidden />
-              ค้นหา GIF · เร็วๆ นี้
-            </span>
+          <div
+            role="tablist"
+            aria-label="แหล่งรูป"
+            className="mt-4 inline-flex rounded-lg border p-0.5 text-sm"
+          >
+            {(
+              [
+                ["upload", "อัปโหลด", ImageUp],
+                ["gif", "ค้นหา GIF", Search],
+              ] as const
+            ).map(([value, label, Icon]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                onClick={() => setTab(value)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
+                  tab === value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="size-3.5" aria-hidden />
+                {label}
+              </button>
+            ))}
           </div>
+
+          {tab === "gif" && (
+            <div className="mt-4">
+              <GifPicker
+                userId={userId}
+                selectedUrl={media.mediaType === "gif" ? media.mediaUrl : null}
+                disabled={mediaBusy !== null}
+                onSelect={(gif) =>
+                  changeMedia({ mediaType: "gif", mediaUrl: gif.url })
+                }
+              />
+            </div>
+          )}
 
           <div className="mt-4 flex flex-wrap gap-2">
             <input
@@ -178,23 +223,25 @@ export function AlertForm({ initial }: { initial: AlertSettings }) {
                 if (file) upload(file);
               }}
             />
-            <Button
-              variant="outline"
-              disabled={mediaBusy !== null}
-              onClick={() => fileInput.current?.click()}
-            >
-              {mediaBusy === "upload" ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <ImageUp />
-              )}
-              {mediaBusy === "upload" ? "กำลังอัปโหลด..." : "อัปโหลดรูป"}
-            </Button>
+            {tab === "upload" && (
+              <Button
+                variant="outline"
+                disabled={mediaBusy !== null}
+                onClick={() => fileInput.current?.click()}
+              >
+                {mediaBusy === "upload" ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <ImageUp />
+                )}
+                {mediaBusy === "upload" ? "กำลังอัปโหลด..." : "อัปโหลดรูป"}
+              </Button>
+            )}
             {media.mediaType !== "default" && (
               <Button
                 variant="ghost"
                 disabled={mediaBusy !== null}
-                onClick={resetMedia}
+                onClick={() => changeMedia({ mediaType: "default" })}
               >
                 {mediaBusy === "reset" ? (
                   <Loader2 className="animate-spin" />

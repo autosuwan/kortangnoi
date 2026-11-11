@@ -9,6 +9,7 @@ import {
 } from "@/lib/alert-settings";
 import { AppError } from "@/lib/api-error";
 import { detectImageType } from "@/lib/image-type";
+import { isKlipyMediaUrl } from "@/lib/klipy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -70,9 +71,13 @@ export async function updateAlertSettings(
   if (!parsed.success) {
     throw new AppError(400, "ALERT_SETTINGS_INVALID", "ค่าที่ตั้งไม่ถูกต้อง");
   }
-  const { mediaType, durationSec, soundEnabled, volume } = parsed.data;
-  const resetMedia = mediaType === "default";
-  const before = resetMedia ? await getRow(userId) : null;
+  const { mediaType, mediaUrl, durationSec, soundEnabled, volume } =
+    parsed.data;
+  if (mediaType === "gif" && !isKlipyMediaUrl(mediaUrl ?? "")) {
+    throw new AppError(400, "MEDIA_URL_NOT_ALLOWED", "ใช้ได้เฉพาะ GIF จาก KLIPY");
+  }
+  const changeMedia = mediaType !== undefined;
+  const before = changeMedia ? await getRow(userId) : null;
 
   const { data, error } = await createAdminClient()
     .from("alert_settings")
@@ -80,9 +85,15 @@ export async function updateAlertSettings(
       duration_sec: durationSec,
       sound_enabled: soundEnabled,
       volume,
-      ...(resetMedia && {
+      ...(mediaType === "default" && {
         media_type: "default" as const,
         media_url: null,
+        media_storage_path: null,
+      }),
+      // เก็บ URL ตามที่ KLIPY ส่งมา ไม่ดาวน์โหลดมาเก็บเอง (ข้อกำหนด KLIPY)
+      ...(mediaType === "gif" && {
+        media_type: "gif" as const,
+        media_url: mediaUrl,
         media_storage_path: null,
       }),
     })

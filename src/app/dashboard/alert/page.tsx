@@ -34,5 +34,7 @@ async function LoadedForm() {
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
 
-  return <AlertForm initial={await getAlertSettings(user.id)} />;
+  return (
+    <AlertForm initial={await getAlertSettings(user.id)} userId={user.id} />
+  );
 }

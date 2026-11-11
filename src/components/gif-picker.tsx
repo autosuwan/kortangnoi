@@ -22,12 +22,13 @@ const UNAVAILABLE = "ค้นหา GIF ไม่ได้ตอนนี้ �
  * แสดงผลตามลำดับที่ KLIPY ส่งมา ห้ามเรียง/กรองเอง
  */
 export function GifPicker({
-  userId,
+  customerKey,
   selectedUrl,
   disabled,
   onSelect,
 }: {
-  userId: string;
+  /** ค่าคงที่ต่อผู้ใช้ (user id ของสตรีมเมอร์ หรือ id สุ่มของผู้บริจาค) — ส่งไป KLIPY เป็น hash */
+  customerKey: string;
   selectedUrl: string | null;
   disabled: boolean;
   onSelect: (gif: GifItem) => void;
@@ -41,7 +42,7 @@ export function GifPicker({
   const customerId = useRef<Promise<string> | null>(null);
 
   async function load(q: string, page: number, signal?: AbortSignal) {
-    customerId.current ??= klipyCustomerId(userId);
+    customerId.current ??= klipyCustomerId(customerKey);
     setLoading(true);
     setError(null);
     try {

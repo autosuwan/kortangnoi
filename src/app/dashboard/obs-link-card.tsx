@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Copy, Loader2, MonitorPlay, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -92,9 +93,12 @@ export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
         <li>วางลิงก์ในช่อง URL ตั้งความกว้าง 800 สูง 600</li>
         <li>
           ไปที่หน้า{" "}
-          <a href="/dashboard/alert" className="underline underline-offset-2">
+          <Link
+            href="/dashboard/alert"
+            className="underline underline-offset-2"
+          >
             ตั้งค่า alert
-          </a>{" "}
+          </Link>{" "}
           แล้วกด &ldquo;ทดสอบ alert ใน OBS&rdquo;
         </li>
       </ol>

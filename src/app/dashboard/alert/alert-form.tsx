@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AlertCard } from "@/components/alert-card";
 import { ColorWheel } from "@/components/color-wheel";
+import { GifPicker } from "@/components/gif-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import { UnsavedBar } from "../unsaved-bar";
-import { GifPicker } from "./gif-picker";
 
 type Editable = Pick<
   AlertSettings,
@@ -252,7 +252,7 @@ export function AlertForm({
           {tab === "gif" && (
             <div className="mt-4">
               <GifPicker
-                userId={userId}
+                customerKey={userId}
                 selectedUrl={media.mediaType === "gif" ? media.mediaUrl : null}
                 disabled={mediaBusy !== null}
                 onSelect={(gif) =>

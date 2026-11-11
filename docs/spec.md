@@ -399,13 +399,16 @@ type OverlayAlert = {
 
 ### API
 
-| Method | Path                               | Request                                       | Response                                                                   |
-| ------ | ---------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------- |
-| GET    | `/api/public/{username}`           | –                                             | `{ displayName, minAmountSatang, enabled, accountName: string \| null }`   |
-| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message, alertStyle? }` | `{ donationId, accessToken, amountSatang, qrPayload, qrImage, expiresAt }` |
-| GET    | `/api/public/donations/{id}?t=`    | –                                             | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage }`         |
+| Method | Path                               | Request                                       | Response                                                                                                                        |
+| ------ | ---------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/public/{username}`           | –                                             | `{ displayName, username, minAmountSatang, enabled, accountName: string \| null, alertOptions }`                                |
+| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message, alertStyle? }` | `{ donationId, accessToken, amountSatang, qrPayload, expiresAt }`                                                               |
+| GET    | `/api/public/donations/{id}?t=`    | –                                             | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage, qrPayload, accountName, streamer: { displayName, username } }` |
 
 - `alertStyle?: { mediaUrl?, nameColor?, supportText? }` — server เก็บเฉพาะส่วนที่สตรีมเมอร์เปิดให้เลือก **ณ ตอนสร้าง** ส่วนที่ไม่ได้เปิดหรือไม่ผ่าน validation ทิ้งไป (ใช้ `resolveAlertStyle` ใน `src/lib/alert-settings.ts`); `mediaUrl` ต้องเป็น KLIPY ตามกฎเดียวกับ F3, `supportText` 1–40 ตัว, `nameColor` `#RRGGBB`
+- QR วาดฝั่ง client จาก `qrPayload` (ไลบรารี `qrcode`) ปุ่ม "บันทึก QR" ดาวน์โหลด PNG จาก canvas — API ไม่ส่งรูป
+- `alertOptions = { canPickImage, canPickColor, canPickSupportText, defaults: { imageUrl, nameColor, supportText } }` ใช้แสดงส่วน "ปรับแต่ง alert" + พรีวิว; GIF ของผู้บริจาคใช้ `customer_id` สุ่มเก็บใน `localStorage` (ผู้บริจาคไม่ได้ล็อกอิน)
+- ขั้น 3 (แนบสลิป) ทำใน F9 — ระหว่างนี้ปุ่ม "โอนแล้ว แนบสลิป" แสดงเป็น "เร็วๆ นี้"
 - `amount` รับเป็น string ทศนิยม เช่น `"50.00"` → แปลงเป็นสตางค์ฝั่ง server (ไม่ใช้ float)
 - `accessToken` สุ่มตอนสร้าง ผู้บริจาคต้องใช้ในการดู/แนบสลิปรายการนี้ (เก็บใน URL ของหน้า `/{username}/d/{id}?t=...` เพื่อกลับมาหน้าเดิมได้หลังสลับไปแอปธนาคาร)
 - QR สร้างจาก `src/lib/promptpay.ts` (เขียนเองตาม EMVCo ผลตรงกับ `promptpay-qr`) ด้วย promptpayId + ยอด **ณ ตอนสร้าง** และ snapshot ข้อมูลผู้รับลงในแถว donation
@@ -415,7 +418,7 @@ type OverlayAlert = {
 - `donorName`: 1–30 ตัว หลัง trim, ตัด control characters
 - `message`: 0–150 ตัว, ตัด control characters, แสดงเป็น text เท่านั้น
 - `amount`: ทศนิยม ≤ 2 ตำแหน่ง, ≥ ขั้นต่ำ, ≤ 100,000 บาท
-- rate limit: สร้างได้ 10 รายการ / 10 นาที / IP (เก็บ hash ของ IP ไม่เก็บ IP ตรง)
+- rate limit: สร้างได้ 10 รายการ / 10 นาที / IP / สตรีมเมอร์ (เน็ตเดียวกันโดเนทให้หลายคนได้) เก็บ HMAC ของ IP ด้วย `IP_HASH_SALT` (ไม่ตั้งใช้ `SUPABASE_SECRET_KEY`) ไม่เก็บ IP ตรง
 
 ### Error case
 

@@ -132,13 +132,13 @@ erDiagram
 
 ## Index
 
-| Index                                                                                      | ใช้กับ                               |
-| ------------------------------------------------------------------------------------------ | ---------------------------------- |
-| `donations (streamer_id, status, created_at DESC)`                                         | ประวัติ + ตัวกรองสถานะ (F5), นับรอตรวจ |
-| `donations (streamer_id, created_at) WHERE status = 'approved'`                            | ยอดรวมวันนี้/เดือนนี้                    |
-| `donations (streamer_id, created_at) WHERE status = 'approved' AND alert_acked_at IS NULL` | overlay ดึงรายการที่พลาด (F4)         |
-| `donations (ip_hash, created_at)`                                                          | rate limit สร้างรายการ (F8)         |
-| `system_errors (created_at DESC)`                                                          | หน้าแอดมิน (F12)                     |
+| Index                                                                                      | ใช้กับ                                        |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| `donations (streamer_id, status, created_at DESC)`                                         | ประวัติ + ตัวกรองสถานะ (F5), นับรอตรวจ          |
+| `donations (streamer_id, created_at) WHERE status = 'approved'`                            | ยอดรวมวันนี้/เดือนนี้                             |
+| `donations (streamer_id, created_at) WHERE status = 'approved' AND alert_acked_at IS NULL` | overlay ดึงรายการที่พลาด (F4)                  |
+| `donations (ip_hash, created_at)`                                                          | rate limit สร้างรายการ (F8) ต่อ IP + สตรีมเมอร์ |
+| `system_errors (created_at DESC)`                                                          | หน้าแอดมิน (F12)                              |
 
 ## Row Level Security
 

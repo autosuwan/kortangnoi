@@ -112,6 +112,108 @@ export type Database = {
           },
         ];
       };
+      donations: {
+        Row: {
+          access_token_hash: string;
+          alert_acked_at: string | null;
+          amount_satang: number;
+          approved_via: Database["public"]["Enums"]["approval_method"] | null;
+          created_at: string;
+          donor_media_url: string | null;
+          donor_name: string;
+          donor_name_color: string | null;
+          donor_support_text: string | null;
+          expires_at: string;
+          id: string;
+          ip_hash: string;
+          message: string | null;
+          qr_payload: string;
+          receiver_snapshot: NonNullable<Json>;
+          result_message: string | null;
+          review_note: string | null;
+          reviewed_at: string | null;
+          slip_attempts: number;
+          slip_qr_hash: string | null;
+          slip_storage_path: string | null;
+          status: Database["public"]["Enums"]["donation_status"];
+          streamer_id: string;
+          trans_at: string | null;
+          trans_ref: string | null;
+          updated_at: string;
+          verify_result: Json | null;
+          webhook_error: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          access_token_hash: string;
+          alert_acked_at?: string | null;
+          amount_satang: number;
+          approved_via?: Database["public"]["Enums"]["approval_method"] | null;
+          created_at?: string;
+          donor_media_url?: string | null;
+          donor_name: string;
+          donor_name_color?: string | null;
+          donor_support_text?: string | null;
+          expires_at: string;
+          id?: string;
+          ip_hash: string;
+          message?: string | null;
+          qr_payload: string;
+          receiver_snapshot: NonNullable<Json>;
+          result_message?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          slip_attempts?: number;
+          slip_qr_hash?: string | null;
+          slip_storage_path?: string | null;
+          status?: Database["public"]["Enums"]["donation_status"];
+          streamer_id: string;
+          trans_at?: string | null;
+          trans_ref?: string | null;
+          updated_at?: string;
+          verify_result?: Json | null;
+          webhook_error?: string | null;
+        };
+        Update: {
+          access_token_hash?: string;
+          alert_acked_at?: string | null;
+          amount_satang?: number;
+          approved_via?: Database["public"]["Enums"]["approval_method"] | null;
+          created_at?: string;
+          donor_media_url?: string | null;
+          donor_name?: string;
+          donor_name_color?: string | null;
+          donor_support_text?: string | null;
+          expires_at?: string;
+          id?: string;
+          ip_hash?: string;
+          message?: string | null;
+          qr_payload?: string;
+          receiver_snapshot?: NonNullable<Json>;
+          result_message?: string | null;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          slip_attempts?: number;
+          slip_qr_hash?: string | null;
+          slip_storage_path?: string | null;
+          status?: Database["public"]["Enums"]["donation_status"];
+          streamer_id?: string;
+          trans_at?: string | null;
+          trans_ref?: string | null;
+          updated_at?: string;
+          verify_result?: Json | null;
+          webhook_error?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "donations_streamer_id_fkey";
+            columns: ["streamer_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       payment_settings: {
         Row: {
           account_name_en: string | null;
@@ -227,6 +329,14 @@ export type Database = {
     };
     Enums: {
       alert_media_type: "default" | "gif" | "upload";
+      approval_method: "auto" | "manual";
+      donation_status:
+        | "awaiting_slip"
+        | "verifying"
+        | "approved"
+        | "pending_review"
+        | "rejected"
+        | "expired";
       promptpay_type: "phone" | "national_id";
     };
     CompositeTypes: {
@@ -359,6 +469,15 @@ export const Constants = {
   public: {
     Enums: {
       alert_media_type: ["default", "gif", "upload"],
+      approval_method: ["auto", "manual"],
+      donation_status: [
+        "awaiting_slip",
+        "verifying",
+        "approved",
+        "pending_review",
+        "rejected",
+        "expired",
+      ],
       promptpay_type: ["phone", "national_id"],
     },
   },

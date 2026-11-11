@@ -12,7 +12,8 @@ import { getMe } from "@/server/services/profile";
 
 import { PageHeader } from "./page-header";
 import { ObsLinkCard } from "./obs-link-card";
-import { ObsLinkSkeleton, WelcomeSkeleton } from "./skeletons";
+import { ObsLinkSkeleton, SummarySkeleton, WelcomeSkeleton } from "./skeletons";
+import { DashboardSummary } from "./summary";
 
 export const metadata: Metadata = { title: "หน้าหลัก · KORTANGNOI" };
 
@@ -22,6 +23,9 @@ export default function DashboardPage() {
       <PageHeader title="หน้าหลัก" />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
         <div className="flex flex-col gap-4">
+          <Suspense fallback={<SummarySkeleton />}>
+            <DashboardSummary />
+          </Suspense>
           <Suspense fallback={<WelcomeSkeleton />}>
             <Welcome />
           </Suspense>

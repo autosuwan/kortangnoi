@@ -1,5 +1,7 @@
 import { LogOut } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { Toaster } from "sonner";
 
 import { LogoMark } from "@/components/logo";
 import {
@@ -7,7 +9,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getCurrentUser } from "@/server/auth";
 
+import { DonationWatcher } from "./donation-watcher";
 import { SidebarNav } from "./sidebar-nav";
 
 /** โครง dashboard แบบ Studio: sidebar ไอคอนแคบ + พื้นที่เนื้อหา */
@@ -43,6 +47,15 @@ export default function DashboardLayout({
         </form>
       </aside>
       <div className="app-bg flex min-w-0 flex-1 flex-col">{children}</div>
+      <Suspense fallback={null}>
+        <Watcher />
+      </Suspense>
+      <Toaster position="bottom-right" richColors closeButton />
     </div>
   );
+}
+
+async function Watcher() {
+  const user = await getCurrentUser();
+  return user ? <DonationWatcher userId={user.id} /> : null;
 }

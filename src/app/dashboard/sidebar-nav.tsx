@@ -9,12 +9,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  PENDING_COUNT_EVENT,
+  type PendingCountDetail,
+} from "@/lib/dashboard-events";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -22,6 +27,8 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   soon?: boolean;
+  /** แสดงจำนวนรายการรอตรวจ (realtime จาก DonationWatcher) */
+  badge?: boolean;
 };
 
 // เมนูที่ยังไม่ทำแสดงไว้แบบ "เร็วๆ นี้" — เปิดใช้ตอนทำ feature นั้น
@@ -31,7 +38,7 @@ const items: NavItem[] = [
     href: "/dashboard/donations",
     label: "ประวัติโดเนท",
     icon: ReceiptText,
-    soon: true,
+    badge: true,
   },
   {
     href: "/dashboard/payment",
@@ -42,14 +49,22 @@ const items: NavItem[] = [
 ];
 
 const itemClass =
-  "flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors";
+  "relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors";
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const [pending, setPending] = useState(0);
+
+  useEffect(() => {
+    const onCount = (e: Event) =>
+      setPending((e as CustomEvent<PendingCountDetail>).detail.count);
+    window.addEventListener(PENDING_COUNT_EVENT, onCount);
+    return () => window.removeEventListener(PENDING_COUNT_EVENT, onCount);
+  }, []);
 
   return (
     <nav aria-label="เมนูหลัก" className="flex flex-col gap-1">
-      {items.map(({ href, label, icon: Icon, soon }) => {
+      {items.map(({ href, label, icon: Icon, soon, badge }) => {
         const active = pathname === href;
         return (
           <Tooltip key={href}>
@@ -75,6 +90,15 @@ export function SidebarNav() {
             >
               <Icon className="size-4" aria-hidden />
               <span className="sr-only">{label}</span>
+              {badge && pending > 0 && (
+                <span
+                  data-testid="pending-badge"
+                  className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] leading-none text-primary-foreground"
+                >
+                  {pending > 99 ? "99+" : pending}
+                  <span className="sr-only"> รายการรอตรวจ</span>
+                </span>
+              )}
             </TooltipTrigger>
             <TooltipContent side="right">
               {soon ? `${label} · เร็วๆ นี้` : label}

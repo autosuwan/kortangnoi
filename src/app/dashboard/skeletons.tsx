@@ -123,3 +123,23 @@ export function ObsLinkSkeleton() {
     </section>
   );
 }
+
+export function SummarySkeleton() {
+  return (
+    <div role="status" aria-label="กำลังโหลด" className="grid gap-4">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <section key={i} className="rounded-2xl border bg-card p-5">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="mt-2 h-8 w-32" />
+          </section>
+        ))}
+      </div>
+      <section className="rounded-2xl border bg-card p-5">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="mt-4 h-10 w-full" />
+        <Skeleton className="mt-2 h-10 w-full" />
+      </section>
+    </div>
+  );
+}

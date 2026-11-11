@@ -187,3 +187,45 @@ test("KLIPY ล่ม แสดงข้อความให้อัปโห�
     page.getByText("ค้นหา GIF ไม่ได้ตอนนี้ ลองอัปโหลดเองแทน"),
   ).toBeVisible();
 });
+
+test("ตั้งคำสนับสนุน + สีชื่อ → พรีวิวเปลี่ยน → บันทึก → reload", async ({ page }) => {
+  await loginAsStreamer(page, "alert-text");
+  await openAlertPage(page);
+
+  const headline = page.getByTestId("alert-headline");
+  const name = page.getByTestId("alert-name");
+  await expect(headline).toHaveText("ผู้ชมใจดี โดเนท 100 บาท");
+
+  await page.getByLabel("คำสนับสนุน").fill("ให้ค่าข้าว");
+  await expect(headline).toHaveText("ผู้ชมใจดี ให้ค่าข้าว 100 บาท");
+
+  await page.getByRole("button", { name: "สี #38BDF8" }).click();
+  await expect(name).toHaveCSS("color", "rgb(56, 189, 248)");
+
+  await page.getByLabel("รหัสสี").fill("#a855f7");
+  await expect(name).toHaveCSS("color", "rgb(168, 85, 247)");
+
+  // คลิกบนวงล้อ: ตรงกลางขวา = hue 90° (เขียวอมเหลือง) อิ่มสุด
+  const wheel = page.getByTestId("color-wheel");
+  const box = (await wheel.boundingBox())!;
+  await wheel.click({ position: { x: box.width - 2, y: box.height / 2 } });
+  await expect(page.getByLabel("รหัสสี")).toHaveValue(/^#[0-9A-F]{6}$/);
+  await expect(page.getByLabel("รหัสสี")).not.toHaveValue("#A855F7");
+  await page.getByLabel("รหัสสี").fill("#a855f7");
+
+  // alert ไม่มีพื้นหลังสีขาว
+  await expect(page.getByTestId("alert")).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
+
+  const unsaved = page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" });
+  await unsaved.getByRole("button", { name: "บันทึก" }).click();
+  await expect(unsaved).toBeHidden();
+
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(headline).toHaveText("ผู้ชมใจดี ให้ค่าข้าว 100 บาท");
+  await expect(name).toHaveCSS("color", "rgb(168, 85, 247)");
+  await expect(page.getByLabel("รหัสสี")).toHaveValue("#A855F7");
+});

@@ -8,6 +8,10 @@ export type AlertSettings = {
   durationSec: number;
   soundEnabled: boolean;
   volume: number;
+  /** คำสนับสนุน เช่น "ให้ค่าข้าว" — แสดงเป็น "<ชื่อ> <คำสนับสนุน> <ยอด> บาท" */
+  supportText: string;
+  /** สีชื่อผู้บริจาค "#RRGGBB" */
+  nameColor: string;
 };
 
 export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
@@ -16,7 +20,19 @@ export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
   durationSec: 8,
   soundEnabled: true,
   volume: 80,
+  supportText: "โดเนท",
+  nameColor: "#FACC15",
 };
+
+export const SUPPORT_TEXT_MAX = 40;
+
+/** ตัด control characters + ช่องว่างซ้ำ (ข้อความขึ้นจอไลฟ์ แสดงเป็น text เท่านั้น) */
+export function cleanSupportText(input: string): string {
+  return input
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export const DEFAULT_ALERT_IMAGE = "/alert-default.png";
 export const ALERT_SOUND = "/sounds/alert.wav";
@@ -38,6 +54,15 @@ export const alertSettingsUpdateSchema = z
       .max(DURATION_RANGE.max),
     soundEnabled: z.boolean(),
     volume: z.number().int().min(0).max(100),
+    supportText: z
+      .string()
+      .max(200)
+      .transform(cleanSupportText)
+      .pipe(z.string().min(1).max(SUPPORT_TEXT_MAX)),
+    nameColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .transform((c) => c.toUpperCase()),
   })
   // เลือก GIF ต้องส่ง URL มาด้วย (โดเมนเช็กต่อใน service → MEDIA_URL_NOT_ALLOWED)
   .refine((v) => v.mediaType !== "gif" || Boolean(v.mediaUrl), {

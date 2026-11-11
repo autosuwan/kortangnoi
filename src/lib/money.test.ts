@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatSatang, parseBahtToSatang } from "./money";
+import { formatSatang, formatSatangNumber, parseBahtToSatang } from "./money";
 
 describe("parseBahtToSatang", () => {
   it.each([
@@ -30,4 +30,9 @@ describe("formatSatang", () => {
   it("แสดงสตางค์ 2 หลัก", () => {
     expect(formatSatang(123405)).toBe("฿1,234.05");
   });
+});
+
+it("formatSatangNumber ไม่มีสัญลักษณ์ ฿", () => {
+  expect(formatSatangNumber(123400)).toBe("1,234");
+  expect(formatSatangNumber(123450)).toBe("1,234.50");
 });

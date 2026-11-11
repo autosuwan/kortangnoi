@@ -42,18 +42,22 @@ describe("alert settings service", () => {
     expect(await getAlertSettings(user.id)).toEqual(DEFAULT_ALERT_SETTINGS);
   });
 
-  it("บันทึกเวลา/เสียง", async () => {
+  it("บันทึกเวลา/เสียง/ข้อความ (สีเก็บเป็นตัวพิมพ์ใหญ่)", async () => {
     const user = await createTestUser("alert-update");
     const saved = await updateAlertSettings(user.id, {
       durationSec: 12,
       soundEnabled: false,
       volume: 30,
+      supportText: "ให้ค่าข้าว",
+      nameColor: "#38bdf8",
     });
     expect(saved).toEqual({
       ...DEFAULT_ALERT_SETTINGS,
       durationSec: 12,
       soundEnabled: false,
       volume: 30,
+      supportText: "ให้ค่าข้าว",
+      nameColor: "#38BDF8",
     });
   });
 
@@ -64,6 +68,8 @@ describe("alert settings service", () => {
         durationSec: 30,
         soundEnabled: true,
         volume: 80,
+        supportText: "โดเนท",
+        nameColor: "#FACC15",
       }),
     ).rejects.toMatchObject({ status: 400, code: "ALERT_SETTINGS_INVALID" });
   });
@@ -89,6 +95,8 @@ describe("alert settings service", () => {
       durationSec: 8,
       soundEnabled: true,
       volume: 80,
+      supportText: "โดเนท",
+      nameColor: "#FACC15",
     });
     expect(reset).toEqual(DEFAULT_ALERT_SETTINGS);
     expect(await fileExists(secondPath)).toBe(false);
@@ -106,6 +114,8 @@ describe("alert settings service", () => {
       durationSec: 8,
       soundEnabled: true,
       volume: 80,
+      supportText: "โดเนท",
+      nameColor: "#FACC15",
     });
     expect(saved).toMatchObject({ mediaType: "gif", mediaUrl: gifUrl });
     expect(await storagePath(user.id)).toBeNull();
@@ -125,6 +135,8 @@ describe("alert settings service", () => {
         durationSec: 8,
         soundEnabled: true,
         volume: 80,
+        supportText: "โดเนท",
+        nameColor: "#FACC15",
       }),
     ).rejects.toMatchObject({ status: 400, code: "MEDIA_URL_NOT_ALLOWED" });
   });
@@ -147,6 +159,17 @@ describe("alert settings service", () => {
       code: "MEDIA_INVALID",
     });
   });
+});
+
+it("CHECK ใน DB กันคำสนับสนุนว่างและสีผิดรูปแบบ", async () => {
+  const user = await createTestUser("alert-check");
+  for (const patch of [{ support_text: "  " }, { name_color: "#fff" }]) {
+    const { error } = await adminClient()
+      .from("alert_settings")
+      .update(patch)
+      .eq("user_id", user.id);
+    expect(error?.code, JSON.stringify(patch)).toBe("23514");
+  }
 });
 
 describe("alert_settings / storage สิทธิ์ client", () => {

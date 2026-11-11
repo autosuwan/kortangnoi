@@ -40,7 +40,9 @@ export type Database = {
           media_storage_path: string | null;
           media_type: Database["public"]["Enums"]["alert_media_type"];
           media_url: string | null;
+          name_color: string;
           sound_enabled: boolean;
+          support_text: string;
           updated_at: string;
           user_id: string;
           volume: number;
@@ -51,7 +53,9 @@ export type Database = {
           media_storage_path?: string | null;
           media_type?: Database["public"]["Enums"]["alert_media_type"];
           media_url?: string | null;
+          name_color?: string;
           sound_enabled?: boolean;
+          support_text?: string;
           updated_at?: string;
           user_id: string;
           volume?: number;
@@ -61,7 +65,9 @@ export type Database = {
           media_storage_path?: string | null;
           media_type?: Database["public"]["Enums"]["alert_media_type"];
           media_url?: string | null;
+          name_color?: string;
           sound_enabled?: boolean;
+          support_text?: string;
           updated_at?: string;
           user_id?: string;
           volume?: number;

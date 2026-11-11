@@ -12,7 +12,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { AlertCard } from "@/components/alert-card";
+import { ColorWheel } from "@/components/color-wheel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -20,6 +23,7 @@ import {
   ALERT_SOUND,
   alertImageUrl,
   DURATION_RANGE,
+  SUPPORT_TEXT_MAX,
   type AlertSettings,
 } from "@/lib/alert-settings";
 import { cn } from "@/lib/utils";
@@ -27,13 +31,18 @@ import { cn } from "@/lib/utils";
 import { UnsavedBar } from "../unsaved-bar";
 import { GifPicker } from "./gif-picker";
 
-type Editable = Pick<AlertSettings, "durationSec" | "soundEnabled" | "volume">;
+type Editable = Pick<
+  AlertSettings,
+  "durationSec" | "soundEnabled" | "volume" | "supportText" | "nameColor"
+>;
 type Media = Pick<AlertSettings, "mediaType" | "mediaUrl">;
 
 const pick = (s: AlertSettings): Editable => ({
   durationSec: s.durationSec,
   soundEnabled: s.soundEnabled,
   volume: s.volume,
+  supportText: s.supportText,
+  nameColor: s.nameColor,
 });
 
 const SAMPLE = {
@@ -255,6 +264,35 @@ export function AlertForm({
         </section>
 
         <section className="rounded-2xl border bg-card p-6">
+          <h2 className="font-medium">ข้อความ</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            แสดงเป็น &ldquo;ชื่อผู้บริจาค คำสนับสนุน จำนวนเงิน บาท&rdquo;
+          </p>
+          <div className="mt-4 grid gap-1.5">
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="supportText">คำสนับสนุน</Label>
+              <span className="font-mono text-xs text-muted-foreground">
+                {draft.supportText.length}/{SUPPORT_TEXT_MAX}
+              </span>
+            </div>
+            <Input
+              id="supportText"
+              placeholder="ให้ค่าข้าว"
+              maxLength={SUPPORT_TEXT_MAX}
+              value={draft.supportText}
+              onChange={(e) => set("supportText", e.target.value)}
+            />
+          </div>
+          <div className="mt-5 grid gap-2">
+            <span className="text-sm font-medium">สีชื่อผู้บริจาค</span>
+            <ColorWheel
+              label="วงล้อสีชื่อผู้บริจาค"
+              value={draft.nameColor}
+              onChange={(hex) => set("nameColor", hex)}
+            />
+          </div>
+        </section>
+        <section className="rounded-2xl border bg-card p-6">
           <div className="flex items-baseline justify-between">
             <h2 className="font-medium">ระยะเวลาแสดง</h2>
             <span className="font-mono text-sm" data-testid="duration-value">
@@ -329,6 +367,8 @@ export function AlertForm({
 
       <AlertPreview
         imageUrl={alertImageUrl(media)}
+        supportText={draft.supportText.trim() || "โดเนท"}
+        nameColor={draft.nameColor}
         durationSec={draft.durationSec}
         onPlay={() => draft.soundEnabled && playSound()}
       />
@@ -352,10 +392,14 @@ type Phase = "idle" | "in" | "out" | "hidden";
 /** พรีวิวขนาดจริง + ปุ่มเล่น animation เข้า/ออกตามระยะเวลาที่ตั้ง (F11) */
 function AlertPreview({
   imageUrl,
+  supportText,
+  nameColor,
   durationSec,
   onPlay,
 }: {
   imageUrl: string;
+  supportText: string;
+  nameColor: string;
   durationSec: number;
   onPlay: () => void;
 }) {
@@ -406,6 +450,8 @@ function AlertPreview({
             key={run}
             imageUrl={imageUrl}
             {...SAMPLE}
+            supportText={supportText}
+            nameColor={nameColor}
             className={cn(
               phase === "in" && "animate-in duration-500 fade-in-0 zoom-in-90",
               phase === "out" &&

@@ -21,3 +21,8 @@ export function formatSatang(satang: number): string {
     ? `฿${bahtText}`
     : `฿${bahtText}.${String(fraction).padStart(2, "0")}`;
 }
+
+/** ตัวเลขยอดไม่มีสัญลักษณ์: 123400 → "1,234", 123450 → "1,234.50" (ใช้คู่กับคำว่า "บาท") */
+export function formatSatangNumber(satang: number): string {
+  return formatSatang(satang).replace("฿", "");
+}

@@ -15,7 +15,7 @@ import type { Database } from "@/lib/supabase/database.types";
 
 const BUCKET = "alert-media";
 const COLUMNS =
-  "media_type, media_url, media_storage_path, duration_sec, sound_enabled, volume";
+  "media_type, media_url, media_storage_path, duration_sec, sound_enabled, volume, support_text, name_color";
 
 type Row = Pick<
   Database["public"]["Tables"]["alert_settings"]["Row"],
@@ -25,6 +25,8 @@ type Row = Pick<
   | "duration_sec"
   | "sound_enabled"
   | "volume"
+  | "support_text"
+  | "name_color"
 >;
 
 function toSettings(row: Row): AlertSettings {
@@ -34,6 +36,8 @@ function toSettings(row: Row): AlertSettings {
     durationSec: row.duration_sec,
     soundEnabled: row.sound_enabled,
     volume: row.volume,
+    supportText: row.support_text,
+    nameColor: row.name_color,
   };
 }
 
@@ -71,8 +75,15 @@ export async function updateAlertSettings(
   if (!parsed.success) {
     throw new AppError(400, "ALERT_SETTINGS_INVALID", "ค่าที่ตั้งไม่ถูกต้อง");
   }
-  const { mediaType, mediaUrl, durationSec, soundEnabled, volume } =
-    parsed.data;
+  const {
+    mediaType,
+    mediaUrl,
+    durationSec,
+    soundEnabled,
+    volume,
+    supportText,
+    nameColor,
+  } = parsed.data;
   if (mediaType === "gif" && !isKlipyMediaUrl(mediaUrl ?? "")) {
     throw new AppError(400, "MEDIA_URL_NOT_ALLOWED", "ใช้ได้เฉพาะ GIF จาก KLIPY");
   }
@@ -85,6 +96,8 @@ export async function updateAlertSettings(
       duration_sec: durationSec,
       sound_enabled: soundEnabled,
       volume,
+      support_text: supportText,
+      name_color: nameColor,
       ...(mediaType === "default" && {
         media_type: "default" as const,
         media_url: null,

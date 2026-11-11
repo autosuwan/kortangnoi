@@ -40,6 +40,8 @@ erDiagram
     smallint duration_sec "3-20, default 8"
     boolean sound_enabled "default true"
     smallint volume "0-100, default 80"
+    text support_text "1-40 ตัว, default โดเนท"
+    text name_color "#RRGGBB, default #FACC15"
     timestamptz updated_at
   }
 
@@ -104,7 +106,7 @@ erDiagram
 - `donations.slip_attempts`: `CHECK (slip_attempts BETWEEN 0 AND 3)`
 - `payment_settings.min_amount_satang`: `CHECK (BETWEEN 100 AND 1000000)`
 - `payment_settings`: `promptpay_id` ยาว 0 / 10 / 13 หลัก, ชื่อยาว ≤ 100, `enabled` ⇒ `promptpay_id` และ `account_name_th` ไม่ว่าง (สำรอง validation ใน API)
-- `alert_settings`: `CHECK (duration_sec BETWEEN 3 AND 20)`, `CHECK (volume BETWEEN 0 AND 100)`, `media_type = 'upload'` ⇒ มี `media_url` และ `media_storage_path`
+- `alert_settings`: `CHECK (duration_sec BETWEEN 3 AND 20)`, `CHECK (volume BETWEEN 0 AND 100)`, `support_text` ยาว 1–40, `name_color ~ '^#[0-9A-F]{6}$'`, `media_type = 'upload'` ⇒ มี `media_url` และ `media_storage_path`
 - **กันสลิปซ้ำ** — partial unique index นับเฉพาะรายการที่ "ใช้สลิปไปแล้ว":
   ```sql
   CREATE UNIQUE INDEX donations_trans_ref_used

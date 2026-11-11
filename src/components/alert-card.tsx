@@ -3,27 +3,33 @@
 import { useState } from "react";
 
 import { DEFAULT_ALERT_IMAGE } from "@/lib/alert-settings";
-import { formatSatang } from "@/lib/money";
+import { formatSatangNumber } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 export type AlertCardProps = {
   imageUrl: string;
   donorName: string;
+  supportText: string;
   amountSatang: number;
   message: string | null;
+  nameColor: string;
   className?: string;
 };
 
+const AMOUNT_COLOR = "#F97316";
+
 /**
- * การ์ด alert ที่เด้งใน OBS (design brief: การ์ดขาว ขอบ 1px มุม 16px, รูปบนสุด,
- * ชื่อ + ยอดสีส้มตัวใหญ่, ข้อความตัดที่ 3 บรรทัด) ใช้ทั้งพรีวิวใน dashboard และ overlay
- * ข้อความแสดงเป็น text เท่านั้น — React escape ให้ ห้ามใช้ dangerouslySetInnerHTML
+ * alert ที่เด้งบน OBS — ไม่มีการ์ดพื้นหลัง รูปอยู่บน ตามด้วย
+ * "<ชื่อ> <คำสนับสนุน> <ยอด> บาท" และข้อความของผู้บริจาค (design brief)
+ * ใช้ทั้งพรีวิวใน dashboard และ overlay; ข้อความทั้งหมดเป็น text — React escape ให้
  */
 export function AlertCard({
   imageUrl,
   donorName,
+  supportText,
   amountSatang,
   message,
+  nameColor,
   className,
 }: AlertCardProps) {
   // รูปภายนอกถูกลบ/โหลดไม่ได้ → ใช้รูปเริ่มต้น (จำว่า URL ไหนพัง เผื่อเปลี่ยนรูปทีหลัง)
@@ -32,8 +38,9 @@ export function AlertCard({
 
   return (
     <div
+      data-testid="alert"
       className={cn(
-        "flex w-full max-w-[360px] flex-col items-center rounded-2xl border bg-white px-6 pt-6 pb-5 text-center text-neutral-900",
+        "flex w-full max-w-[560px] flex-col items-center text-center text-white",
         className,
       )}
     >
@@ -42,17 +49,24 @@ export function AlertCard({
         src={src}
         alt=""
         data-testid="alert-image"
-        className="h-40 max-w-full object-contain"
+        className="h-44 max-w-full object-contain drop-shadow-[0_4px_12px_rgb(0_0_0/0.4)]"
         onError={() => setBrokenUrl(imageUrl)}
       />
-      <p className="mt-4 text-lg leading-snug font-medium break-words">
-        {donorName}
-      </p>
-      <p className="mt-1 font-mono text-4xl font-semibold text-[#F97316]">
-        {formatSatang(amountSatang)}
+      <p
+        data-testid="alert-headline"
+        className="mt-3 text-[28px] leading-snug font-bold break-words alert-text"
+      >
+        <span data-testid="alert-name" style={{ color: nameColor }}>
+          {donorName}
+        </span>{" "}
+        {supportText}{" "}
+        <span style={{ color: AMOUNT_COLOR }}>
+          {formatSatangNumber(amountSatang)}
+        </span>{" "}
+        บาท
       </p>
       {message && (
-        <p className="mt-3 line-clamp-3 text-sm break-words whitespace-pre-line text-neutral-600">
+        <p className="mt-1 line-clamp-3 text-xl leading-snug font-semibold break-words whitespace-pre-line alert-text">
           {message}
         </p>
       )}

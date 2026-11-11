@@ -181,3 +181,10 @@
     mask-size: 28px 12px;
   }
 }
+
+/* ตัวหนังสือ alert บน OBS: ขอบดำ + เงา ให้อ่านออกทั้งบนเกมสีสว่างและมืด (ไม่มีการ์ดพื้นหลัง) */
+@utility alert-text {
+  -webkit-text-stroke: 0.12em #000;
+  paint-order: stroke fill;
+  text-shadow: 0 0.08em 0.25em rgb(0 0 0 / 0.6);
+}

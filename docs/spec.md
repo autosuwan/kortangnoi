@@ -180,18 +180,19 @@ type PaymentSettings = {
 - **รูป/GIF:** แท็บ "ค้นหา GIF" (ช่องค้นหา placeholder **"Search KLIPY"** + grid ผลลัพธ์เรียงตามที่ KLIPY ส่งมา + ข้อความ **"Powered by KLIPY"**; ช่องว่างแสดง trending) และแท็บ "อัปโหลด"; ปุ่ม "ใช้ค่าเริ่มต้น" (รูปแมวกวัก)
 - เลือก GIF / อัปโหลดรูป / ใช้ค่าเริ่มต้น **บันทึกทันที** และลบไฟล์อัปโหลดเก่า; ระยะเวลาและเสียงผ่านแถบ "ยังไม่บันทึก" แบบ F2
 - ปุ่ม "เล่นพรีวิว" เล่น animation เข้า/ออกบนพรีวิวตาม `durationSec`
+- **ข้อความ:** "คำสนับสนุน" ที่ตั้งเอง (เช่น "ให้ค่าข้าว", ค่าเริ่มต้น "โดเนท") + "สีชื่อผู้บริจาค" เลือกจากวงล้อสี / พิมพ์ hex / สีด่วน (ค่าเริ่มต้น `#FACC15`)
 - **ระยะเวลาแสดง:** slider 3–20 วินาที (ค่าเริ่มต้น 8)
 - **เสียง:** เปิด/ปิด + ระดับเสียง 0–100 + ปุ่มฟังเสียง (ใช้เสียงเริ่มต้น 1 เสียง `public/sounds/alert.wav`)
 - ปุ่ม **"ทดสอบ alert"** ส่ง alert ตัวอย่างไป overlay จริง
 
 ### API
 
-| Method | Path                        | Request                                                                            | Response                                                                                |
-| ------ | --------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| GET    | `/api/settings/alert`       | –                                                                                  | `AlertSettings`                                                                         |
-| PUT    | `/api/settings/alert`       | `{ mediaType?: "default" \| "gif", mediaUrl?, durationSec, soundEnabled, volume }` | `AlertSettings` (`"default"` = กลับไปใช้รูปเริ่มต้น, `"gif"` + `mediaUrl` = ใช้ GIF จาก KLIPY) |
-| POST   | `/api/settings/alert/media` | multipart `file`                                                                   | `{ mediaUrl }`                                                                          |
-| POST   | `/api/alerts/test`          | –                                                                                  | `{ ok: true }`                                                                          |
+| Method | Path                        | Request                                                                                                    | Response                                                                                |
+| ------ | --------------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/api/settings/alert`       | –                                                                                                          | `AlertSettings`                                                                         |
+| PUT    | `/api/settings/alert`       | `{ mediaType?: "default" \| "gif", mediaUrl?, durationSec, soundEnabled, volume, supportText, nameColor }` | `AlertSettings` (`"default"` = กลับไปใช้รูปเริ่มต้น, `"gif"` + `mediaUrl` = ใช้ GIF จาก KLIPY) |
+| POST   | `/api/settings/alert/media` | multipart `file`                                                                                           | `{ mediaUrl }`                                                                          |
+| POST   | `/api/alerts/test`          | –                                                                                                          | `{ ok: true }`                                                                          |
 
 ```ts
 type AlertSettings = {
@@ -200,6 +201,8 @@ type AlertSettings = {
   durationSec: number;
   soundEnabled: boolean;
   volume: number;
+  supportText: string; // คำสนับสนุน เช่น "ให้ค่าข้าว"
+  nameColor: string; // "#RRGGBB" สีชื่อผู้บริจาค
 };
 ```
 
@@ -209,6 +212,8 @@ type AlertSettings = {
 - GIF ที่เลือก: `mediaUrl` ต้องเป็น `https://` บนโดเมน `static.klipy.com`, `static1.klipy.com`, `static2.klipy.com` เท่านั้น เก็บ URL ตามที่ KLIPY ส่งมา (ห้ามแก้/ดาวน์โหลดไปเก็บเอง)
 - ค้นหา GIF: **เรียก KLIPY จากเบราว์เซอร์โดยตรง** ตาม Integration Requirements ของ KLIPY (ห้าม proxy ผ่าน server เว้นแต่ได้อนุมัติ) — app key เป็น `NEXT_PUBLIC_KLIPY_APP_KEY` ซึ่งเปิดเผยได้ตามที่ KLIPY ออกแบบ; `q` ≤ 50 ตัว, debounce 400ms, ส่ง `customer_id` = SHA-256 ของ user id (ไม่ส่ง id ตรง), `content_filter=medium`, `locale=th`
 - ใช้ไฟล์ขนาด `md` (`gif` → `webp`) เป็นรูป alert, ขนาด `sm` เป็นภาพย่อใน grid
+- `supportText`: 1–40 ตัวหลัง trim, ตัด control characters, แสดงเป็น text เท่านั้น
+- `nameColor`: `#RRGGBB` เก็บเป็นตัวพิมพ์ใหญ่
 - ทดสอบ alert: จำกัด 1 ครั้ง/3 วินาที
 
 ### Error case
@@ -516,7 +521,8 @@ type OverlayAlert = {
 - Animation: scale 0.9 → 1 + fade in, จบแล้ว fade out
 - เสียงเล่นพร้อมกับตอน alert เข้า ตามค่า volume
 - ข้อความยาวเกิน 3 บรรทัด → ตัดด้วย `…`
-- ยอดแสดงเป็น `฿1,234` (ถ้ามีสตางค์ `฿1,234.50`)
+- รูปแบบ: `<donorName> <supportText> <ยอด> บาท` แล้วขึ้นบรรทัดใหม่เป็น `message` — ไม่มีการ์ดพื้นหลัง ตัวหนังสือมีขอบดำ + เงา
+- ยอดแสดงเป็น `1,234` (ถ้ามีสตางค์ `1,234.50`) สีส้ม ชื่อผู้บริจาคใช้ `nameColor`
 - alert ทดสอบ (`isTest`) แสดงเหมือนจริง ไม่ ack ไม่บันทึก
 
 ### พังได้ยังไง

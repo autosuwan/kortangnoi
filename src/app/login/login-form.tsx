@@ -24,11 +24,15 @@ export function LoginForm() {
   async function signInWith(provider: Provider) {
     setPending(provider);
     setError(null);
-    const { error } = await createClient().auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) {
+    try {
+      const { error } = await createClient().auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) throw error;
+    } catch (error) {
+      // เช่น env ของ Supabase ไม่ได้ตั้งตอน build — อย่าให้ปุ่มหมุนค้าง
+      console.error(error);
       setError(OAUTH_ERROR);
       setPending(null);
     }

@@ -218,7 +218,7 @@ type AlertSettings = {
 - ใช้ไฟล์ขนาด `md` (`gif` → `webp`) เป็นรูป alert, ขนาด `sm` เป็นภาพย่อใน grid
 - `supportText`: 1–40 ตัวหลัง trim, ตัด control characters, แสดงเป็น text เท่านั้น
 - `nameColor`: `#RRGGBB` เก็บเป็นตัวพิมพ์ใหญ่
-- ทดสอบ alert: จำกัด 1 ครั้ง/3 วินาที
+- ทดสอบ alert: จำกัด 1 ครั้ง/3 วินาที (conditional update บน `alert_settings.last_test_at`) เกิน → 429 `RATE_LIMITED`; ใช้ค่าที่บันทึกแล้ว ชื่อ "ผู้ชมใจดี" ยอด 100 บาท
 
 ### Error case
 
@@ -246,10 +246,13 @@ type AlertSettings = {
 ### Flow realtime
 
 1. Overlay เปิด → `GET /api/overlay/{token}` ได้ `alertSettings` + `channel`
-2. Subscribe Supabase Realtime **Broadcast** channel `overlay:{token}`
+2. Subscribe Supabase Realtime **Broadcast** แบบ **private channel** ชื่อ `overlay:{sha256(token) 32 ตัวแรก}` — policy บน `realtime.messages` ให้ `anon` รับได้อย่างเดียว ไม่มีสิทธิ์ส่ง (server ส่งด้วย secret key)
 3. เมื่อโดเนทเปลี่ยนเป็น `approved` → service ส่ง broadcast event `donation` → overlay ใส่คิว → แสดงทีละอัน → เมื่อแสดงเสร็จ `POST /api/overlay/{token}/ack`
 4. ตอนเปิด overlay และตอน reconnect → `GET /api/overlay/{token}/pending` ดึงโดเนท `approved` ที่ยังไม่ ack ภายใน 10 นาทีที่ผ่านมา (กันพลาดตอนเน็ตหลุด)
 5. เปลี่ยนค่า alert ใน dashboard → broadcast event `settings` ให้ overlay โหลดค่าใหม่โดยไม่ต้อง refresh
+6. สร้างลิงก์ใหม่ → broadcast `revoked` ไป channel เก่า → overlay เก่าแสดง "ลิงก์ overlay ไม่ถูกต้อง"
+
+`pending` / `ack` ทำพร้อมตาราง `donations` ใน F8 (ก่อนหน้านั้น alert มาจากปุ่มทดสอบเท่านั้น)
 
 ### API
 
@@ -285,7 +288,7 @@ type OverlayAlert = {
 
 ### พังได้ยังไง
 
-- ลิงก์ overlay หลุด (ขึ้นจอตอนไลฟ์) → คนอื่นดู alert ได้ แต่สร้าง alert ปลอมไม่ได้ เพราะ broadcast ส่งจาก server เท่านั้น (overlay ใช้ anon key แค่รับ); แก้ด้วยปุ่มสร้างลิงก์ใหม่
+- ลิงก์ overlay หลุด (ขึ้นจอตอนไลฟ์) → คนอื่นดู alert ได้ แต่สร้าง alert ปลอมไม่ได้ เพราะเป็น private channel ที่ anon ไม่มีสิทธิ์ส่ง (มี integration test ยืนยัน); แก้ด้วยปุ่มสร้างลิงก์ใหม่
 - เปิด overlay 2 ที่ (OBS + เบราว์เซอร์) → alert แสดงทั้งสองที่ ack ซ้ำไม่เป็นไร (idempotent)
 - OBS cache หน้าเก่า → ปุ่มคัดลอกลิงก์ใส่ `?v=` ไม่ได้ช่วย; แนะนำ "Refresh cache of current page" ในคู่มือ
 - Browser ใน OBS บล็อกเสียงอัตโนมัติ → OBS Browser Source เล่นเสียงได้ปกติ แต่ในเบราว์เซอร์ทั่วไปต้องคลิกก่อน (แสดงปุ่ม "เปิดเสียง" เฉพาะนอก OBS)

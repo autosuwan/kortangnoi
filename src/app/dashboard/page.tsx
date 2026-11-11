@@ -7,10 +7,12 @@ import { Suspense } from "react";
 import { publicEnv } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getPaymentSettings } from "@/server/services/payment";
+import { getOverlayUrl } from "@/server/services/overlay";
 import { getMe } from "@/server/services/profile";
 
 import { PageHeader } from "./page-header";
-import { WelcomeSkeleton } from "./skeletons";
+import { ObsLinkCard } from "./obs-link-card";
+import { ObsLinkSkeleton, WelcomeSkeleton } from "./skeletons";
 
 export const metadata: Metadata = { title: "หน้าหลัก · KORTANGNOI" };
 
@@ -19,9 +21,14 @@ export default function DashboardPage() {
     <>
       <PageHeader title="หน้าหลัก" />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <Suspense fallback={<WelcomeSkeleton />}>
-          <Welcome />
-        </Suspense>
+        <div className="flex flex-col gap-4">
+          <Suspense fallback={<WelcomeSkeleton />}>
+            <Welcome />
+          </Suspense>
+          <Suspense fallback={<ObsLinkSkeleton />}>
+            <ObsLink />
+          </Suspense>
+        </div>
       </main>
     </>
   );
@@ -72,4 +79,9 @@ async function Welcome() {
       </div>
     </section>
   );
+}
+
+async function ObsLink() {
+  const user = await requireUser();
+  return <ObsLinkCard initialUrl={await getOverlayUrl(user.id)} />;
 }

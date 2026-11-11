@@ -11,6 +11,7 @@ import { AppError } from "@/lib/api-error";
 import { detectImageType } from "@/lib/image-type";
 import { isKlipyMediaUrl } from "@/lib/klipy";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyOverlaySettingsChanged } from "@/server/realtime/overlay";
 import type { Database } from "@/lib/supabase/database.types";
 
 const BUCKET = "alert-media";
@@ -129,6 +130,7 @@ export async function updateAlertSettings(
   if (!data) throw notFound();
 
   if (before) await removeFile(before.media_storage_path);
+  await notifyOverlaySettingsChanged(userId);
   return toSettings(data);
 }
 
@@ -178,5 +180,6 @@ export async function uploadAlertMedia(
   }
 
   await removeFile(before.media_storage_path);
+  await notifyOverlaySettingsChanged(userId);
   return toSettings(data);
 }

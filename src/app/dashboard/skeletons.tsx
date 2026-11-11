@@ -108,3 +108,18 @@ export function AlertFormSkeleton() {
     </div>
   );
 }
+
+export function ObsLinkSkeleton() {
+  return (
+    <section
+      role="status"
+      aria-label="กำลังโหลด"
+      className="rounded-2xl border bg-card p-6"
+    >
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="mt-2 h-4 w-72 max-w-full" />
+      <Skeleton className="mt-4 h-10 w-full rounded-lg" />
+      <Skeleton className="mt-5 h-16 w-64 max-w-full" />
+    </section>
+  );
+}

@@ -45,6 +45,7 @@ erDiagram
     boolean donor_can_pick_image "default false"
     boolean donor_can_pick_color "default false"
     boolean donor_can_pick_support_text "default false"
+    timestamptz last_test_at "nullable, rate limit ปุ่มทดสอบ alert"
     timestamptz updated_at
   }
 
@@ -148,6 +149,7 @@ erDiagram
 
 - หน้าโดเนท, overlay และการตรวจสลิปไม่ให้ client อ่าน DB ตรง ทุกอย่างผ่าน API ของเราที่ใช้ service role
 - `select` ของเจ้าของบน `donations` ทำให้ dashboard ใช้ Realtime `postgres_changes` แจ้งรายการรอตรวจใหม่ได้
+- `realtime.messages`: `anon`, `authenticated` **select** (รับ) broadcast ของ topic `overlay:%` ได้อย่างเดียว ไม่มี policy insert → client ส่ง alert ปลอมเข้า overlay ไม่ได้
 
 ## Storage
 

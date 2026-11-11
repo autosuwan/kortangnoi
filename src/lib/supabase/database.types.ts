@@ -40,6 +40,7 @@ export type Database = {
           donor_can_pick_image: boolean;
           donor_can_pick_support_text: boolean;
           duration_sec: number;
+          last_test_at: string | null;
           media_storage_path: string | null;
           media_type: Database["public"]["Enums"]["alert_media_type"];
           media_url: string | null;
@@ -56,6 +57,7 @@ export type Database = {
           donor_can_pick_image?: boolean;
           donor_can_pick_support_text?: boolean;
           duration_sec?: number;
+          last_test_at?: string | null;
           media_storage_path?: string | null;
           media_type?: Database["public"]["Enums"]["alert_media_type"];
           media_url?: string | null;
@@ -71,6 +73,7 @@ export type Database = {
           donor_can_pick_image?: boolean;
           donor_can_pick_support_text?: boolean;
           duration_sec?: number;
+          last_test_at?: string | null;
           media_storage_path?: string | null;
           media_type?: Database["public"]["Enums"]["alert_media_type"];
           media_url?: string | null;

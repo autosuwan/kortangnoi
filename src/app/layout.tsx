@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Noto_Sans, Noto_Sans_Mono, Noto_Sans_Thai } from "next/font/google";
 
+import { Suspense } from "react";
+
+import { TopProgressBar } from "@/components/top-progress-bar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { publicEnv } from "@/lib/env";
 
@@ -34,6 +37,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${notoSans.variable} ${notoSansThai.variable} ${notoSansMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        {/* useSearchParams ต้องอยู่ใน Suspense (Cache Components) */}
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

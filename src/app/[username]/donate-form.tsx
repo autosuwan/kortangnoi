@@ -19,6 +19,7 @@ import {
   validateDonationInput,
 } from "@/lib/donation";
 import { parseBahtToSatang } from "@/lib/money";
+import { startNavigationProgress } from "@/lib/navigation-progress";
 import { cn } from "@/lib/utils";
 import type { PublicStreamer } from "@/server/services/donation";
 
@@ -105,6 +106,7 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
       try {
         localStorage.setItem(LAST_DONATION_KEY, link);
       } catch {}
+      startNavigationProgress();
       router.push(link);
     } catch {
       setError("สร้างรายการไม่สำเร็จ ลองใหม่อีกครั้ง");

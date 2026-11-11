@@ -42,7 +42,7 @@ export default function DashboardLayout({
           </Tooltip>
         </form>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <div className="app-bg flex min-w-0 flex-1 flex-col">{children}</div>
     </div>
   );
 }

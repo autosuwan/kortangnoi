@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { checkUsername } from "@/lib/username";
+import { startNavigationProgress } from "@/lib/navigation-progress";
 
 type Availability = "idle" | "checking" | "available" | "taken";
 
@@ -69,6 +70,7 @@ export function UsernameForm({ siteUrl }: { siteUrl: string }) {
       setSubmitting(false);
       return;
     }
+    startNavigationProgress();
     router.replace("/dashboard");
     router.refresh();
   }

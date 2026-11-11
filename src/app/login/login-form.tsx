@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { publicEnv } from "@/lib/env";
+import { startNavigationProgress } from "@/lib/navigation-progress";
 import { createClient } from "@/lib/supabase/client";
 
 type Provider = "google" | "discord";
@@ -117,6 +118,7 @@ function PasswordForm({
     }
 
     const me = await fetch("/api/me").then((r) => r.json());
+    startNavigationProgress();
     router.replace(me.username ? "/dashboard" : "/onboarding");
     router.refresh();
   }

@@ -42,6 +42,9 @@ erDiagram
     smallint volume "0-100, default 80"
     text support_text "1-40 ตัว, default โดเนท"
     text name_color "#RRGGBB, default #FACC15"
+    boolean donor_can_pick_image "default false"
+    boolean donor_can_pick_color "default false"
+    boolean donor_can_pick_support_text "default false"
     timestamptz updated_at
   }
 
@@ -61,6 +64,9 @@ erDiagram
     donation_status status
     text access_token_hash "sha256"
     jsonb receiver_snapshot "ข้อมูลผู้รับ ณ ตอนสร้าง"
+    text donor_media_url "nullable, GIF KLIPY ที่ผู้บริจาคเลือก"
+    text donor_name_color "nullable, #RRGGBB"
+    text donor_support_text "nullable, 1-40 ตัว"
     text qr_payload
     timestamptz expires_at "created_at + 30 นาที"
     smallint slip_attempts "default 0, ≤3"

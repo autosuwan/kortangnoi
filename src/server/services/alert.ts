@@ -15,7 +15,7 @@ import type { Database } from "@/lib/supabase/database.types";
 
 const BUCKET = "alert-media";
 const COLUMNS =
-  "media_type, media_url, media_storage_path, duration_sec, sound_enabled, volume, support_text, name_color";
+  "media_type, media_url, media_storage_path, duration_sec, sound_enabled, volume, support_text, name_color, donor_can_pick_image, donor_can_pick_color, donor_can_pick_support_text";
 
 type Row = Pick<
   Database["public"]["Tables"]["alert_settings"]["Row"],
@@ -27,6 +27,9 @@ type Row = Pick<
   | "volume"
   | "support_text"
   | "name_color"
+  | "donor_can_pick_image"
+  | "donor_can_pick_color"
+  | "donor_can_pick_support_text"
 >;
 
 function toSettings(row: Row): AlertSettings {
@@ -38,6 +41,9 @@ function toSettings(row: Row): AlertSettings {
     volume: row.volume,
     supportText: row.support_text,
     nameColor: row.name_color,
+    donorCanPickImage: row.donor_can_pick_image,
+    donorCanPickColor: row.donor_can_pick_color,
+    donorCanPickSupportText: row.donor_can_pick_support_text,
   };
 }
 
@@ -83,6 +89,9 @@ export async function updateAlertSettings(
     volume,
     supportText,
     nameColor,
+    donorCanPickImage,
+    donorCanPickColor,
+    donorCanPickSupportText,
   } = parsed.data;
   if (mediaType === "gif" && !isKlipyMediaUrl(mediaUrl ?? "")) {
     throw new AppError(400, "MEDIA_URL_NOT_ALLOWED", "ใช้ได้เฉพาะ GIF จาก KLIPY");
@@ -98,6 +107,9 @@ export async function updateAlertSettings(
       volume,
       support_text: supportText,
       name_color: nameColor,
+      donor_can_pick_image: donorCanPickImage,
+      donor_can_pick_color: donorCanPickColor,
+      donor_can_pick_support_text: donorCanPickSupportText,
       ...(mediaType === "default" && {
         media_type: "default" as const,
         media_url: null,

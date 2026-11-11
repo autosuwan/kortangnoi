@@ -181,18 +181,19 @@ type PaymentSettings = {
 - เลือก GIF / อัปโหลดรูป / ใช้ค่าเริ่มต้น **บันทึกทันที** และลบไฟล์อัปโหลดเก่า; ระยะเวลาและเสียงผ่านแถบ "ยังไม่บันทึก" แบบ F2
 - ปุ่ม "เล่นพรีวิว" เล่น animation เข้า/ออกบนพรีวิวตาม `durationSec`
 - **ข้อความ:** "คำสนับสนุน" ที่ตั้งเอง (เช่น "ให้ค่าข้าว", ค่าเริ่มต้น "โดเนท") + "สีชื่อผู้บริจาค" เลือกจากวงล้อสี / พิมพ์ hex / สีด่วน (ค่าเริ่มต้น `#FACC15`)
+- **ให้ผู้บริจาคเลือกเอง:** สวิตช์ 3 ตัว (ค่าเริ่มต้นปิดทั้งหมด) — รูป (GIF จาก KLIPY เท่านั้น ไม่ให้อัปโหลด), สีชื่อ, คำสนับสนุน; ค่าที่สตรีมเมอร์ตั้งไว้เป็นค่าเริ่มต้นเมื่อผู้บริจาคไม่ได้เลือก
 - **ระยะเวลาแสดง:** slider 3–20 วินาที (ค่าเริ่มต้น 8)
 - **เสียง:** เปิด/ปิด + ระดับเสียง 0–100 + ปุ่มฟังเสียง (ใช้เสียงเริ่มต้น 1 เสียง `public/sounds/alert.wav`)
 - ปุ่ม **"ทดสอบ alert"** ส่ง alert ตัวอย่างไป overlay จริง
 
 ### API
 
-| Method | Path                        | Request                                                                                                    | Response                                                                                |
-| ------ | --------------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| GET    | `/api/settings/alert`       | –                                                                                                          | `AlertSettings`                                                                         |
-| PUT    | `/api/settings/alert`       | `{ mediaType?: "default" \| "gif", mediaUrl?, durationSec, soundEnabled, volume, supportText, nameColor }` | `AlertSettings` (`"default"` = กลับไปใช้รูปเริ่มต้น, `"gif"` + `mediaUrl` = ใช้ GIF จาก KLIPY) |
-| POST   | `/api/settings/alert/media` | multipart `file`                                                                                           | `{ mediaUrl }`                                                                          |
-| POST   | `/api/alerts/test`          | –                                                                                                          | `{ ok: true }`                                                                          |
+| Method | Path                        | Request                                                                                                                                                                   | Response                                                                                |
+| ------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/api/settings/alert`       | –                                                                                                                                                                         | `AlertSettings`                                                                         |
+| PUT    | `/api/settings/alert`       | `{ mediaType?: "default" \| "gif", mediaUrl?, durationSec, soundEnabled, volume, supportText, nameColor, donorCanPickImage, donorCanPickColor, donorCanPickSupportText }` | `AlertSettings` (`"default"` = กลับไปใช้รูปเริ่มต้น, `"gif"` + `mediaUrl` = ใช้ GIF จาก KLIPY) |
+| POST   | `/api/settings/alert/media` | multipart `file`                                                                                                                                                          | `{ mediaUrl }`                                                                          |
+| POST   | `/api/alerts/test`          | –                                                                                                                                                                         | `{ ok: true }`                                                                          |
 
 ```ts
 type AlertSettings = {
@@ -203,6 +204,9 @@ type AlertSettings = {
   volume: number;
   supportText: string; // คำสนับสนุน เช่น "ให้ค่าข้าว"
   nameColor: string; // "#RRGGBB" สีชื่อผู้บริจาค
+  donorCanPickImage: boolean; // ผู้บริจาคเลือก GIF (KLIPY) เองได้
+  donorCanPickColor: boolean; // ผู้บริจาคเลือกสีชื่อเองได้
+  donorCanPickSupportText: boolean; // ผู้บริจาคพิมพ์คำสนับสนุนเองได้
 };
 ```
 
@@ -376,6 +380,7 @@ type OverlayAlert = {
 **ขั้น 1 กรอกข้อมูล**
 
 - ชื่อที่แสดง, ยอด (ปุ่มยอดด่วน เช่น 20 / 50 / 100 / 500 + ช่องกรอกเอง), ข้อความ (นับตัวอักษร)
+- ส่วน "ปรับแต่ง alert" (แสดงเฉพาะที่สตรีมเมอร์เปิดให้เลือก, ไม่บังคับ): ค้นหา GIF จาก KLIPY, สีชื่อ (วงล้อสี), คำสนับสนุน + พรีวิว alert
 - แสดงยอดขั้นต่ำ
 - ปุ่ม "ไปหน้าจ่ายเงิน"
 
@@ -391,12 +396,13 @@ type OverlayAlert = {
 
 ### API
 
-| Method | Path                               | Request                          | Response                                                                   |
-| ------ | ---------------------------------- | -------------------------------- | -------------------------------------------------------------------------- |
-| GET    | `/api/public/{username}`           | –                                | `{ displayName, minAmountSatang, enabled, accountName: string \| null }`   |
-| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message }` | `{ donationId, accessToken, amountSatang, qrPayload, qrImage, expiresAt }` |
-| GET    | `/api/public/donations/{id}?t=`    | –                                | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage }`         |
+| Method | Path                               | Request                                       | Response                                                                   |
+| ------ | ---------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------- |
+| GET    | `/api/public/{username}`           | –                                             | `{ displayName, minAmountSatang, enabled, accountName: string \| null }`   |
+| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message, alertStyle? }` | `{ donationId, accessToken, amountSatang, qrPayload, qrImage, expiresAt }` |
+| GET    | `/api/public/donations/{id}?t=`    | –                                             | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage }`         |
 
+- `alertStyle?: { mediaUrl?, nameColor?, supportText? }` — server เก็บเฉพาะส่วนที่สตรีมเมอร์เปิดให้เลือก **ณ ตอนสร้าง** ส่วนที่ไม่ได้เปิดหรือไม่ผ่าน validation ทิ้งไป (ใช้ `resolveAlertStyle` ใน `src/lib/alert-settings.ts`); `mediaUrl` ต้องเป็น KLIPY ตามกฎเดียวกับ F3, `supportText` 1–40 ตัว, `nameColor` `#RRGGBB`
 - `amount` รับเป็น string ทศนิยม เช่น `"50.00"` → แปลงเป็นสตางค์ฝั่ง server (ไม่ใช้ float)
 - `accessToken` สุ่มตอนสร้าง ผู้บริจาคต้องใช้ในการดู/แนบสลิปรายการนี้ (เก็บใน URL ของหน้า `/{username}/d/{id}?t=...` เพื่อกลับมาหน้าเดิมได้หลังสลับไปแอปธนาคาร)
 - QR สร้างจาก `src/lib/promptpay.ts` (เขียนเองตาม EMVCo ผลตรงกับ `promptpay-qr`) ด้วย promptpayId + ยอด **ณ ตอนสร้าง** และ snapshot ข้อมูลผู้รับลงในแถว donation
@@ -521,6 +527,7 @@ type OverlayAlert = {
 - Animation: scale 0.9 → 1 + fade in, จบแล้ว fade out
 - เสียงเล่นพร้อมกับตอน alert เข้า ตามค่า volume
 - ข้อความยาวเกิน 3 บรรทัด → ตัดด้วย `…`
+- รูป/สีชื่อ/คำสนับสนุน: ใช้ค่าที่ผู้บริจาคเลือก (ถ้าสตรีมเมอร์เปิดให้เลือกและผู้บริจาคเลือกไว้) ไม่งั้นใช้ค่าของสตรีมเมอร์
 - รูปแบบ: `<donorName> <supportText> <ยอด> บาท` แล้วขึ้นบรรทัดใหม่เป็น `message` — ไม่มีการ์ดพื้นหลัง ตัวหนังสือมีขอบดำ + เงา
 - ยอดแสดงเป็น `1,234` (ถ้ามีสตางค์ `1,234.50`) สีส้ม ชื่อผู้บริจาคใช้ `nameColor`
 - alert ทดสอบ (`isTest`) แสดงเหมือนจริง ไม่ ack ไม่บันทึก

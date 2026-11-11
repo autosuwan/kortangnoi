@@ -196,7 +196,7 @@ test("ตั้งคำสนับสนุน + สีชื่อ → พร
   const name = page.getByTestId("alert-name");
   await expect(headline).toHaveText("ผู้ชมใจดี โดเนท 100 บาท");
 
-  await page.getByLabel("คำสนับสนุน").fill("ให้ค่าข้าว");
+  await page.getByLabel("คำสนับสนุน", { exact: true }).fill("ให้ค่าข้าว");
   await expect(headline).toHaveText("ผู้ชมใจดี ให้ค่าข้าว 100 บาท");
 
   await page.getByRole("button", { name: "สี #38BDF8" }).click();
@@ -228,4 +228,28 @@ test("ตั้งคำสนับสนุน + สีชื่อ → พร
   await expect(headline).toHaveText("ผู้ชมใจดี ให้ค่าข้าว 100 บาท");
   await expect(name).toHaveCSS("color", "rgb(168, 85, 247)");
   await expect(page.getByLabel("รหัสสี")).toHaveValue("#A855F7");
+});
+
+test("เลือกว่าส่วนไหนให้ผู้บริจาคเลือกเอง → บันทึก → reload", async ({ page }) => {
+  await loginAsStreamer(page, "alert-picks");
+  await openAlertPage(page);
+
+  const image = page.getByRole("switch", { name: "ให้ผู้บริจาคเลือกรูป / GIF" });
+  const color = page.getByRole("switch", { name: "ให้ผู้บริจาคเลือกสีชื่อ" });
+  const text = page.getByRole("switch", {
+    name: "ให้ผู้บริจาคเลือกคำสนับสนุน",
+  });
+  for (const s of [image, color, text]) await expect(s).not.toBeChecked();
+
+  await image.click();
+  await text.click();
+  const unsaved = page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" });
+  await unsaved.getByRole("button", { name: "บันทึก" }).click();
+  await expect(unsaved).toBeHidden();
+
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(image).toBeChecked();
+  await expect(color).not.toBeChecked();
+  await expect(text).toBeChecked();
 });

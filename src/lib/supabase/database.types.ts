@@ -36,6 +36,9 @@ export type Database = {
     Tables: {
       alert_settings: {
         Row: {
+          donor_can_pick_color: boolean;
+          donor_can_pick_image: boolean;
+          donor_can_pick_support_text: boolean;
           duration_sec: number;
           media_storage_path: string | null;
           media_type: Database["public"]["Enums"]["alert_media_type"];
@@ -49,6 +52,9 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          donor_can_pick_color?: boolean;
+          donor_can_pick_image?: boolean;
+          donor_can_pick_support_text?: boolean;
           duration_sec?: number;
           media_storage_path?: string | null;
           media_type?: Database["public"]["Enums"]["alert_media_type"];
@@ -61,6 +67,9 @@ export type Database = {
           volume?: number;
         };
         Update: {
+          donor_can_pick_color?: boolean;
+          donor_can_pick_image?: boolean;
+          donor_can_pick_support_text?: boolean;
           duration_sec?: number;
           media_storage_path?: string | null;
           media_type?: Database["public"]["Enums"]["alert_media_type"];

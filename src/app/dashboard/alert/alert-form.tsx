@@ -33,8 +33,29 @@ import { GifPicker } from "./gif-picker";
 
 type Editable = Pick<
   AlertSettings,
-  "durationSec" | "soundEnabled" | "volume" | "supportText" | "nameColor"
+  | "durationSec"
+  | "soundEnabled"
+  | "volume"
+  | "supportText"
+  | "nameColor"
+  | "donorCanPickImage"
+  | "donorCanPickColor"
+  | "donorCanPickSupportText"
 >;
+
+const DONOR_PICKS = [
+  {
+    key: "donorCanPickImage",
+    label: "รูป / GIF",
+    hint: "ผู้บริจาคค้นหา GIF จาก KLIPY ได้ (อัปโหลดเองไม่ได้)",
+  },
+  { key: "donorCanPickColor", label: "สีชื่อ", hint: "เลือกจากวงล้อสี" },
+  {
+    key: "donorCanPickSupportText",
+    label: "คำสนับสนุน",
+    hint: "พิมพ์เองได้ไม่เกิน 40 ตัวอักษร",
+  },
+] as const;
 type Media = Pick<AlertSettings, "mediaType" | "mediaUrl">;
 
 const pick = (s: AlertSettings): Editable => ({
@@ -43,6 +64,9 @@ const pick = (s: AlertSettings): Editable => ({
   volume: s.volume,
   supportText: s.supportText,
   nameColor: s.nameColor,
+  donorCanPickImage: s.donorCanPickImage,
+  donorCanPickColor: s.donorCanPickColor,
+  donorCanPickSupportText: s.donorCanPickSupportText,
 });
 
 const SAMPLE = {
@@ -292,6 +316,31 @@ export function AlertForm({
             />
           </div>
         </section>
+        <section className="rounded-2xl border bg-card p-6">
+          <h2 className="font-medium">ให้ผู้บริจาคเลือกเอง</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            เปิดแล้วผู้บริจาคปรับส่วนนี้ได้ในหน้าโดเนท ถ้าไม่เลือกจะใช้ค่าที่คุณตั้งไว้
+          </p>
+          <ul className="mt-4 divide-y">
+            {DONOR_PICKS.map(({ key, label, hint }) => (
+              <li
+                key={key}
+                className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+              >
+                <div>
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground">{hint}</p>
+                </div>
+                <Switch
+                  aria-label={`ให้ผู้บริจาคเลือก${label}`}
+                  checked={draft[key]}
+                  onCheckedChange={(checked) => set(key, checked)}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section className="rounded-2xl border bg-card p-6">
           <div className="flex items-baseline justify-between">
             <h2 className="font-medium">ระยะเวลาแสดง</h2>

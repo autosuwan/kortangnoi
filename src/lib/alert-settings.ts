@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isKlipyMediaUrl } from "@/lib/klipy";
+
 export type AlertMediaType = "default" | "gif" | "upload";
 
 export type AlertSettings = {
@@ -12,6 +14,10 @@ export type AlertSettings = {
   supportText: string;
   /** สีชื่อผู้บริจาค "#RRGGBB" */
   nameColor: string;
+  /** ส่วนที่ผู้บริจาคเลือกเองได้ในหน้าโดเนท (F8) — รูปเลือกได้เฉพาะ GIF จาก KLIPY */
+  donorCanPickImage: boolean;
+  donorCanPickColor: boolean;
+  donorCanPickSupportText: boolean;
 };
 
 export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
@@ -22,6 +28,9 @@ export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
   volume: 80,
   supportText: "โดเนท",
   nameColor: "#FACC15",
+  donorCanPickImage: false,
+  donorCanPickColor: false,
+  donorCanPickSupportText: false,
 };
 
 export const SUPPORT_TEXT_MAX = 40;
@@ -63,6 +72,9 @@ export const alertSettingsUpdateSchema = z
       .string()
       .regex(/^#[0-9a-fA-F]{6}$/)
       .transform((c) => c.toUpperCase()),
+    donorCanPickImage: z.boolean(),
+    donorCanPickColor: z.boolean(),
+    donorCanPickSupportText: z.boolean(),
   })
   // เลือก GIF ต้องส่ง URL มาด้วย (โดเมนเช็กต่อใน service → MEDIA_URL_NOT_ALLOWED)
   .refine((v) => v.mediaType !== "gif" || Boolean(v.mediaUrl), {
@@ -78,4 +90,72 @@ export function alertImageUrl(
   return settings.mediaType !== "default" && settings.mediaUrl
     ? settings.mediaUrl
     : DEFAULT_ALERT_IMAGE;
+}
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+/** สิ่งที่ผู้บริจาคเลือกในหน้าโดเนท (ยังไม่ได้ตรวจ — มาจาก client) */
+export type DonorAlertChoice = {
+  mediaUrl?: unknown;
+  nameColor?: unknown;
+  supportText?: unknown;
+};
+
+/** ค่าที่ผู้บริจาคเลือกได้จริง หลังเช็กสิทธิ์ที่สตรีมเมอร์เปิด + validate (null = ใช้ค่าของสตรีมเมอร์) */
+export type DonorAlertStyle = {
+  mediaUrl: string | null;
+  nameColor: string | null;
+  supportText: string | null;
+};
+
+/**
+ * กรองสิ่งที่ผู้บริจาคเลือก: ใช้ได้เฉพาะส่วนที่สตรีมเมอร์เปิดไว้และผ่าน validation
+ * ส่วนที่ไม่ผ่านถูกทิ้งเงียบๆ (ใช้ค่าของสตรีมเมอร์แทน) — ใช้ฝั่ง server ตอนสร้างโดเนท (F8)
+ */
+export function resolveDonorAlertStyle(
+  settings: Pick<
+    AlertSettings,
+    "donorCanPickImage" | "donorCanPickColor" | "donorCanPickSupportText"
+  >,
+  choice: DonorAlertChoice | null | undefined,
+): DonorAlertStyle {
+  const { mediaUrl, nameColor, supportText } = choice ?? {};
+  const text =
+    typeof supportText === "string" ? cleanSupportText(supportText) : "";
+  return {
+    mediaUrl:
+      settings.donorCanPickImage &&
+      typeof mediaUrl === "string" &&
+      mediaUrl.length <= 2000 &&
+      isKlipyMediaUrl(mediaUrl)
+        ? mediaUrl
+        : null,
+    nameColor:
+      settings.donorCanPickColor &&
+      typeof nameColor === "string" &&
+      HEX_COLOR.test(nameColor)
+        ? nameColor.toUpperCase()
+        : null,
+    supportText:
+      settings.donorCanPickSupportText &&
+      text.length >= 1 &&
+      text.length <= SUPPORT_TEXT_MAX
+        ? text
+        : null,
+  };
+}
+
+/** หน้าตา alert ที่จะแสดงจริง = ค่าของสตรีมเมอร์ ทับด้วยสิ่งที่ผู้บริจาคเลือก (ที่ผ่านการกรองแล้ว) */
+export function effectiveAlertStyle(
+  settings: Pick<
+    AlertSettings,
+    "mediaType" | "mediaUrl" | "nameColor" | "supportText"
+  >,
+  donor: DonorAlertStyle | null,
+) {
+  return {
+    imageUrl: donor?.mediaUrl ?? alertImageUrl(settings),
+    nameColor: donor?.nameColor ?? settings.nameColor,
+    supportText: donor?.supportText ?? settings.supportText,
+  };
 }

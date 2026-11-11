@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   alertImageUrl,
+  DEFAULT_ALERT_SETTINGS,
+  effectiveAlertStyle,
+  resolveDonorAlertStyle,
   alertSettingsUpdateSchema,
   DEFAULT_ALERT_IMAGE,
 } from "./alert-settings";
@@ -12,6 +15,9 @@ const valid = {
   volume: 80,
   supportText: "ให้ค่าข้าว",
   nameColor: "#FACC15",
+  donorCanPickImage: false,
+  donorCanPickColor: true,
+  donorCanPickSupportText: false,
 };
 
 describe("alertSettingsUpdateSchema", () => {
@@ -71,4 +77,75 @@ it("normalize คำสนับสนุนและสี", () => {
   });
   expect(r.supportText).toBe("ให้ค่า ข้าว");
   expect(r.nameColor).toBe("#38BDF8");
+});
+
+describe("resolveDonorAlertStyle", () => {
+  const all = {
+    donorCanPickImage: true,
+    donorCanPickColor: true,
+    donorCanPickSupportText: true,
+  };
+  const choice = {
+    mediaUrl: "https://static.klipy.com/ii/a.gif",
+    nameColor: "#38bdf8",
+    supportText: "  ให้ค่าขนม ",
+  };
+
+  it("ใช้ค่าของผู้บริจาคเมื่อเปิดให้เลือก", () => {
+    expect(resolveDonorAlertStyle(all, choice)).toEqual({
+      mediaUrl: "https://static.klipy.com/ii/a.gif",
+      nameColor: "#38BDF8",
+      supportText: "ให้ค่าขนม",
+    });
+  });
+
+  it("ทิ้งส่วนที่สตรีมเมอร์ไม่ได้เปิด", () => {
+    expect(resolveDonorAlertStyle(DEFAULT_ALERT_SETTINGS, choice)).toEqual({
+      mediaUrl: null,
+      nameColor: null,
+      supportText: null,
+    });
+  });
+
+  it.each([
+    { mediaUrl: "https://evil.example/x.gif" },
+    { mediaUrl: "https://my-bucket.supabase.co/alert-media/x.png" },
+    { mediaUrl: 123 },
+    { nameColor: "red" },
+    { nameColor: "#FFF" },
+    { supportText: "" },
+    { supportText: "ก".repeat(41) },
+    { supportText: ["array"] },
+  ])("ทิ้งค่าที่ไม่ผ่าน validation %o", (bad) => {
+    const r = resolveDonorAlertStyle(all, bad);
+    expect(r).toEqual({ mediaUrl: null, nameColor: null, supportText: null });
+  });
+
+  it("ไม่มีตัวเลือก → null ทั้งหมด", () => {
+    expect(resolveDonorAlertStyle(all, undefined)).toEqual({
+      mediaUrl: null,
+      nameColor: null,
+      supportText: null,
+    });
+  });
+});
+
+it("effectiveAlertStyle ใช้ค่าของผู้บริจาคก่อน ไม่มีก็ใช้ของสตรีมเมอร์", () => {
+  const settings = { ...DEFAULT_ALERT_SETTINGS, supportText: "ให้ค่าข้าว" };
+  expect(effectiveAlertStyle(settings, null)).toEqual({
+    imageUrl: DEFAULT_ALERT_IMAGE,
+    nameColor: "#FACC15",
+    supportText: "ให้ค่าข้าว",
+  });
+  expect(
+    effectiveAlertStyle(settings, {
+      mediaUrl: null,
+      nameColor: "#38BDF8",
+      supportText: null,
+    }),
+  ).toEqual({
+    imageUrl: DEFAULT_ALERT_IMAGE,
+    nameColor: "#38BDF8",
+    supportText: "ให้ค่าข้าว",
+  });
 });

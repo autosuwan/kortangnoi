@@ -50,6 +50,9 @@ describe("alert settings service", () => {
       volume: 30,
       supportText: "ให้ค่าข้าว",
       nameColor: "#38bdf8",
+      donorCanPickImage: true,
+      donorCanPickColor: false,
+      donorCanPickSupportText: true,
     });
     expect(saved).toEqual({
       ...DEFAULT_ALERT_SETTINGS,
@@ -58,6 +61,9 @@ describe("alert settings service", () => {
       volume: 30,
       supportText: "ให้ค่าข้าว",
       nameColor: "#38BDF8",
+      donorCanPickImage: true,
+      donorCanPickColor: false,
+      donorCanPickSupportText: true,
     });
   });
 
@@ -70,6 +76,9 @@ describe("alert settings service", () => {
         volume: 80,
         supportText: "โดเนท",
         nameColor: "#FACC15",
+        donorCanPickImage: false,
+        donorCanPickColor: false,
+        donorCanPickSupportText: false,
       }),
     ).rejects.toMatchObject({ status: 400, code: "ALERT_SETTINGS_INVALID" });
   });
@@ -97,6 +106,9 @@ describe("alert settings service", () => {
       volume: 80,
       supportText: "โดเนท",
       nameColor: "#FACC15",
+      donorCanPickImage: false,
+      donorCanPickColor: false,
+      donorCanPickSupportText: false,
     });
     expect(reset).toEqual(DEFAULT_ALERT_SETTINGS);
     expect(await fileExists(secondPath)).toBe(false);
@@ -116,6 +128,9 @@ describe("alert settings service", () => {
       volume: 80,
       supportText: "โดเนท",
       nameColor: "#FACC15",
+      donorCanPickImage: false,
+      donorCanPickColor: false,
+      donorCanPickSupportText: false,
     });
     expect(saved).toMatchObject({ mediaType: "gif", mediaUrl: gifUrl });
     expect(await storagePath(user.id)).toBeNull();
@@ -137,6 +152,9 @@ describe("alert settings service", () => {
         volume: 80,
         supportText: "โดเนท",
         nameColor: "#FACC15",
+        donorCanPickImage: false,
+        donorCanPickColor: false,
+        donorCanPickSupportText: false,
       }),
     ).rejects.toMatchObject({ status: 400, code: "MEDIA_URL_NOT_ALLOWED" });
   });

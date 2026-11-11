@@ -18,7 +18,8 @@
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript > src/lib/supabase/database.types.ts && prettier --write src/lib/supabase/database.types.ts",
     "dev:local": "scripts/with-local-supabase.sh next dev",
-    "test:int": "scripts/with-local-supabase.sh vitest run --config vitest.integration.config.mts"
+    "test:int": "scripts/with-local-supabase.sh vitest run --config vitest.integration.config.mts",
+    "db:push": "supabase db push --remote"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

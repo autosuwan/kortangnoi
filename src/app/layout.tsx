@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans, Noto_Sans_Mono, Noto_Sans_Thai } from "next/font/google";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { publicEnv } from "@/lib/env";
 
 import "./globals.css";
 
@@ -21,6 +22,7 @@ const notoSansMono = Noto_Sans_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(publicEnv.siteUrl),
   title: "KORTANGNOI",
   description: "รับโดเนทผ่านพร้อมเพย์ ไม่มีค่าธรรมเนียม ขึ้นจอ OBS อัตโนมัติ",
 };

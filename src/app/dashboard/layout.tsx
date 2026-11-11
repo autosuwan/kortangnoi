@@ -1,6 +1,7 @@
-import { HandCoins, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 
+import { LogoMark } from "@/components/logo";
 import {
   Tooltip,
   TooltipContent,
@@ -19,9 +20,9 @@ export default function DashboardLayout({
         <Link
           href="/dashboard"
           aria-label="KORTANGNOI"
-          className="mb-3 flex size-9 items-center justify-center rounded-lg text-primary"
+          className="mb-3 flex size-9 items-center justify-center"
         >
-          <HandCoins className="size-5" aria-hidden />
+          <LogoMark />
         </Link>
         <SidebarNav />
         <form action="/auth/signout" method="post" className="mt-auto">

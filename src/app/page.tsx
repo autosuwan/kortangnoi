@@ -1,6 +1,7 @@
-import { BadgePercent, HandCoins, MonitorPlay, ScanLine } from "lucide-react";
+import { BadgePercent, MonitorPlay, ScanLine } from "lucide-react";
 import Link from "next/link";
 
+import { Logo } from "@/components/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -45,9 +46,8 @@ export default function Home() {
     <div className="app-bg flex flex-1 flex-col">
       <header className="border-b">
         <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2 font-medium">
-            <HandCoins className="size-5 text-primary" aria-hidden />
-            KORTANGNOI
+          <Link href="/" aria-label="KORTANGNOI หน้าแรก">
+            <Logo />
           </Link>
           <Link
             href="/login"

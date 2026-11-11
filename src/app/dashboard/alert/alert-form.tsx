@@ -26,6 +26,7 @@ import {
   SUPPORT_TEXT_MAX,
   type AlertSettings,
 } from "@/lib/alert-settings";
+import { TTS_MIN_AMOUNT, TTS_VOICES, type TtsVoice } from "@/lib/tts";
 import { cn } from "@/lib/utils";
 
 import { UnsavedBar } from "../unsaved-bar";
@@ -41,6 +42,11 @@ type Editable = Pick<
   | "donorCanPickImage"
   | "donorCanPickColor"
   | "donorCanPickSupportText"
+  | "ttsEnabled"
+  | "ttsMode"
+  | "ttsMinAmountSatang"
+  | "ttsVoice"
+  | "ttsVolume"
 >;
 
 const DONOR_PICKS = [
@@ -67,6 +73,11 @@ const pick = (s: AlertSettings): Editable => ({
   donorCanPickImage: s.donorCanPickImage,
   donorCanPickColor: s.donorCanPickColor,
   donorCanPickSupportText: s.donorCanPickSupportText,
+  ttsEnabled: s.ttsEnabled,
+  ttsMode: s.ttsMode,
+  ttsMinAmountSatang: s.ttsMinAmountSatang,
+  ttsVoice: s.ttsVoice,
+  ttsVolume: s.ttsVolume,
 });
 
 const SAMPLE = {
@@ -407,6 +418,8 @@ export function AlertForm({
           </div>
         </section>
 
+        <TtsCard draft={draft} set={set} onError={setError} />
+
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -561,5 +574,168 @@ function TestAlertButton() {
             : "ใช้ค่าที่บันทึกแล้ว · ใส่ลิงก์ OBS จากหน้าหลักก่อน")}
       </span>
     </div>
+  );
+}
+
+const TTS_MODES = [
+  { value: "message", label: "อ่านเฉพาะข้อความ" },
+  { value: "full", label: "อ่านชื่อ ยอด และข้อความ" },
+] as const;
+
+/** F13 การ์ดตั้งค่าเสียงอ่านข้อความ (Google TTS) */
+function TtsCard({
+  draft,
+  set,
+  onError,
+}: {
+  draft: Editable;
+  set: <K extends keyof Editable>(key: K, value: Editable[K]) => void;
+  onError: (message: string | null) => void;
+}) {
+  const [previewing, setPreviewing] = useState(false);
+  const off = !draft.ttsEnabled;
+
+  async function preview() {
+    setPreviewing(true);
+    onError(null);
+    try {
+      const res = await fetch("/api/settings/alert/tts-preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ttsMode: draft.ttsMode,
+          ttsVoice: draft.ttsVoice,
+          supportText: draft.supportText,
+        }),
+      });
+      if (!res.ok) {
+        onError(await readError(res, "สร้างเสียงอ่านไม่สำเร็จ"));
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.volume = draft.ttsVolume / 100;
+      audio.addEventListener("ended", () => URL.revokeObjectURL(url));
+      await audio.play().catch(() => {});
+    } catch {
+      onError("สร้างเสียงอ่านไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border bg-card p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-medium">เสียงอ่านข้อความ</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            อ่านข้อความของผู้บริจาคออกเสียงบนไลฟ์ หลังเสียงแจ้งเตือน
+          </p>
+        </div>
+        <Switch
+          aria-label="เปิดเสียงอ่านข้อความ"
+          checked={draft.ttsEnabled}
+          onCheckedChange={(checked) => set("ttsEnabled", checked)}
+        />
+      </div>
+
+      <div className={cn("mt-5 grid gap-5", off && "opacity-50")}>
+        <div
+          role="radiogroup"
+          aria-label="อ่านอะไร"
+          className="grid w-full grid-cols-2 rounded-lg border p-0.5 text-sm sm:inline-flex sm:w-fit"
+        >
+          {TTS_MODES.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              role="radio"
+              aria-checked={draft.ttsMode === m.value}
+              disabled={off}
+              onClick={() => set("ttsMode", m.value)}
+              className={cn(
+                "rounded-md px-3 py-1.5 transition-colors",
+                draft.ttsMode === m.value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="ttsMinAmount">อ่านเมื่อยอดตั้งแต่ (บาท)</Label>
+            <Input
+              id="ttsMinAmount"
+              inputMode="numeric"
+              disabled={off}
+              className="font-mono"
+              value={String(draft.ttsMinAmountSatang / 100)}
+              onChange={(e) => {
+                // ให้ลบแล้วพิมพ์ใหม่ได้ ค่อยปัดขึ้นขั้นต่ำตอนออกจากช่อง
+                const baht = Number(e.target.value.replace(/\D/g, "") || 0);
+                set(
+                  "ttsMinAmountSatang",
+                  Math.min(TTS_MIN_AMOUNT.max, baht * 100),
+                );
+              }}
+              onBlur={() => {
+                if (draft.ttsMinAmountSatang < TTS_MIN_AMOUNT.min) {
+                  set("ttsMinAmountSatang", TTS_MIN_AMOUNT.min);
+                }
+              }}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="ttsVoice">เสียง</Label>
+            <select
+              id="ttsVoice"
+              disabled={off}
+              value={draft.ttsVoice}
+              onChange={(e) => set("ttsVoice", e.target.value as TtsVoice)}
+              className="h-8 rounded-lg border bg-background px-2.5 text-sm"
+            >
+              {TTS_VOICES.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <Volume2
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+          <Slider
+            thumbLabel="ระดับเสียงอ่าน"
+            min={0}
+            max={100}
+            step={5}
+            disabled={off}
+            value={[draft.ttsVolume]}
+            onValueChange={(v) => set("ttsVolume", sliderValue(v))}
+          />
+          <span className="w-10 shrink-0 text-right font-mono text-sm">
+            {draft.ttsVolume}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={off || previewing}
+            onClick={preview}
+          >
+            {previewing ? <Loader2 className="animate-spin" /> : <Play />}
+            ฟังตัวอย่าง
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }

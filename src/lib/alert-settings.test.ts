@@ -18,6 +18,11 @@ const valid = {
   donorCanPickImage: false,
   donorCanPickColor: true,
   donorCanPickSupportText: false,
+  ttsEnabled: true,
+  ttsMode: "full",
+  ttsMinAmountSatang: 2000,
+  ttsVoice: "th-TH-Chirp3-HD-Kore",
+  ttsVolume: 100,
 };
 
 describe("alertSettingsUpdateSchema", () => {
@@ -49,6 +54,10 @@ describe("alertSettingsUpdateSchema", () => {
     { nameColor: "red" },
     { nameColor: "#FFF" },
     { nameColor: "#GGGGGG" },
+    { ttsMode: "everything" },
+    { ttsVoice: "en-US-Standard-A" },
+    { ttsMinAmountSatang: 99 },
+    { ttsVolume: 101 },
     { mediaType: "gif" },
   ])("ปฏิเสธ %o", (patch) => {
     expect(

@@ -13,6 +13,8 @@ export type OverlayAlert = {
   imageUrl: string;
   nameColor: string;
   supportText: string;
+  /** F13 signed URL ของเสียงอ่าน (อายุ 10 นาที) — null = ไม่อ่าน */
+  ttsUrl: string | null;
 };
 
 /** ค่าที่ overlay ต้องใช้ (ไม่รวมสิทธิ์ของผู้บริจาค) */
@@ -25,6 +27,7 @@ export type OverlaySettings = Pick<
   | "volume"
   | "supportText"
   | "nameColor"
+  | "ttsVolume"
 >;
 
 export type OverlayConfig = { channel: string; settings: OverlaySettings };

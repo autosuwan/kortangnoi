@@ -29,6 +29,8 @@ import { cn } from "@/lib/utils";
 const ANIMATION_MS = 500;
 const noopSubscribe = () => () => {};
 const GAP_MS = 700;
+const SPEECH_DELAY_MS = 800;
+const MAX_SPEECH_EXTRA_MS = 30_000;
 
 type Phase = "in" | "out";
 
@@ -96,12 +98,46 @@ export function Overlay({ token }: { token: string }) {
     }
 
     const duration = (s?.durationSec ?? 8) * 1000;
-    setTimeout(() => setPhase("out"), duration);
+
+    // alert อยู่จนครบเวลาที่ตั้ง และจนเสียงอ่าน (F13) จบ — แต่ไม่เกิน +30 วิ
+    let timeUp = false;
+    let speechDone = !next.ttsUrl;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      setPhase("out");
+      setTimeout(() => {
+        setCurrent(null);
+        playing.current = false;
+        setTimeout(play, GAP_MS);
+      }, ANIMATION_MS);
+    };
+    const maybeFinish = () => {
+      if (timeUp && speechDone) finish();
+    };
     setTimeout(() => {
-      setCurrent(null);
-      playing.current = false;
-      setTimeout(play, GAP_MS);
-    }, duration + ANIMATION_MS);
+      timeUp = true;
+      maybeFinish();
+    }, duration);
+    setTimeout(finish, duration + MAX_SPEECH_EXTRA_MS);
+
+    if (next.ttsUrl) {
+      const speech = new Audio(next.ttsUrl);
+      speech.volume = (s?.ttsVolume ?? 100) / 100;
+      const done = () => {
+        speechDone = true;
+        maybeFinish();
+      };
+      speech.addEventListener("ended", done);
+      speech.addEventListener("error", done);
+      setTimeout(() => {
+        speech.play().catch(() => {
+          setSoundBlocked(true);
+          done();
+        });
+      }, SPEECH_DELAY_MS);
+    }
   }, []);
 
   useEffect(() => {

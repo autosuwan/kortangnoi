@@ -58,8 +58,10 @@ test("ปรับเวลาและเสียง → บันทึก �
   await page.keyboard.press("ArrowRight");
   await expect(page.getByTestId("duration-value")).toHaveText("10 วินาที");
 
-  await page.getByRole("switch", { name: "เปิดเสียง" }).click();
-  await expect(page.getByRole("slider", { name: "ระดับเสียง" })).toBeDisabled();
+  await page.getByRole("switch", { name: "เปิดเสียง", exact: true }).click();
+  await expect(
+    page.getByRole("slider", { name: "ระดับเสียง", exact: true }),
+  ).toBeDisabled();
 
   await unsaved.getByRole("button", { name: "บันทึก" }).click();
   await expect(unsaved).toBeHidden();
@@ -67,7 +69,9 @@ test("ปรับเวลาและเสียง → บันทึก �
   await page.reload();
   await page.waitForLoadState("networkidle");
   await expect(page.getByTestId("duration-value")).toHaveText("10 วินาที");
-  await expect(page.getByRole("switch", { name: "เปิดเสียง" })).not.toBeChecked();
+  await expect(
+    page.getByRole("switch", { name: "เปิดเสียง", exact: true }),
+  ).not.toBeChecked();
 });
 
 test("เล่นพรีวิว: alert หายไปตามเวลาแล้วกลับมา", async ({ page }) => {

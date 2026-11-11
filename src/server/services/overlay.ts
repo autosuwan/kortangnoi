@@ -18,6 +18,7 @@ import {
   overlayChannelName,
 } from "@/server/realtime/overlay";
 import { getAlertSettings } from "@/server/services/alert";
+import { prepareAlertSpeech } from "@/server/services/tts";
 
 const TEST_COOLDOWN_MS = 3000;
 
@@ -51,6 +52,7 @@ export async function getOverlayByToken(token: string): Promise<OverlayConfig> {
       volume: s.volume,
       supportText: s.supportText,
       nameColor: s.nameColor,
+      ttsVolume: s.ttsVolume,
     },
   };
 }
@@ -104,13 +106,20 @@ export async function sendTestAlert(userId: string): Promise<{ ok: true }> {
   if (!token) throw new AppError(404, "PROFILE_NOT_FOUND", "ไม่พบบัญชีผู้ใช้");
 
   const style = effectiveAlertStyle(settings, null);
-  const alert: OverlayAlert = {
-    donationId: `test-${randomBytes(8).toString("hex")}`,
+  const content = {
     donorName: "ผู้ชมใจดี",
     amountSatang: 10000,
     message: "ทดสอบ alert จาก KORTANGNOI",
+  };
+  const alert: OverlayAlert = {
+    donationId: `test-${randomBytes(8).toString("hex")}`,
+    ...content,
     isTest: true,
     ...style,
+    ttsUrl: await prepareAlertSpeech(userId, settings, {
+      ...content,
+      supportText: style.supportText,
+    }),
   };
   await broadcastToOverlay(token, OVERLAY_EVENTS.donation, alert);
   return { ok: true };

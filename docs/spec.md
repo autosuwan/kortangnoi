@@ -542,6 +542,50 @@ type OverlayAlert = {
 
 ---
 
+## F13 อ่านข้อความออกเสียง (TTS)
+
+### หน้าจอ (การ์ด "เสียงอ่านข้อความ" ใน `/dashboard/alert`)
+
+- สวิตช์เปิด/ปิด, โหมด "อ่านเฉพาะข้อความ" / "อ่านชื่อ ยอด และข้อความ", ยอดขั้นต่ำที่จะอ่าน (บาท), เลือกเสียง, ระดับเสียง
+- ปุ่ม "ฟังตัวอย่าง" สร้างเสียงจากค่าที่กำลังแก้ (ยังไม่ต้องบันทึก)
+- บันทึกผ่านแถบ "ยังไม่บันทึก"
+
+### Flow
+
+1. ตอนส่ง alert ไป overlay (ทดสอบ alert / โดเนทผ่านใน F8) → `buildTtsText` (ใน `src/lib/tts.ts`) ตัดสินว่าต้องอ่านไหมและอ่านว่าอะไร
+2. ต้องอ่าน → เรียก Google Cloud TTS ฝั่ง server → เก็บ MP3 ใน bucket `tts-audio` (private) → ใส่ signed URL อายุ 10 นาทีเป็น `ttsUrl` ใน payload ของ overlay
+3. overlay เล่นเสียงแจ้งเตือน → ~0.8 วิ → เล่นเสียงอ่าน; alert อยู่จนอ่านจบ (อย่างน้อย `durationSec` ไม่เกิน +30 วิ)
+
+### API
+
+| Method | Path                              | Request                              | Response             |
+| ------ | --------------------------------- | ------------------------------------ | -------------------- |
+| POST   | `/api/settings/alert/tts-preview` | `{ ttsMode, ttsVoice, supportText }` | `audio/mpeg` (ล็อกอิน) |
+
+ค่าตั้งเก็บใน `AlertSettings`: `ttsEnabled`, `ttsMode: "message" | "full"`, `ttsMinAmountSatang`, `ttsVoice`, `ttsVolume`
+
+### Validation
+
+- `ttsVoice` ต้องอยู่ใน allowlist: `th-TH-Chirp3-HD-Kore` (ค่าเริ่มต้น), `th-TH-Chirp3-HD-Charon`, `th-TH-Neural2-C`, `th-TH-Standard-A`
+- `ttsMinAmountSatang` 100–10,000,000 (ค่าเริ่มต้น 2,000), `ttsVolume` 0–100
+- ข้อความที่อ่าน: ตัด control characters, URL → "ลิงก์", อักษรซ้ำเกิน 5 ตัวย่อเหลือ 5, ยาวไม่เกิน 300 ตัว; ยอดอ่านเป็น "1234 บาท 50 สตางค์"
+- อ่านเฉพาะสิ่งที่ผู้บริจาคกรอก ห้ามมีชื่อจริง/ข้อมูลบัญชีจากสลิป
+- ฟังตัวอย่าง จำกัด 1 ครั้ง/3 วินาที (`alert_settings.tts_preview_at`) เกิน → 429 `RATE_LIMITED`
+
+### Error case
+
+| กรณี                                     | ผล                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------- |
+| ไม่ได้ตั้ง `GOOGLE_TTS_API_KEY` / Google ล่ม | alert ยังขึ้นปกติ แค่ไม่มีเสียงอ่าน (log ไว้); ฟังตัวอย่าง → 502 `TTS_UNAVAILABLE` |
+
+### พังได้ยังไง
+
+- คนดูพิมพ์ข้อความหยาบให้ระบบอ่านออกอากาศ → MVP ยังไม่มีตัวกรองคำ (อยู่ใน v2); สตรีมเมอร์ตั้งยอดขั้นต่ำที่อ่านสูงขึ้นหรือปิดได้
+- ไฟล์เสียงสะสมจนพื้นที่ฟรีเต็ม → สร้างไฟล์ใหม่แล้วลบไฟล์เก่ากว่า 1 ชม. ของผู้ใช้คนนั้น
+- โควตาฟรีของ Google หมด → เสียค่าใช้จ่ายตามจริง (Chirp 3 HD ฟรี 1 ล้านตัวอักษร/เดือน)
+
+---
+
 ## F12 หน้าแอดมิน
 
 ### หน้าจอ `/dashboard/admin` (เฉพาะแอดมิน)
@@ -578,6 +622,8 @@ type OverlayAlert = {
 | `SUPABASE_SECRET_KEY`                  | server เท่านั้น    | ใช้ใน service ที่ต้องข้าม RLS (เช่น ตรวจสลิป, broadcast)                |
 | `SLIPOK_API_KEY`                       | server เท่านั้น    |                                                                  |
 | `SLIPOK_BRANCH_ID`                     | server เท่านั้น    |                                                                  |
+| `GOOGLE_TTS_API_KEY`                   | server เท่านั้น    | API key จำกัดให้ใช้ได้เฉพาะ Text-to-Speech API; ไม่มี = ไม่มีเสียงอ่าน     |
+| `TTS_PROVIDER`                         | server (test)   | `fake` ใน test/CI ไม่เรียก Google                                  |
 | `NEXT_PUBLIC_KLIPY_APP_KEY`            | client          | KLIPY กำหนดให้เรียกจากเบราว์เซอร์ จึงเปิดเผยได้; ถ้าโดนใช้ผิดให้ออก key ใหม่ |
 | `ADMIN_USER_IDS`                       | server เท่านั้น    |                                                                  |
 | `IP_HASH_SALT`                         | server เท่านั้น    | สำหรับ hash IP ใน rate limit                                      |

@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 import { isKlipyMediaUrl } from "@/lib/klipy";
+import {
+  TTS_MIN_AMOUNT,
+  TTS_VOICE_IDS,
+  type TtsMode,
+  type TtsVoice,
+} from "@/lib/tts";
 
 export type AlertMediaType = "default" | "gif" | "upload";
 
@@ -18,6 +24,12 @@ export type AlertSettings = {
   donorCanPickImage: boolean;
   donorCanPickColor: boolean;
   donorCanPickSupportText: boolean;
+  /** F13 เสียงอ่านข้อความ */
+  ttsEnabled: boolean;
+  ttsMode: TtsMode;
+  ttsMinAmountSatang: number;
+  ttsVoice: TtsVoice;
+  ttsVolume: number;
 };
 
 export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
@@ -31,6 +43,11 @@ export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
   donorCanPickImage: false,
   donorCanPickColor: false,
   donorCanPickSupportText: false,
+  ttsEnabled: false,
+  ttsMode: "message",
+  ttsMinAmountSatang: 2000,
+  ttsVoice: "th-TH-Chirp3-HD-Kore",
+  ttsVolume: 100,
 };
 
 export const SUPPORT_TEXT_MAX = 40;
@@ -75,6 +92,15 @@ export const alertSettingsUpdateSchema = z
     donorCanPickImage: z.boolean(),
     donorCanPickColor: z.boolean(),
     donorCanPickSupportText: z.boolean(),
+    ttsEnabled: z.boolean(),
+    ttsMode: z.enum(["message", "full"]),
+    ttsMinAmountSatang: z
+      .number()
+      .int()
+      .min(TTS_MIN_AMOUNT.min)
+      .max(TTS_MIN_AMOUNT.max),
+    ttsVoice: z.enum(TTS_VOICE_IDS),
+    ttsVolume: z.number().int().min(0).max(100),
   })
   // เลือก GIF ต้องส่ง URL มาด้วย (โดเมนเช็กต่อใน service → MEDIA_URL_NOT_ALLOWED)
   .refine((v) => v.mediaType !== "gif" || Boolean(v.mediaUrl), {

@@ -103,3 +103,56 @@ test("ลิงก์ OBS: คัดลอกได้ ซ่อน token แล
   await overlay.goto(oldPath);
   await expect(overlay.getByText("ลิงก์ overlay ไม่ถูกต้อง")).toBeVisible();
 });
+
+test("TTS: ตั้งค่า → ฟังตัวอย่าง → ทดสอบ alert แล้ว overlay โหลดเสียงอ่าน", async ({
+  page,
+  context,
+}) => {
+  const user = await loginAsStreamer(page, "tts-e2e");
+  await page.goto("/dashboard/alert");
+  await page.waitForLoadState("networkidle");
+
+  await page.getByRole("switch", { name: "เปิดเสียงอ่านข้อความ" }).click();
+  await page.getByRole("radio", { name: "อ่านชื่อ ยอด และข้อความ" }).click();
+  await page.getByLabel("อ่านเมื่อยอดตั้งแต่ (บาท)").fill("50");
+  await page
+    .getByLabel("เสียง", { exact: true })
+    .selectOption("th-TH-Neural2-C");
+
+  const previewRes = page.waitForResponse("**/api/settings/alert/tts-preview");
+  await page.getByRole("button", { name: "ฟังตัวอย่าง" }).click();
+  const res = await previewRes;
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toMatch(/^audio\//);
+
+  const unsaved = page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" });
+  await unsaved.getByRole("button", { name: "บันทึก" }).click();
+  await expect(unsaved).toBeHidden();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(
+    page.getByRole("switch", { name: "เปิดเสียงอ่านข้อความ" }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("radio", { name: "อ่านชื่อ ยอด และข้อความ" }),
+  ).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByLabel("อ่านเมื่อยอดตั้งแต่ (บาท)")).toHaveValue("50");
+  await expect(page.getByLabel("เสียง", { exact: true })).toHaveValue(
+    "th-TH-Neural2-C",
+  );
+
+  const overlay = await context.newPage();
+  await overlay.goto(await overlayPathOf(user.id));
+  await expect(overlay.getByTestId("overlay")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
+  await overlay.waitForTimeout(1500);
+
+  const speechRequest = overlay.waitForRequest(/tts-audio/);
+  await page.getByRole("button", { name: "ทดสอบ alert ใน OBS" }).click();
+  await expect(overlay.getByTestId("alert-headline")).toBeVisible({
+    timeout: 5000,
+  });
+  await speechRequest;
+});

@@ -10,13 +10,14 @@ import {
 import { AppError } from "@/lib/api-error";
 import { detectImageType } from "@/lib/image-type";
 import { isKlipyMediaUrl } from "@/lib/klipy";
+import type { TtsMode, TtsVoice } from "@/lib/tts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOverlaySettingsChanged } from "@/server/realtime/overlay";
 import type { Database } from "@/lib/supabase/database.types";
 
 const BUCKET = "alert-media";
 const COLUMNS =
-  "media_type, media_url, media_storage_path, duration_sec, sound_enabled, volume, support_text, name_color, donor_can_pick_image, donor_can_pick_color, donor_can_pick_support_text";
+  "media_type, media_url, media_storage_path, duration_sec, sound_enabled, volume, support_text, name_color, donor_can_pick_image, donor_can_pick_color, donor_can_pick_support_text, tts_enabled, tts_mode, tts_min_amount_satang, tts_voice, tts_volume";
 
 type Row = Pick<
   Database["public"]["Tables"]["alert_settings"]["Row"],
@@ -31,6 +32,11 @@ type Row = Pick<
   | "donor_can_pick_image"
   | "donor_can_pick_color"
   | "donor_can_pick_support_text"
+  | "tts_enabled"
+  | "tts_mode"
+  | "tts_min_amount_satang"
+  | "tts_voice"
+  | "tts_volume"
 >;
 
 function toSettings(row: Row): AlertSettings {
@@ -45,6 +51,12 @@ function toSettings(row: Row): AlertSettings {
     donorCanPickImage: row.donor_can_pick_image,
     donorCanPickColor: row.donor_can_pick_color,
     donorCanPickSupportText: row.donor_can_pick_support_text,
+    ttsEnabled: row.tts_enabled,
+    // DB มี CHECK ให้อยู่ในค่าที่อนุญาตแล้ว
+    ttsMode: row.tts_mode as TtsMode,
+    ttsMinAmountSatang: row.tts_min_amount_satang,
+    ttsVoice: row.tts_voice as TtsVoice,
+    ttsVolume: row.tts_volume,
   };
 }
 
@@ -93,6 +105,11 @@ export async function updateAlertSettings(
     donorCanPickImage,
     donorCanPickColor,
     donorCanPickSupportText,
+    ttsEnabled,
+    ttsMode,
+    ttsMinAmountSatang,
+    ttsVoice,
+    ttsVolume,
   } = parsed.data;
   if (mediaType === "gif" && !isKlipyMediaUrl(mediaUrl ?? "")) {
     throw new AppError(400, "MEDIA_URL_NOT_ALLOWED", "ใช้ได้เฉพาะ GIF จาก KLIPY");
@@ -111,6 +128,11 @@ export async function updateAlertSettings(
       donor_can_pick_image: donorCanPickImage,
       donor_can_pick_color: donorCanPickColor,
       donor_can_pick_support_text: donorCanPickSupportText,
+      tts_enabled: ttsEnabled,
+      tts_mode: ttsMode,
+      tts_min_amount_satang: ttsMinAmountSatang,
+      tts_voice: ttsVoice,
+      tts_volume: ttsVolume,
       ...(mediaType === "default" && {
         media_type: "default" as const,
         media_url: null,

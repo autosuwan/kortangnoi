@@ -47,6 +47,12 @@ export type Database = {
           name_color: string;
           sound_enabled: boolean;
           support_text: string;
+          tts_enabled: boolean;
+          tts_min_amount_satang: number;
+          tts_mode: string;
+          tts_preview_at: string | null;
+          tts_voice: string;
+          tts_volume: number;
           updated_at: string;
           user_id: string;
           volume: number;
@@ -64,6 +70,12 @@ export type Database = {
           name_color?: string;
           sound_enabled?: boolean;
           support_text?: string;
+          tts_enabled?: boolean;
+          tts_min_amount_satang?: number;
+          tts_mode?: string;
+          tts_preview_at?: string | null;
+          tts_voice?: string;
+          tts_volume?: number;
           updated_at?: string;
           user_id: string;
           volume?: number;
@@ -80,6 +92,12 @@ export type Database = {
           name_color?: string;
           sound_enabled?: boolean;
           support_text?: string;
+          tts_enabled?: boolean;
+          tts_min_amount_satang?: number;
+          tts_mode?: string;
+          tts_preview_at?: string | null;
+          tts_voice?: string;
+          tts_volume?: number;
           updated_at?: string;
           user_id?: string;
           volume?: number;

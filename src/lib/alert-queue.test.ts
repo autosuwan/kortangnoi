@@ -12,6 +12,7 @@ const alert = (id: string): OverlayAlert => ({
   imageUrl: "/x.png",
   nameColor: "#FFFFFF",
   supportText: "โดเนท",
+  ttsUrl: null,
 });
 
 describe("alert queue", () => {

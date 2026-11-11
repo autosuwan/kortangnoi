@@ -46,6 +46,12 @@ erDiagram
     boolean donor_can_pick_color "default false"
     boolean donor_can_pick_support_text "default false"
     timestamptz last_test_at "nullable, rate limit ปุ่มทดสอบ alert"
+    boolean tts_enabled "default false"
+    text tts_mode "message | full"
+    int tts_min_amount_satang "default 2000"
+    text tts_voice "allowlist, default th-TH-Chirp3-HD-Kore"
+    smallint tts_volume "0-100, default 100"
+    timestamptz tts_preview_at "nullable, rate limit ฟังตัวอย่าง"
     timestamptz updated_at
   }
 
@@ -153,7 +159,8 @@ erDiagram
 
 ## Storage
 
-| Bucket        | Public       | Path                                          | สิทธิ์                                        |
-| ------------- | ------------ | --------------------------------------------- | ------------------------------------------ |
-| `alert-media` | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`                      | server เท่านั้น (ผ่าน API), ≤ 4 MB             |
-| `slips`       | private      | `{streamer_id}/{donation_id}/{attempt}.{ext}` | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที |
+| Bucket        | Public       | Path                                          | สิทธิ์                                                           |
+| ------------- | ------------ | --------------------------------------------- | ------------------------------------------------------------- |
+| `alert-media` | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`                      | server เท่านั้น (ผ่าน API), ≤ 4 MB                                |
+| `tts-audio`   | private      | `{user_id}/{uuid}.mp3`                        | server เท่านั้น, overlay ได้ signed URL 10 นาที, ลบไฟล์เก่ากว่า 1 ชม. |
+| `slips`       | private      | `{streamer_id}/{donation_id}/{attempt}.{ext}` | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที                    |

@@ -1,0 +1,73 @@
+/** F13 เสียงอ่านข้อความผู้บริจาค — logic ที่ใช้ร่วม client/server */
+
+export const TTS_VOICES = [
+  { id: "th-TH-Chirp3-HD-Kore", label: "HD ผู้หญิง" },
+  { id: "th-TH-Chirp3-HD-Charon", label: "HD ผู้ชาย" },
+  { id: "th-TH-Neural2-C", label: "ผู้หญิง (Neural2)" },
+  { id: "th-TH-Standard-A", label: "ผู้หญิง (มาตรฐาน)" },
+] as const;
+
+export type TtsVoice = (typeof TTS_VOICES)[number]["id"];
+export type TtsMode = "message" | "full";
+
+export const TTS_VOICE_IDS = TTS_VOICES.map((v) => v.id) as [
+  TtsVoice,
+  ...TtsVoice[],
+];
+export const TTS_TEXT_MAX = 300;
+export const TTS_MIN_AMOUNT = { min: 100, max: 10_000_000 } as const;
+
+/** อ่านยอดให้เป็นธรรมชาติ: 123450 → "1234 บาท 50 สตางค์" (ไม่ใส่ comma ให้ TTS อ่านเป็นตัวเลขเดียว) */
+export function speakAmount(satang: number): string {
+  const baht = Math.trunc(satang / 100);
+  const st = satang % 100;
+  return st ? `${baht} บาท ${st} สตางค์` : `${baht} บาท`;
+}
+
+/** ทำความสะอาดข้อความก่อนส่งให้ TTS อ่านออกอากาศ */
+export function cleanForSpeech(input: string): string {
+  return (
+    input
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+      .replace(/(?:https?:\/\/|www\.)\S+/gi, "ลิงก์")
+      // "55555555555" → "55555", "!!!!!!" → "!!!!!"
+      .replace(/(.)\1{5,}/gu, "$1$1$1$1$1")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+/**
+ * ข้อความที่จะอ่าน หรือ null ถ้าไม่ต้องอ่าน
+ * (ปิดไว้, ยอดต่ำกว่าขั้นต่ำ, โหมดอ่านเฉพาะข้อความแต่ไม่มีข้อความ)
+ */
+export function buildTtsText({
+  enabled,
+  mode,
+  minAmountSatang,
+  donorName,
+  supportText,
+  amountSatang,
+  message,
+}: {
+  enabled: boolean;
+  mode: TtsMode;
+  minAmountSatang: number;
+  donorName: string;
+  supportText: string;
+  amountSatang: number;
+  message: string | null;
+}): string | null {
+  if (!enabled || amountSatang < minAmountSatang) return null;
+
+  const msg = cleanForSpeech(message ?? "");
+  const parts =
+    mode === "full"
+      ? [
+          `${cleanForSpeech(donorName)} ${cleanForSpeech(supportText)} ${speakAmount(amountSatang)}`,
+          msg,
+        ]
+      : [msg];
+  const text = parts.filter(Boolean).join(" ").trim();
+  return text ? text.slice(0, TTS_TEXT_MAX) : null;
+}

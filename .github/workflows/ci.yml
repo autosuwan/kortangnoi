@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # สั่งรันเองได้ (Actions → CI → Run workflow) เผื่อ GitHub ค้างแล้ว run เดิมรันใหม่ไม่ได้
+  workflow_dispatch:
 
 jobs:
   secrets:
@@ -57,7 +59,7 @@ jobs:
   # ลง migration ใหม่ขึ้น Supabase cloud หลัง test ผ่านทุกตัว (เฉพาะ push เข้า main)
   # ต้องมี secret SUPABASE_ACCESS_TOKEN (Personal access token จาก supabase.com/dashboard/account/tokens)
   migrate:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: [secrets, verify, e2e]
     runs-on: ubuntu-24.04
     timeout-minutes: 10

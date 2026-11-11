@@ -25,6 +25,8 @@ const ATTACH_WINDOW_MS = 24 * 60 * 60 * 1000;
 const ALLOWED_TYPES = new Set(["jpg", "png", "webp"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PG_UNIQUE_VIOLATION = "23505";
+/** SlipOK ไม่รับข้อความ QR ที่เราอ่านได้ → ลองส่งไฟล์รูปแทน */
+const FALLBACK_TO_FILE = new Set([1000, 1006, 1007, 1008]);
 
 export type SlipResult = {
   status: DonationStatus;
@@ -206,29 +208,49 @@ export async function verifySlip(
     return finish("awaiting_slip", message, { verify_result: verifyResult });
   }
 
-  // ขั้น 4: อ่าน QR
+  // ขั้น 4: อ่าน QR เอง (ใช้กันสลิปซ้ำก่อนเสียโควตา)
   const qr = await readSlipQr(bytes);
-  if (!qr) {
-    return retry("ไม่พบ QR บนสลิป ลองครอปให้เห็น QR ชัดๆ", { step: "read_qr" });
-  }
+  const qrInfo = qr ? { length: qr.length, prefix: qr.slice(0, 6) } : null;
 
   // ขั้น 5: hash ของ QR ซ้ำ (ไม่เสียโควตา SlipOK)
-  const qrHash = sha256(qr);
-  if (await usedElsewhere("slip_qr_hash", qrHash, donationId)) {
+  const qrHash = qr ? sha256(qr) : null;
+  if (qrHash && (await usedElsewhere("slip_qr_hash", qrHash, donationId))) {
     return finish("rejected", SLIP_MESSAGES.duplicate, {
       verify_result: { step: "duplicate_qr" },
     });
   }
 
-  // ขั้น 6: SlipOK
-  const slipok = await checkSlipWithSlipOk(qr);
+  // ขั้น 6: SlipOK — ส่งข้อความ QR ก่อน; ถ้าเราอ่าน QR ไม่ได้ หรือ SlipOK ไม่รับข้อความนั้น
+  // ส่งไฟล์รูปให้ SlipOK อ่าน QR เองแทน (สลิปบางแอปอ่านด้วยวิธีเราไม่ผ่าน)
+  const fileInput = {
+    file: { bytes, mime: type.mime, name: `slip.${type.ext}` },
+  };
+  let mode: "data" | "file" = qr ? "data" : "file";
+  let slipok = await checkSlipWithSlipOk(qr ? { data: qr } : fileInput);
+  if (!slipok.ok && qr && FALLBACK_TO_FILE.has(slipok.code ?? -1)) {
+    console.warn(
+      "slipok rejected QR data, retry with file",
+      slipok.code,
+      qrInfo,
+    );
+    mode = "file";
+    slipok = await checkSlipWithSlipOk(fileInput);
+  }
   if (!slipok.ok) {
     const action = mapSlipOkError(slipok.code);
-    const verifyResult = { step: "slipok", slipokCode: slipok.code };
+    const verifyResult = {
+      step: "slipok",
+      slipokCode: slipok.code,
+      slipokMessage: slipok.message.slice(0, 200),
+      mode,
+      qr: qrInfo,
+    };
     if (action.kind === "retry") return retry(action.message, verifyResult);
     if (action.kind === "pending_review" && action.adminError) {
       await logSystemError(String(slipok.code ?? "network"), slipok.message, {
         donationId,
+        mode,
+        qr: qrInfo,
       }).catch((e) => console.error("log system error failed", e));
     }
     return finish(action.kind, action.message, {
@@ -266,6 +288,7 @@ export async function verifySlip(
     approved_via: decision.outcome === "approved" ? "auto" : null,
     verify_result: {
       step: "decided",
+      mode,
       checks: decision.checks,
       slip: slipSummary(slip),
     } as unknown as Json,

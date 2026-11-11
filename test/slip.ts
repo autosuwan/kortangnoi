@@ -7,7 +7,9 @@ import type { SlipData } from "@/lib/slip-check";
 const PREFIX = "TESTSLIP|"; // ตรงกับ FAKE_SLIP_PREFIX ใน src/server/integrations/slipok.ts
 
 /** QR payload ที่ fake SlipOK อ่านแล้วตอบ data ที่กำหนด */
-export const fakeSlipPayload = (spec: { data: SlipData } | { code: number }) =>
+export const fakeSlipPayload = (
+  spec: { data: SlipData; failDataMode?: number } | { code: number },
+) =>
   // nonce ทำให้ QR แต่ละใบไม่ซ้ำกัน (ไม่งั้นระบบจับว่าเป็นสลิปซ้ำ — ถูกต้องตามที่ควรเป็น)
   PREFIX + JSON.stringify({ ...spec, nonce: randomUUID() });
 

@@ -86,6 +86,38 @@ describe("แนบสลิป + ตรวจสลิป", () => {
     expect(JSON.stringify(alert)).not.toMatch(/ผู้โอน|REAL SENDER|สมชาย|5678/);
   });
 
+  it("SlipOK ไม่รับข้อความ QR (1000) → ส่งไฟล์รูปแทนแล้วผ่าน", async () => {
+    const { d } = await newDonation("slip-fallback");
+    const r = await verifySlip(
+      d.donationId,
+      d.accessToken,
+      await slipFile(
+        fakeSlipPayload({ data: goodSlip(5000), failDataMode: 1000 }),
+      ),
+    );
+    expect(r.status).toBe("approved");
+    expect((await row(d.donationId)).verify_result).toMatchObject({
+      step: "decided",
+      mode: "file",
+    });
+  });
+
+  it("SlipOK ไม่รับทั้งข้อความและไฟล์ → บันทึกข้อมูลวิเคราะห์ (ความยาว/ต้น QR, ข้อความ SlipOK)", async () => {
+    const { d } = await newDonation("slip-diag");
+    const r = await verifySlip(
+      d.donationId,
+      d.accessToken,
+      await slipFile(fakeSlipPayload({ code: 1000 })),
+    );
+    expect(r.status).toBe("pending_review");
+    expect((await row(d.donationId)).verify_result).toMatchObject({
+      step: "slipok",
+      slipokCode: 1000,
+      mode: "file",
+      qr: { prefix: "TESTSL" },
+    });
+  });
+
   it("ไม่มี QR ในรูป → แนบใหม่ได้ เหลือ 2 ครั้ง", async () => {
     const { d } = await newDonation("slip-noqr");
     const blank = new File(
@@ -234,9 +266,12 @@ describe("แนบสลิป + ตรวจสลิป", () => {
       .from("system_errors")
       .select("source, code, context")
       .contains("context", { donationId: d.donationId });
-    expect(data).toEqual([
-      { source: "slipok", code: "1004", context: { donationId: d.donationId } },
-    ]);
+    expect(data).toHaveLength(1);
+    expect(data![0]).toMatchObject({
+      source: "slipok",
+      code: "1004",
+      context: { donationId: d.donationId, mode: "data" },
+    });
   });
 
   it("SlipOK 1011 (ไม่มีรายการจริง) → rejected", async () => {

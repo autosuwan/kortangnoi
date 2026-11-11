@@ -128,12 +128,12 @@ erDiagram
 
 เปิด RLS ทุกตาราง ค่าเริ่มต้นคือปฏิเสธทั้งหมด
 
-| ตาราง           | anon | เจ้าของ (authenticated)                               | server (service role) |
-| --------------- | ---- | ---------------------------------------------------- | --------------------- |
-| `profiles`      | –    | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด                 |
-| `*_settings`    | –    | select / update แถวตัวเอง                             | ทั้งหมด                 |
-| `donations`     | –    | select แถวที่ `streamer_id = auth.uid()`               | ทั้งหมด                 |
-| `system_errors` | –    | –                                                    | ทั้งหมด                 |
+| ตาราง           | anon | เจ้าของ (authenticated)                               | server (secret key) |
+| --------------- | ---- | ---------------------------------------------------- | ------------------- |
+| `profiles`      | –    | select / update แถวตัวเอง (ห้ามแก้ `overlay_token` ตรง) | ทั้งหมด               |
+| `*_settings`    | –    | select / update แถวตัวเอง                             | ทั้งหมด               |
+| `donations`     | –    | select แถวที่ `streamer_id = auth.uid()`               | ทั้งหมด               |
+| `system_errors` | –    | –                                                    | ทั้งหมด               |
 
 - หน้าโดเนท, overlay และการตรวจสลิปไม่ให้ client อ่าน DB ตรง ทุกอย่างผ่าน API ของเราที่ใช้ service role
 - `select` ของเจ้าของบน `donations` ทำให้ dashboard ใช้ Realtime `postgres_changes` แจ้งรายการรอตรวจใหม่ได้

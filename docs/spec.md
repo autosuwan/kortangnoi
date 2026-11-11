@@ -73,7 +73,8 @@ stateDiagram-v2
 
 - `/login` — ปุ่ม "เข้าสู่ระบบด้วย Google" และ "เข้าสู่ระบบด้วย Discord"
 - `/onboarding` — ตั้ง username ครั้งแรก (แสดงตัวอย่างลิงก์ `kortangnoi.../{username}` แบบ live) แล้วไปหน้าตั้งค่าช่องทางรับเงิน
-- ทุกหน้าใต้ `/dashboard` ต้องล็อกอิน; ยังไม่มี username → redirect ไป `/onboarding`
+- ทุกหน้าใต้ `/dashboard` ต้องล็อกอิน; ยังไม่มี username → redirect ไป `/onboarding`; ล็อกอินอยู่แล้วเปิด `/login` → `/dashboard`
+- **dev/test เท่านั้น:** `/login` มีฟอร์มอีเมล/รหัสผ่านเพิ่ม เมื่อ `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN=true` (ใช้กับ Supabase ในเครื่องและ Playwright เพราะ OAuth จริงทดสอบอัตโนมัติไม่ได้) — บน production ปิด flag และปิด email provider ใน Supabase
 
 ### Flow
 
@@ -546,14 +547,15 @@ type OverlayAlert = {
 
 ## Environment variables
 
-| ชื่อ                              | ใช้ที่             | หมายเหตุ                                           |
-| ------------------------------- | --------------- | ------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | client + server |                                                   |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client + server |                                                   |
-| `SUPABASE_SERVICE_ROLE_KEY`     | server เท่านั้น    | ใช้ใน service ที่ต้องข้าม RLS (เช่น ตรวจสลิป, broadcast) |
-| `SLIPOK_API_KEY`                | server เท่านั้น    |                                                   |
-| `SLIPOK_BRANCH_ID`              | server เท่านั้น    |                                                   |
-| `KLIPY_API_KEY`                 | server เท่านั้น    |                                                   |
-| `ADMIN_USER_IDS`                | server เท่านั้น    |                                                   |
-| `IP_HASH_SALT`                  | server เท่านั้น    | สำหรับ hash IP ใน rate limit                       |
-| `NEXT_PUBLIC_SITE_URL`          | client + server | สร้างลิงก์โดเนท/overlay                              |
+| ชื่อ                                     | ใช้ที่             | หมายเหตุ                                           |
+| -------------------------------------- | --------------- | ------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | client + server |                                                   |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | client + server |                                                   |
+| `SUPABASE_SECRET_KEY`                  | server เท่านั้น    | ใช้ใน service ที่ต้องข้าม RLS (เช่น ตรวจสลิป, broadcast) |
+| `SLIPOK_API_KEY`                       | server เท่านั้น    |                                                   |
+| `SLIPOK_BRANCH_ID`                     | server เท่านั้น    |                                                   |
+| `KLIPY_API_KEY`                        | server เท่านั้น    |                                                   |
+| `ADMIN_USER_IDS`                       | server เท่านั้น    |                                                   |
+| `IP_HASH_SALT`                         | server เท่านั้น    | สำหรับ hash IP ใน rate limit                       |
+| `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN`    | client + server | `true` เฉพาะ dev/test                             |
+| `NEXT_PUBLIC_SITE_URL`                 | client + server | สร้างลิงก์โดเนท/overlay                              |

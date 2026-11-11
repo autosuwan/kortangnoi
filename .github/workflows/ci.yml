@@ -33,9 +33,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    # image มี browser + system deps ครบ ไม่ต้อง apt-get (เวอร์ชันต้องตรงกับ @playwright/test)
-    container: mcr.microsoft.com/playwright:v1.65.0-noble
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,9 +41,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Supabase ในเครื่อง (Docker) — ปิด service ที่ test ไม่ใช้ให้เริ่มเร็วขึ้น
+      - run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime,mailpit
+      - run: npm run test:int
+      - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-        env:
-          HOME: /root
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

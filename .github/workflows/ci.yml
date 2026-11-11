@@ -44,7 +44,8 @@ jobs:
       # Supabase ในเครื่อง (Docker) — ปิด service ที่ test ไม่ใช้ให้เริ่มเร็วขึ้น
       - run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime,mailpit
       - run: npm run test:int
-      - run: npx playwright install --with-deps chromium
+      # ไม่ใช้ --with-deps: runner มี library ของ Chrome อยู่แล้ว และ apt mirror ของ runner ล่มบ่อย
+      - run: npx playwright install chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()

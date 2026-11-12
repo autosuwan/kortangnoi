@@ -8,7 +8,7 @@ Next.js (App Router) + TypeScript + Supabase + Tailwind/shadcn/ui + lucide-react
 - `npm run dev` · `npm run lint` · `npm run typecheck` · `npm run test` · `npm run test:e2e` · `npm run build`
 - `npm run verify` = lint + format:check + typecheck + test + build ต้องผ่านก่อน commit ทุกครั้ง
 - Supabase ในเครื่อง (Docker): `npm run db:start` · `npm run db:reset` (ลง migration ใหม่) · `npm run db:types` (สร้าง `src/lib/supabase/database.types.ts` หลังแก้ schema) · migration ขึ้น cloud อัตโนมัติจาก CI job `migrate` หลัง test ผ่านบน main (`npm run db:push` ไว้รันเองกรณีฉุกเฉิน)
-- `npm run dev:local` รัน dev กับ Supabase ในเครื่อง (ดึง key จาก `supabase status` ไม่ต้องมี `.env`) · `npm run test:int` integration test กับ DB จริง (`*.int.test.ts`) · `test:e2e` ต้องเปิด Supabase ในเครื่องก่อน
+- `npm run dev:local` รัน dev กับ Supabase ในเครื่อง (ดึง key จาก `supabase status` ไม่ต้องมี `.env`) · ล็อกอิน Discord ในเครื่อง: ใส่ `SUPABASE_AUTH_EXTERNAL_DISCORD_CLIENT_ID`/`_SECRET` ใน `supabase/.env` แล้ว `npx supabase stop && npm run db:start` · `npm run test:int` integration test กับ DB จริง (`*.int.test.ts`) · `test:e2e` ต้องเปิด Supabase ในเครื่องก่อน
 - `npm run format` จัดรูปแบบทั้งโปรเจกต์ (hook ใน `.claude/settings.json` รัน Prettier + ESLint ให้หลังแก้ไฟล์)
 - Next.js รุ่นนี้ (16.x) ต่างจากที่คุ้นเคย — อ่าน @AGENTS.md ก่อนเขียนโค้ด
 

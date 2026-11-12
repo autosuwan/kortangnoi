@@ -332,8 +332,11 @@ client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 skip_nonce_check = true
 
+# Discord ใช้ล็อกอินบน localhost ได้ด้วย — ใส่ client id/secret ใน supabase/.env (ถูก gitignore)
+# และเพิ่ม redirect http://127.0.0.1:54321/auth/v1/callback ใน Discord Developer Portal
+# CI ไม่มีค่าจริง ใส่ค่า dummy ใน workflow แทน (e2e ใช้ล็อกอินด้วยรหัสผ่าน)
 [auth.external.discord]
-enabled = false
+enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_DISCORD_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_DISCORD_SECRET)"
 

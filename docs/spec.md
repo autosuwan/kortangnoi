@@ -74,6 +74,7 @@ stateDiagram-v2
 - `/login` — ปุ่ม "เข้าสู่ระบบด้วย Google" และ "เข้าสู่ระบบด้วย Discord"
 - `/onboarding` — ตั้ง username ครั้งแรก (แสดงตัวอย่างลิงก์ `kortangnoi.../{username}` แบบ live) แล้วไปหน้าตั้งค่าช่องทางรับเงิน
 - ทุกหน้าใต้ `/dashboard` ต้องล็อกอิน; ยังไม่มี username → redirect ไป `/onboarding`; ล็อกอินอยู่แล้วเปิด `/login` → `/dashboard`
+- **localhost:** ล็อกอินด้วย Discord ได้ (Supabase ในเครื่องเปิด provider Discord, client id/secret อยู่ใน `supabase/.env` ที่ gitignore แล้ว, redirect `http://127.0.0.1:54321/auth/v1/callback` ใน Discord Developer Portal); Google ยังปิดในเครื่อง
 - **dev/test เท่านั้น:** `/login` มีฟอร์มอีเมล/รหัสผ่านเพิ่ม เมื่อ `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN=true` (ใช้กับ Supabase ในเครื่องและ Playwright เพราะ OAuth จริงทดสอบอัตโนมัติไม่ได้) — บน production ปิด flag และปิด email provider ใน Supabase
 
 ### Flow
@@ -342,6 +343,8 @@ type OverlayAlert = {
 ---
 
 ## F7 Discord webhook
+
+> เลื่อนออกไปก่อน (2026-11-12) — ยังไม่ทำใน MVP
 
 ### หน้าจอ
 

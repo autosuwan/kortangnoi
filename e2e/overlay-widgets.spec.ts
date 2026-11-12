@@ -218,3 +218,72 @@ test("Subathon: เริ่มที่ 01:00:00 → OBS นับถอยห�
   await obs.waitForTimeout(1500);
   await expect(time).toHaveText(frozen!);
 });
+
+test("Subathon โหมดกดเอง: คนดูเลือกลดเวลา → ประวัติแสดง −3:00 → กดใช้กับ timer → OBS ลด", async ({
+  page,
+  context,
+  request,
+}) => {
+  const s = await createReadyStreamer("subminus");
+  await loginWithPassword(page, s.email);
+  await page.waitForURL(/\/dashboard$/);
+  const token = await tokenOf(s.id);
+
+  await page.goto("/dashboard/overlays");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("tab", { name: "Subathon" }).click();
+  // ข้อความใบ้อ่านเป็นคำ
+  await expect(page.getByText("(1 นาที)")).toBeVisible();
+  await page.getByRole("radio", { name: "กดเอง" }).click();
+  await page.getByRole("switch", { name: "ให้คนดูเลือกลดเวลาได้" }).click();
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "บันทึก", exact: true }),
+  ).toBeHidden();
+  await page.getByRole("button", { name: "เริ่มนับ" }).click();
+  await expect(page.getByTestId("timer-status")).toHaveText("กำลังนับ");
+
+  // หน้าโดเนท: เลือกลดเวลา เห็นเวลาที่จะลด
+  const donor = await context.newPage();
+  await donor.goto(`/${s.username}`);
+  await donor.getByLabel("ยอด (บาท)").fill("30");
+  await donor.getByRole("radio", { name: "ลดเวลา" }).click();
+  await expect(donor.getByTestId("donate-timer")).toContainText(
+    "โดเนทนี้ลดเวลา 3 นาที",
+  );
+  await donor.close();
+
+  const obs = await context.newPage();
+  await obs.goto(`/overlay/${token}/timer`);
+  await expect(obs.getByTestId("timer-widget")).toHaveAttribute(
+    "data-status",
+    "running",
+  );
+  await obs.waitForTimeout(1500);
+
+  const { status } = await donateViaApi(
+    request,
+    s.username,
+    "หมีขาว",
+    30,
+    3000,
+    {
+      timerDirection: "subtract",
+    },
+  );
+  expect(status).toBe("approved");
+  // โหมดกดเอง: timer ยังไม่เปลี่ยน
+  await obs.waitForTimeout(1500);
+  await expect(obs.getByTestId("timer-delta")).toBeHidden();
+
+  await page.goto("/dashboard/donations");
+  const chip = page.getByTestId("timer-chip").filter({ visible: true }).first();
+  await expect(chip).toContainText("−3:00");
+  await chip.click();
+  await page.getByRole("button", { name: "ใช้กับ timer (−3:00)" }).click();
+  await expect(page.getByText("ใช้กับ timer แล้ว (−3:00)")).toBeVisible();
+  await expect(obs.getByTestId("timer-delta")).toHaveText("−3:00", {
+    timeout: 8000,
+  });
+  await expect(obs.getByTestId("timer-time")).toHaveText(/^00:56:\d\d$/);
+});

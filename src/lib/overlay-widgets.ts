@@ -27,6 +27,12 @@ export const RECENT_COUNT = { min: 3, max: 20 };
 export const TIMER_INITIAL_SEC = { min: 60, max: 86400 };
 export const TIMER_STEP_SATANG = { min: 100, max: MAX_AMOUNT_SATANG };
 export const TIMER_STEP_SECONDS = { min: 1, max: 86400 };
+/** auto = โดเนทผ่านแล้วปรับเวลาทันที · manual = สตรีมเมอร์กด "ใช้กับ timer" ในประวัติเอง */
+export const TIMER_MODES = ["auto", "manual"] as const;
+export type TimerMode = (typeof TIMER_MODES)[number];
+/** คนดูเลือกบนหน้าโดเนท: เพิ่ม/ลดเวลา */
+export const TIMER_DIRECTIONS = ["add", "subtract"] as const;
+export type TimerDirection = (typeof TIMER_DIRECTIONS)[number];
 
 // ---- หน้าตา (สี/ขนาด) ต่อ widget — เก็บใน overlay_widgets.styles (jsonb) ----
 
@@ -233,6 +239,8 @@ export type OverlayWidgetSettings = {
   timerStepSatang: number;
   timerStepSeconds: number;
   timerLabel: string;
+  timerMode: TimerMode;
+  timerAllowSubtract: boolean;
   styles: WidgetStyles;
 };
 
@@ -270,6 +278,8 @@ export const overlayWidgetInputSchema = z.object({
     .min(TIMER_STEP_SECONDS.min)
     .max(TIMER_STEP_SECONDS.max),
   timerLabel: text,
+  timerMode: z.enum(TIMER_MODES),
+  timerAllowSubtract: z.boolean(),
   styles: widgetStylesSchema,
 });
 
@@ -322,6 +332,29 @@ export function subathonSecondsFor(
 ): number {
   if (stepSatang <= 0 || amountSatang <= 0) return 0;
   return Math.round((amountSatang * stepSeconds) / stepSatang);
+}
+
+/** วินาทีที่โดเนทนี้เปลี่ยน (ลบ = ลดเวลา) */
+export function subathonDeltaFor(
+  amountSatang: number,
+  direction: TimerDirection,
+  stepSatang: number,
+  stepSeconds: number,
+): number {
+  const sec = subathonSecondsFor(amountSatang, stepSatang, stepSeconds);
+  return direction === "subtract" ? -sec : sec;
+}
+
+/** "1 ชม. 5 นาที 30 วินาที" — ข้อความใบ้ให้อ่านง่ายกว่า HH:MM:SS */
+export function formatDurationWords(totalSec: number): string {
+  const sec = Math.max(0, Math.round(totalSec));
+  if (sec === 0) return "0 วินาที";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return [h && `${h} ชม.`, m && `${m} นาที`, s && `${s} วินาที`]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /** สถานะ + เวลาคงเหลือจากแถวใน DB ณ เวลา now */
@@ -379,9 +412,9 @@ export function formatDuration(totalSec: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
-/** "+2:30", "+1:00:00", "-5:00" สำหรับเด้งตอนเวลาเปลี่ยน */
+/** "+2:30", "+1:00:00", "−5:00" สำหรับเด้งตอนเวลาเปลี่ยน */
 export function formatDelta(deltaSec: number): string {
-  const sign = deltaSec < 0 ? "-" : "+";
+  const sign = deltaSec < 0 ? "−" : "+";
   const sec = Math.abs(Math.round(deltaSec));
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);

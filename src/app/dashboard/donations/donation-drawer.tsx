@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, Loader2, RotateCcw } from "lucide-react";
+import { CircleAlert, Loader2, RotateCcw, Timer } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { formatSatangNumber } from "@/lib/money";
+import { formatDelta, formatDurationWords } from "@/lib/overlay-widgets";
 import type { DonationDetail } from "@/server/services/streamer-donations";
 
 import { StatusBadge } from "./status-badge";
+import { TimerChip } from "./timer-chip";
 
 function Row({
   label,
@@ -46,7 +48,7 @@ export function DonationDrawer({
 }) {
   const [detail, setDetail] = useState<DonationDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+  const [busy, setBusy] = useState<"approve" | "reject" | "timer" | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -73,6 +75,27 @@ export function DonationDrawer({
     setReason("");
     load(id);
   }, [id, load]);
+
+  async function applyTimer() {
+    if (!detail) return;
+    setBusy("timer");
+    setError(null);
+    try {
+      const res = await fetch(`/api/donations/${detail.id}/timer`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error?.message ?? "ใช้กับ timer ไม่สำเร็จ");
+        if (res.status === 409) await load(detail.id);
+        return;
+      }
+      setDetail(body);
+      onChanged();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function act(action: "approve" | "reject") {
     if (!detail) return;
@@ -146,6 +169,14 @@ export function DonationDrawer({
                     ` · ${detail.approvedVia === "auto" ? "ตรวจผ่านอัตโนมัติ" : "อนุมัติด้วยมือ"}`}
                 </p>
               </div>
+
+              {detail.timer && (
+                <TimerSection
+                  timer={detail.timer}
+                  busy={busy === "timer"}
+                  onApply={applyTimer}
+                />
+              )}
 
               {detail.reasons.length > 0 && detail.status !== "approved" && (
                 <div
@@ -273,6 +304,42 @@ export function DonationDrawer({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** Subathon: เวลาที่คนดูเลือก + ปุ่มใช้กับ timer (โหมดกดเอง) */
+function TimerSection({
+  timer,
+  busy,
+  onApply,
+}: {
+  timer: NonNullable<DonationDetail["timer"]>;
+  busy: boolean;
+  onApply: () => void;
+}) {
+  const minus = timer.direction === "subtract";
+  return (
+    <div className="grid gap-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 font-medium">
+          <Timer className="size-4" aria-hidden />
+          Subathon
+        </span>
+        <TimerChip timer={timer} />
+      </div>
+      <p className="text-muted-foreground">
+        คนดูเลือก{minus ? "ลดเวลา" : "เพิ่มเวลา"} ·{" "}
+        {timer.appliedSec !== null
+          ? `ใช้กับ timer แล้ว (${formatDelta(timer.appliedSec)})`
+          : `ตามกฎตอนนี้ = ${minus ? "ลด" : "เพิ่ม"} ${formatDurationWords(Math.abs(timer.seconds))}`}
+      </p>
+      {timer.canApply && (
+        <Button onClick={onApply} disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : <Timer />}
+          ใช้กับ timer ({formatDelta(timer.seconds)})
+        </Button>
+      )}
+    </div>
   );
 }
 

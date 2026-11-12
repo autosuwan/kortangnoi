@@ -55,11 +55,12 @@ import {
   SPEED_LABELS,
   SPEEDS,
   WIDGET_TEXT_MAX,
-  formatDelta,
+  formatDurationWords,
   rankDonors,
   subathonSecondsFor,
   TIMER_INITIAL_SEC,
   type TimerData,
+  type TimerMode,
   widgetSize,
   type WidgetStyles,
   type OverlayWidgetInput,
@@ -82,6 +83,8 @@ const pick = (s: OverlayWidgetSettings): OverlayWidgetInput => ({
   timerStepSatang: s.timerStepSatang,
   timerStepSeconds: s.timerStepSeconds,
   timerLabel: s.timerLabel,
+  timerMode: s.timerMode,
+  timerAllowSubtract: s.timerAllowSubtract,
   styles: s.styles,
 });
 
@@ -221,6 +224,7 @@ export function OverlaysForm({
     }),
     [timer, draft.timerInitialSec, draft.timerLabel, st.timer],
   );
+  const stepBaht = draft.timerStepSatang / 100;
   const perHundred = subathonSecondsFor(
     10000,
     draft.timerStepSatang,
@@ -511,7 +515,7 @@ export function OverlaysForm({
     timer: {
       icon: Timer,
       title: "Subathon timer",
-      description: "นับถอยหลังบนจอไลฟ์ โดเนทผ่านแล้วเวลาเพิ่มอัตโนมัติ",
+      description: "นับถอยหลังบนจอไลฟ์ โดเนทแล้วเวลาเพิ่ม/ลด",
       preview: <TimerWidget data={timerPreview} />,
       content: (
         <div className="grid gap-5">
@@ -530,7 +534,7 @@ export function OverlaysForm({
             onChange={(v) => set("timerInitialSec", v)}
           />
           <div className="grid gap-1.5">
-            <span className="text-sm font-medium">กฎเพิ่มเวลา</span>
+            <span className="text-sm font-medium">กฎเวลา</span>
             <div className="flex flex-wrap items-center gap-2 text-sm">
               ทุก
               <NumberInput
@@ -540,21 +544,49 @@ export function OverlaysForm({
                 max={100000}
                 onChange={(v) => set("timerStepSatang", v * 100)}
               />
-              บาท เพิ่ม
+              บาท =
               <NumberInput
-                ariaLabel="เพิ่มกี่วินาที"
+                ariaLabel="กี่วินาที"
                 value={draft.timerStepSeconds}
                 min={1}
                 max={86400}
                 onChange={(v) => set("timerStepSeconds", v)}
               />
               วินาที
+              <span className="text-muted-foreground">
+                ({formatDurationWords(draft.timerStepSeconds)})
+              </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              คิดตามสัดส่วน เช่น โดเนท 100 บาท = {formatDelta(perHundred)} ·
-              เพิ่มเฉพาะตอนกำลังนับหรือพักอยู่
+              คิดตามสัดส่วน เช่น โดเนท {stepBaht.toLocaleString("en-US")} บาท ={" "}
+              {formatDurationWords(draft.timerStepSeconds)} · 100 บาท ={" "}
+              {formatDurationWords(perHundred)} · ใช้เฉพาะตอนกำลังนับหรือพักอยู่
             </p>
           </div>
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">ปรับเวลาจากโดเนท</span>
+            <SegmentedControl<TimerMode>
+              label="ปรับเวลาจากโดเนท"
+              options={[
+                { value: "auto", label: "อัตโนมัติ" },
+                { value: "manual", label: "กดเอง" },
+              ]}
+              value={draft.timerMode}
+              onChange={(v) => set("timerMode", v)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {draft.timerMode === "auto"
+                ? "โดเนทผ่านแล้วเวลาเปลี่ยนทันที"
+                : 'โดเนทผ่านแล้วยังไม่เปลี่ยน — ไปที่ประวัติโดเนท ดูว่าคนดูเลือก + หรือ − แล้วกด "ใช้กับ timer"'}
+            </p>
+          </div>
+          <SettingRow
+            id="timerAllowSubtract"
+            label="ให้คนดูเลือกลดเวลาได้"
+            hint="หน้าโดเนทมีปุ่ม + เพิ่มเวลา / − ลดเวลา (แสดงเฉพาะตอนกำลังนับหรือพัก)"
+            checked={draft.timerAllowSubtract}
+            onChange={(v) => set("timerAllowSubtract", v)}
+          />
         </div>
       ),
       appearance: (

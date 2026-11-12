@@ -137,6 +137,9 @@ export type Database = {
           slip_storage_path: string | null;
           status: Database["public"]["Enums"]["donation_status"];
           streamer_id: string;
+          timer_applied_at: string | null;
+          timer_applied_sec: number | null;
+          timer_direction: string;
           trans_at: string | null;
           trans_ref: string | null;
           updated_at: string;
@@ -168,6 +171,9 @@ export type Database = {
           slip_storage_path?: string | null;
           status?: Database["public"]["Enums"]["donation_status"];
           streamer_id: string;
+          timer_applied_at?: string | null;
+          timer_applied_sec?: number | null;
+          timer_direction?: string;
           trans_at?: string | null;
           trans_ref?: string | null;
           updated_at?: string;
@@ -198,6 +204,9 @@ export type Database = {
           slip_storage_path?: string | null;
           status?: Database["public"]["Enums"]["donation_status"];
           streamer_id?: string;
+          timer_applied_at?: string | null;
+          timer_applied_sec?: number | null;
+          timer_direction?: string;
           trans_at?: string | null;
           trans_ref?: string | null;
           updated_at?: string;
@@ -222,9 +231,11 @@ export type Database = {
           qr_caption: string;
           recent_count: number;
           styles: NonNullable<Json>;
+          timer_allow_subtract: boolean;
           timer_ends_at: string | null;
           timer_initial_sec: number;
           timer_label: string;
+          timer_mode: string;
           timer_remaining_sec: number;
           timer_status: string;
           timer_step_satang: number;
@@ -242,9 +253,11 @@ export type Database = {
           qr_caption?: string;
           recent_count?: number;
           styles?: NonNullable<Json>;
+          timer_allow_subtract?: boolean;
           timer_ends_at?: string | null;
           timer_initial_sec?: number;
           timer_label?: string;
+          timer_mode?: string;
           timer_remaining_sec?: number;
           timer_status?: string;
           timer_step_satang?: number;
@@ -261,9 +274,11 @@ export type Database = {
           qr_caption?: string;
           recent_count?: number;
           styles?: NonNullable<Json>;
+          timer_allow_subtract?: boolean;
           timer_ends_at?: string | null;
           timer_initial_sec?: number;
           timer_label?: string;
+          timer_mode?: string;
           timer_remaining_sec?: number;
           timer_status?: string;
           timer_step_satang?: number;
@@ -446,6 +461,10 @@ export type Database = {
       subathon_add_seconds: {
         Args: { p_seconds: number; p_user: string };
         Returns: boolean;
+      };
+      subathon_apply_donation: {
+        Args: { p_donation: string; p_seconds: number };
+        Returns: string;
       };
       subathon_control: {
         Args: { p_action: string; p_seconds?: number; p_user: string };

@@ -38,9 +38,15 @@ export async function donateViaApi(
   donorName: string,
   amountBaht: number,
   slipAmountSatang: number,
+  extra: Record<string, unknown> = {},
 ) {
   const created = await request.post(`/api/public/${username}/donations`, {
-    data: { donorName, amount: String(amountBaht), message: "สู้ๆ นะ" },
+    data: {
+      donorName,
+      amount: String(amountBaht),
+      message: "สู้ๆ นะ",
+      ...extra,
+    },
     headers: { "x-forwarded-for": `10.5.${Math.floor(Math.random() * 255)}.1` },
   });
   expect(created.status()).toBe(201);

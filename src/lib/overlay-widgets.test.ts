@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STYLES,
   formatDelta,
+  formatDurationWords,
+  subathonDeltaFor,
   formatDuration,
   goalPercent,
   overlayWidgetInputSchema,
@@ -60,6 +62,8 @@ describe("overlayWidgetInputSchema", () => {
     timerStepSatang: 1000,
     timerStepSeconds: 60,
     timerLabel: "Subathon",
+    timerMode: "auto",
+    timerAllowSubtract: false,
     styles: DEFAULT_STYLES,
   };
 
@@ -163,7 +167,7 @@ describe("subathon", () => {
     expect(formatDuration(-5)).toBe("00:00:00");
     expect(formatDelta(150)).toBe("+2:30");
     expect(formatDelta(3600)).toBe("+1:00:00");
-    expect(formatDelta(-300)).toBe("-5:00");
+    expect(formatDelta(-300)).toBe("−5:00");
   });
 
   it("สถานะ + เวลาคงเหลือ", () => {
@@ -239,5 +243,19 @@ describe("timerDelta", () => {
     expect(timerDelta(p(100), p(160))).toBe(60);
     expect(timerDelta(run("2026-11-12T10:00:00Z"), p(100))).toBe(0);
     expect(timerDelta(p(100), run("2026-11-12T10:00:00Z"))).toBe(0);
+  });
+});
+
+describe("formatDurationWords / subathonDeltaFor", () => {
+  it("อ่านเป็นคำ", () => {
+    expect(formatDurationWords(300)).toBe("5 นาที");
+    expect(formatDurationWords(3000)).toBe("50 นาที");
+    expect(formatDurationWords(3930)).toBe("1 ชม. 5 นาที 30 วินาที");
+    expect(formatDurationWords(45)).toBe("45 วินาที");
+    expect(formatDurationWords(0)).toBe("0 วินาที");
+  });
+  it("ลดเวลาเป็นค่าลบ", () => {
+    expect(subathonDeltaFor(1000, "add", 1000, 300)).toBe(300);
+    expect(subathonDeltaFor(10000, "subtract", 1000, 300)).toBe(-3000);
   });
 });

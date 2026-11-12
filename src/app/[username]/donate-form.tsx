@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Minus, Plus, Timer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
@@ -20,6 +20,11 @@ import {
   validateDonationInput,
 } from "@/lib/donation";
 import { parseBahtToSatang } from "@/lib/money";
+import {
+  formatDurationWords,
+  subathonSecondsFor,
+  type TimerDirection,
+} from "@/lib/overlay-widgets";
 import { startNavigationProgress } from "@/lib/navigation-progress";
 import { cn } from "@/lib/utils";
 import type { PublicStreamer } from "@/server/services/donation";
@@ -61,11 +66,22 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [nameColor, setNameColor] = useState(opts.defaults.nameColor);
   const [supportText, setSupportText] = useState("");
+  const [timerDirection, setTimerDirection] = useState<TimerDirection>("add");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const donorKey = useSyncExternalStore(noopSubscribe, readDonorKey, () => "");
 
   const amountSatang = parseBahtToSatang(amount) ?? 0;
+  const { timer } = streamer;
+  const showTimer = timer.active;
+  const timerSec = subathonSecondsFor(
+    amountSatang,
+    timer.stepSatang,
+    timer.stepSeconds,
+  );
+  const direction: TimerDirection = timer.allowSubtract
+    ? timerDirection
+    : "add";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -74,6 +90,7 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
       anonymous: isAnonymous,
       amount,
       message,
+      timerDirection: showTimer ? direction : undefined,
       alertStyle: canCustomize
         ? {
             mediaUrl: opts.canPickImage ? gifUrl : undefined,
@@ -183,6 +200,53 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
           ขั้นต่ำ {(streamer.minAmountSatang / 100).toLocaleString("en-US")} บาท
         </p>
       </div>
+
+      {showTimer && (
+        <div className="grid gap-2" data-testid="donate-timer">
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <Timer className="size-4" aria-hidden />
+            Subathon timer
+          </span>
+          {timer.allowSubtract && (
+            <div
+              className="grid grid-cols-2 gap-2"
+              role="radiogroup"
+              aria-label="เพิ่มหรือลดเวลา"
+            >
+              {(
+                [
+                  { value: "add", label: "เพิ่มเวลา", icon: Plus },
+                  { value: "subtract", label: "ลดเวลา", icon: Minus },
+                ] as const
+              ).map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={direction === value}
+                  onClick={() => setTimerDirection(value)}
+                  className={cn(
+                    "flex h-10 items-center justify-center gap-1.5 rounded-lg border text-sm transition-colors",
+                    direction === value
+                      ? value === "add"
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                        : "border-red-500 bg-red-500/10 text-red-600 dark:text-red-400"
+                      : "hover:bg-muted",
+                  )}
+                >
+                  <Icon className="size-4" aria-hidden />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground" role="status">
+            {timerSec > 0
+              ? `โดเนทนี้${direction === "add" ? "เพิ่ม" : "ลด"}เวลา ${formatDurationWords(timerSec)}`
+              : "กรอกยอดเพื่อดูเวลาที่เปลี่ยน"}
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-1.5">
         <div className="flex items-baseline justify-between">

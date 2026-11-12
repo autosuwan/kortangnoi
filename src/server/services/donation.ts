@@ -20,6 +20,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import { getAlertSettings } from "@/server/services/alert";
 import { getPaymentSettings } from "@/server/services/payment";
+import { getPublicTimerInfo } from "@/server/services/overlay-widgets";
 
 type DonationStatus = Database["public"]["Enums"]["donation_status"];
 
@@ -38,6 +39,13 @@ export type PublicStreamer = {
   allowAnonymous: boolean;
   minAmountSatang: number;
   accountName: string | null;
+  /** Subathon บนหน้าโดเนท: แสดงปุ่มเพิ่ม/ลดเวลาเมื่อ active && allowSubtract */
+  timer: {
+    active: boolean;
+    allowSubtract: boolean;
+    stepSatang: number;
+    stepSeconds: number;
+  };
   alertOptions: {
     canPickImage: boolean;
     canPickColor: boolean;
@@ -80,9 +88,10 @@ export async function getPublicStreamer(
   const streamer = await findStreamer(username);
   if (!streamer) return null;
 
-  const [payment, alert] = await Promise.all([
+  const [payment, alert, timer] = await Promise.all([
     getPaymentSettings(streamer.id),
     getAlertSettings(streamer.id),
+    getPublicTimerInfo(streamer.id),
   ]);
   return {
     displayName: streamer.displayName || streamer.username,
@@ -94,6 +103,7 @@ export async function getPublicStreamer(
     allowAnonymous: payment.allowAnonymous,
     minAmountSatang: payment.minAmountSatang,
     accountName: payment.showAccountName ? payment.accountNameTh : null,
+    timer,
     alertOptions: {
       canPickImage: alert.donorCanPickImage,
       canPickColor: alert.donorCanPickColor,
@@ -123,9 +133,10 @@ export async function createDonation(
   const streamer = await findStreamer(username);
   if (!streamer) throw notFound();
 
-  const [payment, alert] = await Promise.all([
+  const [payment, alert, timer] = await Promise.all([
     getPaymentSettings(streamer.id),
     getAlertSettings(streamer.id),
+    getPublicTimerInfo(streamer.id),
   ]);
   if (!payment.enabled || !payment.promptpayId) {
     throw new AppError(409, "DONATIONS_DISABLED", "ตอนนี้ปิดรับโดเนท");
@@ -182,6 +193,11 @@ export async function createDonation(
       donor_media_url: style.mediaUrl,
       donor_name_color: style.nameColor,
       donor_support_text: style.supportText,
+      // ลดเวลาได้เฉพาะเมื่อสตรีมเมอร์เปิดไว้ ไม่งั้นบังคับเป็นเพิ่ม
+      timer_direction:
+        timer.allowSubtract && donation.timerDirection === "subtract"
+          ? "subtract"
+          : "add",
       ip_hash: ipHash,
     })
     .select("id")

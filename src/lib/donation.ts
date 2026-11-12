@@ -22,6 +22,7 @@ const bodySchema = z.object({
   amount: z.string().max(20),
   message: z.string().max(1000).nullable().optional(),
   anonymous: z.boolean().optional(),
+  timerDirection: z.enum(["add", "subtract"]).optional(),
   alertStyle: z
     .object({
       mediaUrl: z.unknown().optional(),
@@ -36,6 +37,8 @@ export type DonationInput = {
   donorName: string;
   amountSatang: number;
   message: string | null;
+  /** Subathon: คนดูเลือกเพิ่ม/ลดเวลา — server ใช้ subtract ได้เฉพาะเมื่อสตรีมเมอร์เปิดไว้ */
+  timerDirection: "add" | "subtract";
   alertStyle: {
     mediaUrl?: unknown;
     nameColor?: unknown;
@@ -119,6 +122,7 @@ export function validateDonationInput(
       donorName,
       amountSatang,
       message: message || null,
+      timerDirection: body.timerDirection ?? "add",
       alertStyle: body.alertStyle ?? null,
     },
   };

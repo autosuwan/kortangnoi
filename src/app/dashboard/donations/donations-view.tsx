@@ -15,6 +15,7 @@ import type { DonationRow } from "@/server/services/streamer-donations";
 
 import { DonationDrawer } from "./donation-drawer";
 import { StatusBadge } from "./status-badge";
+import { TimerChip } from "./timer-chip";
 
 const FILTERS = [
   { value: "all", label: "ทั้งหมด" },
@@ -151,7 +152,10 @@ export function DonationsView() {
                       {d.message}
                     </td>
                     <td className="px-5 py-3">
-                      <StatusBadge status={d.status} />
+                      <span className="flex items-center gap-2">
+                        <StatusBadge status={d.status} />
+                        {d.timer && <TimerChip timer={d.timer} />}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -181,7 +185,10 @@ export function DonationsView() {
                       <span className="font-mono">
                         {formatSatangNumber(d.amountSatang)}
                       </span>
-                      <StatusBadge status={d.status} className="text-xs" />
+                      <span className="flex items-center gap-1.5">
+                        {d.timer && <TimerChip timer={d.timer} />}
+                        <StatusBadge status={d.status} className="text-xs" />
+                      </span>
                     </span>
                   </button>
                 </li>

@@ -8,10 +8,12 @@ import {
   overlayWidgetInputSchema,
   rankDonors,
   resolveStyles,
-  subathonSecondsFor,
+  subathonDeltaFor,
   timerControlSchema,
   timerState,
   type TimerData,
+  type TimerDirection,
+  type TimerMode,
   type GoalData,
   type OverlayWidgetSettings,
   type QrData,
@@ -28,7 +30,7 @@ import { notifyOverlaySettingsChanged } from "@/server/realtime/overlay";
 type Row = Database["public"]["Tables"]["overlay_widgets"]["Row"];
 
 const COLUMNS =
-  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count, timer_initial_sec, timer_step_satang, timer_step_seconds, timer_label, styles";
+  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count, timer_initial_sec, timer_step_satang, timer_step_seconds, timer_label, timer_mode, timer_allow_subtract, styles";
 
 const TIMER_COLUMNS =
   "timer_status, timer_ends_at, timer_remaining_sec, timer_initial_sec, timer_label";
@@ -46,6 +48,8 @@ type SettingsRow = Pick<
   | "timer_step_satang"
   | "timer_step_seconds"
   | "timer_label"
+  | "timer_mode"
+  | "timer_allow_subtract"
   | "styles"
 >;
 
@@ -62,6 +66,8 @@ const toSettings = (r: SettingsRow) =>
     timerStepSatang: r.timer_step_satang,
     timerStepSeconds: r.timer_step_seconds,
     timerLabel: r.timer_label,
+    timerMode: r.timer_mode as TimerMode,
+    timerAllowSubtract: r.timer_allow_subtract,
     styles: resolveStyles(r.styles),
   }) satisfies OverlayWidgetSettings;
 
@@ -99,6 +105,8 @@ export async function updateOverlayWidgetSettings(
       timer_step_satang: v.timerStepSatang,
       timer_step_seconds: v.timerStepSeconds,
       timer_label: v.timerLabel,
+      timer_mode: v.timerMode,
+      timer_allow_subtract: v.timerAllowSubtract,
       styles: v.styles,
     })
     .eq("user_id", userId)
@@ -170,32 +178,101 @@ export async function controlTimer(
   return readTimer(userId);
 }
 
+export type ApplyTimerResult = "applied" | "already" | "inactive" | "not_found";
+
 /**
- * โดเนทผ่านแล้ว → เพิ่มเวลา subathon ตามกฎ (เฉพาะตอนกำลังนับ/หยุดชั่วคราว)
- * เรียกก่อนส่ง alert เพื่อให้ widget ที่ดึงใหม่ตอนได้ event donation เห็นเวลาใหม่
+ * ใช้เวลาของโดเนท (เพิ่ม/ลดตามที่คนดูเลือก) กับ subathon — atomic + กันใช้ซ้ำใน SQL
+ * เปลี่ยนเฉพาะตอนกำลังนับ/พัก; ไม่ส่ง event (ผู้เรียกส่งเอง)
  */
-export async function addDonationTime(donationId: string): Promise<number> {
+async function applyTimer(donationId: string): Promise<ApplyTimerResult> {
   const admin = createAdminClient();
   const { data: d, error } = await admin
     .from("donations")
-    .select("streamer_id, amount_satang, status")
+    .select("streamer_id, amount_satang, status, timer_direction")
     .eq("id", donationId)
     .single();
   if (error) throw error;
-  if (d.status !== "approved") return 0;
+  if (d.status !== "approved") return "not_found";
   const s = await getOverlayWidgetSettings(d.streamer_id);
-  const seconds = subathonSecondsFor(
+  const seconds = subathonDeltaFor(
     d.amount_satang,
+    d.timer_direction as TimerDirection,
     s.timerStepSatang,
     s.timerStepSeconds,
   );
-  if (seconds <= 0) return 0;
-  const { data: added, error: rpcError } = await admin.rpc(
-    "subathon_add_seconds",
-    { p_user: d.streamer_id, p_seconds: seconds },
+  if (seconds === 0) return "inactive";
+  const { data: result, error: rpcError } = await admin.rpc(
+    "subathon_apply_donation",
+    { p_donation: donationId, p_seconds: seconds },
   );
   if (rpcError) throw rpcError;
-  return added ? seconds : 0;
+  return result as ApplyTimerResult;
+}
+
+/**
+ * โดเนทผ่านแล้ว (โหมด auto) → ปรับเวลา subathon ตามกฎ
+ * เรียกก่อนส่ง alert เพื่อให้ widget ที่ดึงใหม่ตอนได้ event donation เห็นเวลาใหม่
+ */
+export async function addDonationTime(
+  donationId: string,
+): Promise<ApplyTimerResult> {
+  const admin = createAdminClient();
+  const { data: d, error } = await admin
+    .from("donations")
+    .select("streamer_id")
+    .eq("id", donationId)
+    .single();
+  if (error) throw error;
+  const { data: w, error: wError } = await admin
+    .from("overlay_widgets")
+    .select("timer_mode")
+    .eq("user_id", d.streamer_id)
+    .single();
+  if (wError) throw wError;
+  if (w.timer_mode !== "auto") return "inactive";
+  return applyTimer(donationId);
+}
+
+/** โหมด manual: สตรีมเมอร์กด "ใช้กับ timer" ในประวัติ (เช็กเจ้าของก่อนเรียก) */
+export async function applyDonationTimeManually(
+  userId: string,
+  donationId: string,
+): Promise<void> {
+  const result = await applyTimer(donationId);
+  if (result === "already") {
+    throw new AppError(409, "TIMER_ALREADY_APPLIED", "ใช้เวลาของรายการนี้ไปแล้ว");
+  }
+  if (result === "not_found") {
+    throw new AppError(409, "INVALID_STATUS", "ใช้ได้เฉพาะรายการที่ผ่านแล้ว");
+  }
+  if (result === "inactive") {
+    throw new AppError(409, "TIMER_INVALID_STATE", "timer ต้องกำลังนับหรือพักอยู่");
+  }
+  await notifyOverlaySettingsChanged(userId);
+}
+
+/** ข้อมูล timer ที่หน้าโดเนทใช้ (ไม่มีข้อมูลอื่นของสตรีมเมอร์) */
+export async function getPublicTimerInfo(userId: string) {
+  const { data, error } = await createAdminClient()
+    .from("overlay_widgets")
+    .select(
+      "timer_status, timer_ends_at, timer_remaining_sec, timer_initial_sec, timer_allow_subtract, timer_step_satang, timer_step_seconds",
+    )
+    .eq("user_id", userId)
+    .single();
+  if (error) throw error;
+  const state = timerState({
+    status: data.timer_status as "idle" | "running" | "paused",
+    endsAt: data.timer_ends_at,
+    remainingSec: data.timer_remaining_sec,
+    initialSec: data.timer_initial_sec,
+  });
+  return {
+    active: state.status === "running" || state.status === "paused",
+    allowSubtract: data.timer_allow_subtract,
+    stepSatang: data.timer_step_satang,
+    stepSeconds: data.timer_step_seconds,
+  };
 }
 
 const invalidLink = () =>

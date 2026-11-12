@@ -7,7 +7,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import { verifyReasons } from "@/lib/verify-reason";
 import { sendDonationAlert } from "@/server/services/overlay";
-import { addDonationTime } from "@/server/services/overlay-widgets";
+import {
+  subathonDeltaFor,
+  type OverlayWidgetSettings,
+  type TimerDirection,
+} from "@/lib/overlay-widgets";
+import {
+  addDonationTime,
+  applyDonationTimeManually,
+  getOverlayWidgetSettings,
+} from "@/server/services/overlay-widgets";
 
 type DonationStatus = Database["public"]["Enums"]["donation_status"];
 
@@ -32,6 +41,17 @@ export type DonationRow = {
   amountSatang: number;
   message: string | null;
   status: DonationStatus;
+  /**
+   * Subathon ของรายการนี้ — null = ไม่ต้องแสดง
+   * seconds = เวลาตามกฎตอนนี้ (ลบ = คนดูเลือกลด), appliedSec = ที่ใช้จริงแล้ว
+   * canApply = โหมด manual + ผ่านแล้ว + ยังไม่ใช้
+   */
+  timer: {
+    direction: TimerDirection;
+    seconds: number;
+    appliedSec: number | null;
+    canApply: boolean;
+  } | null;
 };
 
 export type DonationDetail = DonationRow & {
@@ -53,24 +73,55 @@ export type DonationDetail = DonationRow & {
 };
 
 const ROW_COLUMNS =
-  "id, created_at, donor_name, amount_satang, message, status";
+  "id, created_at, donor_name, amount_satang, message, status, timer_direction, timer_applied_sec";
 const notFound = () => new AppError(404, "NOT_FOUND", "ไม่พบรายการนี้");
 
-const toRow = (d: {
-  id: string;
-  created_at: string;
-  donor_name: string;
-  amount_satang: number;
-  message: string | null;
-  status: DonationStatus;
-}): DonationRow => ({
-  id: d.id,
-  createdAt: d.created_at,
-  donorName: d.donor_name,
-  amountSatang: d.amount_satang,
-  message: d.message,
-  status: d.status,
-});
+type TimerRule = Pick<
+  OverlayWidgetSettings,
+  "timerMode" | "timerStepSatang" | "timerStepSeconds"
+>;
+
+const toRow = (
+  d: {
+    id: string;
+    created_at: string;
+    donor_name: string;
+    amount_satang: number;
+    message: string | null;
+    status: DonationStatus;
+    timer_direction: string;
+    timer_applied_sec: number | null;
+  },
+  rule: TimerRule,
+): DonationRow => {
+  const direction = d.timer_direction as TimerDirection;
+  const applied = d.timer_applied_sec;
+  const canApply =
+    rule.timerMode === "manual" && d.status === "approved" && applied === null;
+  // แสดงเมื่อใช้แล้ว, รอกดใช้ (manual) หรือคนดูเลือกลดเวลา
+  const show = applied !== null || canApply || direction === "subtract";
+  return {
+    id: d.id,
+    createdAt: d.created_at,
+    donorName: d.donor_name,
+    amountSatang: d.amount_satang,
+    message: d.message,
+    status: d.status,
+    timer: show
+      ? {
+          direction,
+          seconds: subathonDeltaFor(
+            d.amount_satang,
+            direction,
+            rule.timerStepSatang,
+            rule.timerStepSeconds,
+          ),
+          appliedSec: applied,
+          canApply,
+        }
+      : null,
+  };
+};
 
 export function parseFilter(value: string | null): DonationFilter {
   return value && value in DONATION_FILTERS ? (value as DonationFilter) : "all";
@@ -87,6 +138,7 @@ export async function listDonations(
 }> {
   const safePage = Math.max(1, Math.floor(page) || 1);
   const from = (safePage - 1) * PAGE_SIZE;
+  const rule = await getOverlayWidgetSettings(userId);
   const { data, count, error } = await createAdminClient()
     .from("donations")
     .select(ROW_COLUMNS, { count: "exact" })
@@ -96,7 +148,7 @@ export async function listDonations(
     .range(from, from + PAGE_SIZE - 1);
   if (error) throw error;
   return {
-    items: (data ?? []).map(toRow),
+    items: (data ?? []).map((d) => toRow(d, rule)),
     total: count ?? 0,
     page: safePage,
     pageSize: PAGE_SIZE,
@@ -138,6 +190,7 @@ export async function getDonationDetail(
   id: string,
 ): Promise<DonationDetail> {
   const admin = createAdminClient();
+  const rule = await getOverlayWidgetSettings(userId);
   const { data, error } = await admin
     .from("donations")
     .select(
@@ -167,7 +220,7 @@ export async function getDonationDetail(
   const s = raw?.slip;
 
   return {
-    ...toRow(data),
+    ...toRow(data, rule),
     resultMessage: data.result_message,
     reasons: verifyReasons(data.verify_result),
     approvedVia: data.approved_via,
@@ -247,5 +300,12 @@ export async function rejectDonation(
       ? `สตรีมเมอร์ไม่อนุมัติ: ${reason}`
       : "สตรีมเมอร์ไม่อนุมัติรายการนี้",
   });
+  return getDonationDetail(userId, id);
+}
+
+/** Subathon โหมด manual: ใช้เวลาของรายการนี้กับ timer (ใช้ได้ครั้งเดียว) */
+export async function applyDonationTimer(userId: string, id: string) {
+  await getDonationDetail(userId, id); // ไม่ใช่ของเรา → 404
+  await applyDonationTimeManually(userId, id);
   return getDonationDetail(userId, id);
 }

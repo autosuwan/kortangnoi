@@ -320,6 +320,7 @@ type OverlayAlert = {
 - ตัวกรอง: ทั้งหมด (ไม่รวมยังไม่จ่าย) / รอตรวจ / ผ่าน / ไม่ผ่าน / ยังไม่จ่าย (`awaiting_slip` + `expired`); `?open={id}` เปิด drawer ตรงๆ (ลิงก์จากหน้าหลัก)
 - realtime ใช้ `postgres_changes` บน `donations` (เพิ่มเข้า publication `supabase_realtime`, RLS ให้เห็นแถวตัวเอง)
 - **แสดง alert ซ้ำ:** รายการ `approved` มีปุ่ม "แสดง alert อีกครั้ง" ใน drawer → ส่ง alert เดิม (หน้าตา + เสียงอ่าน) ไป overlay ด้วย `donationId` ใหม่ `<id>:replay:<สุ่ม>` (overlay กันซ้ำด้วย id) จำกัด 1 ครั้ง/3 วินาที ร่วมกับปุ่มทดสอบ (`last_test_at`); สถานะอื่น → 409
+- **Subathon:** ตาราง/drawer แสดงป้ายเวลา "+5:00" / "−5:00" ของแต่ละรายการ (ใช้แล้วเป็นสีทึบ); โหมด manual มีปุ่ม "ใช้กับ timer" (F14)
 - อนุมัติ → `approved_via = manual` + ผู้บริจาคเห็น "สตรีมเมอร์อนุมัติแล้ว ขอบคุณ!"; ปฏิเสธ → ผู้บริจาคเห็น "สตรีมเมอร์ไม่อนุมัติ: <เหตุผล>"
 
 ### API
@@ -410,6 +411,7 @@ type OverlayAlert = {
 - ถ้าสตรีมเมอร์เปิด `allowAnonymous`: ช่องติ๊ก "ไม่เปิดเผยชื่อ (ขึ้นเป็น Anonymous)" ปิดช่องชื่อ → ส่ง `anonymous: true` → server ตั้งชื่อเป็น `Anonymous` (ไม่เปิดก็ยังต้องกรอกชื่อ)
 - ส่วน "ปรับแต่ง alert" (แสดงเฉพาะที่สตรีมเมอร์เปิดให้เลือก, ไม่บังคับ): ค้นหา GIF จาก KLIPY, สีชื่อ (วงล้อสี), คำสนับสนุน + พรีวิว alert
 - แสดงยอดขั้นต่ำ
+- ถ้าสตรีมเมอร์เปิดให้ลดเวลา Subathon และ timer กำลังนับ/พัก: ปุ่ม "+ เพิ่มเวลา / − ลดเวลา" + เวลาที่จะเปลี่ยน → ส่ง `timerDirection` (F14)
 - ปุ่ม "ไปหน้าจ่ายเงิน"
 
 **ขั้น 2 สแกนจ่าย**
@@ -424,11 +426,11 @@ type OverlayAlert = {
 
 ### API
 
-| Method | Path                               | Request                                                   | Response                                                                                                                        |
-| ------ | ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/public/{username}`           | –                                                         | `{ displayName, username, minAmountSatang, enabled, accountName: string \| null, alertOptions }`                                |
-| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message, anonymous?, alertStyle? }` | `{ donationId, accessToken, amountSatang, qrPayload, expiresAt }`                                                               |
-| GET    | `/api/public/donations/{id}?t=`    | –                                                         | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage, qrPayload, accountName, streamer: { displayName, username } }` |
+| Method | Path                               | Request                                                                    | Response                                                                                                                        |
+| ------ | ---------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/public/{username}`           | –                                                                          | `{ displayName, username, minAmountSatang, enabled, accountName: string \| null, alertOptions }`                                |
+| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message, anonymous?, alertStyle?, timerDirection? }` | `{ donationId, accessToken, amountSatang, qrPayload, expiresAt }`                                                               |
+| GET    | `/api/public/donations/{id}?t=`    | –                                                                          | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage, qrPayload, accountName, streamer: { displayName, username } }` |
 
 - `alertStyle?: { mediaUrl?, nameColor?, supportText? }` — server เก็บเฉพาะส่วนที่สตรีมเมอร์เปิดให้เลือก **ณ ตอนสร้าง** ส่วนที่ไม่ได้เปิดหรือไม่ผ่าน validation ทิ้งไป (ใช้ `resolveAlertStyle` ใน `src/lib/alert-settings.ts`); `mediaUrl` ต้องเป็น KLIPY ตามกฎเดียวกับ F3, `supportText` 1–40 ตัว, `nameColor` `#RRGGBB`
 - QR วาดฝั่ง client จาก `qrPayload` (ไลบรารี `qrcode`) ปุ่ม "บันทึก QR" ดาวน์โหลด PNG จาก canvas — API ไม่ส่งรูป
@@ -637,11 +639,16 @@ type OverlayAlert = {
 - สถานะ: ยังไม่เริ่ม → กำลังนับ ⇄ พัก → หมดเวลา; ยังไม่เริ่มแสดง **เวลาเริ่มต้น (ค่าเริ่มต้น 01:00:00, ตั้งได้ 1 นาที–24 ชม.)**
 - ปุ่มใน dashboard (มีผลทันที ไม่ต้องกดบันทึก): เริ่มนับ / พัก / นับต่อ / รีเซ็ต (ยืนยันก่อน → กลับไปยังไม่เริ่ม) / ปรับเวลา −5, −1, +1, +5 นาที (ไม่ต่ำกว่า 0)
 - **กฎเพิ่มเวลา** "ทุก X บาท เพิ่ม Y วินาที" (ค่าเริ่มต้นทุก 10 บาท +60 วินาที) คิดตามสัดส่วน ปัดเป็นวินาที — เพิ่มเมื่อโดเนทเปลี่ยนเป็น `approved` (อัตโนมัติ/อนุมัติเอง) ขณะกำลังนับหรือพักเท่านั้น; ยังไม่เริ่ม/หมดเวลา/alert ทดสอบ/แสดงซ้ำ ไม่เพิ่ม
+- **โหมดปรับเวลา** (`timerMode`): `auto` (ค่าเริ่มต้น) โดเนทผ่านแล้วปรับเวลาทันที / `manual` ไม่แตะ timer — สตรีมเมอร์ดูในประวัติโดเนท (ป้าย "+5:00" / "−5:00" ตามที่คนดูเลือก คำนวณตามกฎ) แล้วกด **"ใช้กับ timer"** ใน drawer (ใช้ได้ครั้งเดียวต่อรายการ)
+- **ให้คนดูลดเวลาได้** (`timerAllowSubtract`, ค่าเริ่มต้นปิด): หน้าโดเนทมีปุ่ม "+ เพิ่มเวลา / − ลดเวลา" (ค่าเริ่มต้น +) พร้อมบอกเวลาที่จะเปลี่ยน แสดงเฉพาะตอน timer กำลังนับหรือพัก; ปิดอยู่แล้วส่ง `subtract` มา → server บังคับเป็น `add`; ลดไม่ต่ำกว่า 0 (ถึง 0 = หมดเวลา)
+- ข้อความใบ้กฎแสดงเป็นคำ เช่น "300 วินาที = 5 นาที · โดเนท 10 บาท = +5 นาที"
+- ทุกโดเนทเก็บ `timer_direction` และเวลาที่ใช้จริง `timer_applied_sec` (+ `timer_applied_at` กันใช้ซ้ำด้วย conditional update) — ฟังก์ชัน SQL `subathon_apply_seconds` (รับค่าลบ, เปลี่ยนเฉพาะตอนนับ/พัก)
+- API: `POST /api/donations/{id}/timer` (เจ้าของ, `approved` เท่านั้น) → `DonationDetail`; ใช้แล้ว → 409 `TIMER_ALREADY_APPLIED`; timer ไม่ได้นับ/พัก → 409 `TIMER_INVALID_STATE`
 - หมดเวลาแล้วค้างที่ 00:00:00 "หมดเวลา" (กด +เวลาเองเพื่อนับต่อ หรือรีเซ็ต)
 - เวลาอยู่ที่ server: `timer_ends_at` ตอนนับ / `timer_remaining_sec` ตอนพัก; เพิ่ม/ควบคุมผ่านฟังก์ชัน SQL `subathon_add_seconds` / `subathon_control` (atomic, เรียกได้เฉพาะ service role)
 - OBS นับถอยหลังเองจากค่าที่ได้ ดึงใหม่เมื่อได้ event `donation`/`settings` และทุก 60 วิ; เวลาเพิ่ม/ลด → เด้ง "+2:30" (คำนวณจาก `endsAt` ที่ server ส่ง แม่นทุกวินาที)
 - API: `GET/POST /api/settings/overlays/timer` (`{ action: start|pause|resume|reset }` หรือ `{ action: "adjust", seconds }`; สถานะไม่ถูก → 409 `TIMER_INVALID_STATE`); widget `GET /api/overlay/{token}/widgets/timer` → `{ status, remainingSec, endsAt, label, style }`
-- ค่าตั้ง (`timerInitialSec`, `timerStepSatang`, `timerStepSeconds`, `timerLabel`) บันทึกผ่าน `PUT /api/settings/overlays`
+- ค่าตั้ง (`timerInitialSec`, `timerStepSatang`, `timerStepSeconds`, `timerLabel`, `timerMode`, `timerAllowSubtract`) บันทึกผ่าน `PUT /api/settings/overlays`
 
 ### หน้าตา (แต่ละแท็บมีส่วน "หน้าตา" + ปุ่มคืนค่าเริ่มต้น)
 

@@ -84,6 +84,8 @@ erDiagram
     int timer_step_satang "default 1000"
     int timer_step_seconds "default 60"
     text timer_label "1-40 ตัว, default Subathon"
+    text timer_mode "auto | manual"
+    boolean timer_allow_subtract "default false"
     jsonb styles "หน้าตาต่อ widget, default {}"
     timestamptz updated_at
   }
@@ -114,6 +116,9 @@ erDiagram
     timestamptz reviewed_at "nullable"
     timestamptz alert_acked_at "nullable"
     text webhook_error "nullable"
+    text timer_direction "add | subtract, default add"
+    int timer_applied_sec "nullable, ± วินาทีที่ใช้กับ subathon"
+    timestamptz timer_applied_at "nullable, กันใช้ซ้ำ"
     text ip_hash
     timestamptz created_at
     timestamptz updated_at

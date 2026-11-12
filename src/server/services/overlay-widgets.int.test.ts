@@ -16,6 +16,7 @@ import {
   updateOverlayWidgetSettings,
 } from "./overlay-widgets";
 import { verifySlip } from "./slip";
+import { applyDonationTimer, getDonationDetail } from "./streamer-donations";
 import { DEFAULT_STYLES } from "@/lib/overlay-widgets";
 
 const closers: (() => Promise<unknown>)[] = [];
@@ -38,11 +39,16 @@ async function approved(
   username: string,
   donorName: string,
   amount: string,
-  opts: { anonymous?: boolean } = {},
+  opts: { anonymous?: boolean; timerDirection?: "add" | "subtract" } = {},
 ) {
   const d = await createDonation(
     username,
-    { donorName, amount, anonymous: opts.anonymous },
+    {
+      donorName,
+      amount,
+      anonymous: opts.anonymous,
+      timerDirection: opts.timerDirection,
+    },
     ip(),
   );
   const r = await verifySlip(
@@ -67,6 +73,8 @@ const settings = {
   timerStepSatang: 1000,
   timerStepSeconds: 60,
   timerLabel: "Subathon",
+  timerMode: "auto",
+  timerAllowSubtract: false,
   styles: {
     ...DEFAULT_STYLES,
     goal: { ...DEFAULT_STYLES.goal, width: 420, barFrom: "#22C55E" },
@@ -294,9 +302,97 @@ describe("Subathon timer", () => {
       p_seconds: 99999,
     });
     expect(error).not.toBeNull();
+    const { error: applyError } = await client.rpc("subathon_apply_donation", {
+      p_donation: crypto.randomUUID(),
+      p_seconds: 99999,
+    });
+    expect(applyError).not.toBeNull();
     expect((await getTimer(s.id)).remainingSec).toBe(3600);
     await expect(controlTimer(s.id, { action: "warp" })).rejects.toMatchObject({
       status: 400,
+    });
+  });
+
+  it("คนดูเลือกลดเวลา: ปิดอยู่ถูกบังคับเป็นเพิ่ม · เปิดแล้วลด · ลดจนหมดเวลา", async () => {
+    const s = await createReadyStreamer("tmr5");
+    await controlTimer(s.id, { action: "start" });
+    const forced = await approved(s.username, "แมว", "100", {
+      timerDirection: "subtract",
+    });
+    expect((await getDonationDetail(s.id, forced)).timer).toMatchObject({
+      direction: "add",
+      appliedSec: 600,
+    });
+
+    await updateOverlayWidgetSettings(s.id, {
+      ...settings,
+      timerAllowSubtract: true,
+    });
+    const before = (await getTimer(s.id)).remainingSec;
+    const sub = await approved(s.username, "หมี", "50", {
+      timerDirection: "subtract",
+    });
+    const after = (await getTimer(s.id)).remainingSec;
+    expect(after).toBeLessThanOrEqual(before - 300);
+    expect(after).toBeGreaterThan(before - 300 - 5);
+    expect((await getDonationDetail(s.id, sub)).timer).toMatchObject({
+      direction: "subtract",
+      seconds: -300,
+      appliedSec: -300,
+      canApply: false,
+    });
+
+    // ลดเกินเวลาที่เหลือ → 0 = หมดเวลา, บันทึกเท่าที่ลดได้จริง
+    const big = await approved(s.username, "หมี", "1000", {
+      timerDirection: "subtract",
+    });
+    expect((await getTimer(s.id)).status).toBe("ended");
+    const applied = (await getDonationDetail(s.id, big)).timer!.appliedSec!;
+    expect(applied).toBeLessThan(0);
+    expect(applied).toBeGreaterThan(-6000);
+  });
+
+  it("โหมดกดเอง: โดเนทไม่แตะ timer → กดใช้ครั้งเดียว", async () => {
+    const s = await createReadyStreamer("tmr6");
+    await updateOverlayWidgetSettings(s.id, {
+      ...settings,
+      timerMode: "manual",
+      timerAllowSubtract: true,
+    });
+    const id = await approved(s.username, "แมว", "20", {
+      timerDirection: "subtract",
+    });
+    // ยังไม่เริ่ม → ใช้ไม่ได้
+    await expect(applyDonationTimer(s.id, id)).rejects.toMatchObject({
+      status: 409,
+      code: "TIMER_INVALID_STATE",
+    });
+
+    await controlTimer(s.id, { action: "start" });
+    await controlTimer(s.id, { action: "pause" });
+    const paused = (await getTimer(s.id)).remainingSec;
+    const id2 = await approved(s.username, "หมี", "30", {
+      timerDirection: "subtract",
+    });
+    expect((await getTimer(s.id)).remainingSec).toBe(paused);
+    expect((await getDonationDetail(s.id, id2)).timer).toMatchObject({
+      seconds: -180,
+      appliedSec: null,
+      canApply: true,
+    });
+
+    const detail = await applyDonationTimer(s.id, id2);
+    expect(detail.timer).toMatchObject({ appliedSec: -180, canApply: false });
+    expect((await getTimer(s.id)).remainingSec).toBe(paused - 180);
+    await expect(applyDonationTimer(s.id, id2)).rejects.toMatchObject({
+      status: 409,
+      code: "TIMER_ALREADY_APPLIED",
+    });
+
+    // ไม่ใช่เจ้าของ → 404
+    const other = await createReadyStreamer("tmr7");
+    await expect(applyDonationTimer(other.id, id)).rejects.toMatchObject({
+      status: 404,
     });
   });
 });

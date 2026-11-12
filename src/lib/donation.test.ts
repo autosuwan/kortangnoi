@@ -17,6 +17,7 @@ describe("validateDonationInput", () => {
         donorName: "สม ชาย",
         amountSatang: 123450,
         message: null,
+        timerDirection: "add",
         alertStyle: null,
       },
     });
@@ -72,4 +73,20 @@ describe("ไม่เปิดเผยชื่อ", () => {
 
 it("cleanDonorText ตัดอักขระควบคุมและตัวกลับทิศ", () => {
   expect(cleanDonorText("a‮b​c\td")).toBe("a b c d");
+});
+
+describe("timerDirection", () => {
+  const base = { donorName: "แมว", amount: "50" };
+  it("ค่าเริ่มต้น add, รับ subtract, ค่าอื่นไม่ผ่าน", () => {
+    const a = validateDonationInput(base, 2000);
+    expect(a.ok && a.value.timerDirection).toBe("add");
+    const b = validateDonationInput(
+      { ...base, timerDirection: "subtract" },
+      2000,
+    );
+    expect(b.ok && b.value.timerDirection).toBe("subtract");
+    expect(
+      validateDonationInput({ ...base, timerDirection: "warp" }, 2000).ok,
+    ).toBe(false);
+  });
 });

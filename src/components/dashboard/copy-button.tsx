@@ -9,15 +9,21 @@ export function CopyButton({
   text,
   label = "คัดลอก",
   ariaLabel,
+  size,
+  className,
 }: {
   text: string;
   label?: string;
   ariaLabel?: string;
+  size?: "default" | "lg";
+  className?: string;
 }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
       variant="outline"
+      size={size}
+      className={className}
       aria-label={ariaLabel}
       onClick={async () => {
         try {

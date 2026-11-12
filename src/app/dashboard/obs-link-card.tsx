@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, Copy, Loader2, MonitorPlay, RefreshCw } from "lucide-react";
+import { Loader2, MonitorPlay, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { ObsUrlField } from "@/components/dashboard/obs-url-field";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,28 +16,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/** ซ่อน token ส่วนใหญ่ — ลิงก์นี้ห้ามขึ้นจอไลฟ์ */
-function maskOverlayUrl(url: string) {
-  const [base, token = ""] = url.split("/overlay/");
-  return `${base}/overlay/${token.slice(0, 4)}${"•".repeat(10)}`;
-}
-
 export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
   const [url, setUrl] = useState(initialUrl);
-  const [copied, setCopied] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError("คัดลอกไม่สำเร็จ");
-    }
-  }
 
   async function regenerate() {
     setRegenerating(true);
@@ -62,22 +46,15 @@ export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
       title="ลิงก์ OBS"
       description="ใส่ใน OBS เพื่อให้ alert ขึ้นจอไลฟ์ — ห้ามเปิดลิงก์นี้ให้ผู้ชมเห็น"
     >
-      <p
-        data-testid="overlay-url"
-        className="truncate rounded-lg border bg-background px-3 py-2 font-mono text-sm"
+      <ObsUrlField url={url} testId="overlay-url" />
+      <Button
+        variant="ghost"
+        className="mt-2"
+        onClick={() => setConfirmOpen(true)}
       >
-        {maskOverlayUrl(url)}
-      </p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <Button variant="outline" onClick={copy}>
-          {copied ? <Check /> : <Copy />}
-          {copied ? "คัดลอกแล้ว" : "คัดลอก"}
-        </Button>
-        <Button variant="ghost" onClick={() => setConfirmOpen(true)}>
-          <RefreshCw />
-          สร้างลิงก์ใหม่
-        </Button>
-      </div>
+        <RefreshCw />
+        สร้างลิงก์ใหม่
+      </Button>
       {error && (
         <p role="alert" className="mt-2 text-sm text-destructive">
           {error}

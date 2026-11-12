@@ -7,6 +7,7 @@ import {
   QrWidget,
   RecentWidget,
   TopWidget,
+  WidgetStage,
 } from "@/components/overlay-widgets/widgets";
 import {
   OVERLAY_EVENTS,
@@ -15,7 +16,6 @@ import {
 } from "@/lib/overlay";
 import type { WidgetData, WidgetKind } from "@/lib/overlay-widgets";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
 
 /** ดึงซ้ำกันพลาดตอน realtime หลุด */
 const POLL_MS = 60_000;
@@ -97,24 +97,19 @@ export function WidgetOverlay({
   }
 
   return (
-    <main
-      data-testid="widget-overlay"
-      data-ready={data ? "true" : "false"}
-      className={cn(
-        "flex min-h-dvh p-4",
-        kind === "top"
-          ? "items-start justify-start"
-          : "items-center justify-center",
-      )}
-    >
-      {data && kind === "goal" && (
-        <GoalWidget data={data as WidgetData["goal"]} />
-      )}
-      {data && kind === "qr" && <QrWidget data={data as WidgetData["qr"]} />}
-      {data && kind === "top" && <TopWidget data={data as WidgetData["top"]} />}
-      {data && kind === "recent" && (
-        <RecentWidget data={data as WidgetData["recent"]} />
-      )}
+    <main data-testid="widget-overlay" data-ready={data ? "true" : "false"}>
+      <WidgetStage kind={kind} className="min-h-dvh">
+        {data && kind === "goal" && (
+          <GoalWidget data={data as WidgetData["goal"]} />
+        )}
+        {data && kind === "qr" && <QrWidget data={data as WidgetData["qr"]} />}
+        {data && kind === "top" && (
+          <TopWidget data={data as WidgetData["top"]} />
+        )}
+        {data && kind === "recent" && (
+          <RecentWidget data={data as WidgetData["recent"]} />
+        )}
+      </WidgetStage>
     </main>
   );
 }

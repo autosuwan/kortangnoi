@@ -11,15 +11,20 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { CopyButton } from "@/components/dashboard/copy-button";
+import { ObsUrlField } from "@/components/dashboard/obs-url-field";
 import { SectionCard } from "@/components/dashboard/section-card";
-import { SegmentedControl } from "@/components/dashboard/segmented-control";
+import {
+  SegmentedControl,
+  type SegmentOption,
+} from "@/components/dashboard/segmented-control";
 import {
   GoalWidget,
   QrWidget,
   RecentWidget,
   TopWidget,
+  WidgetStage,
 } from "@/components/overlay-widgets/widgets";
+import { ScaledPreview } from "@/components/overlay-widgets/scaled-preview";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -62,14 +67,6 @@ const pick = (s: OverlayWidgetSettings): OverlayWidgetInput => ({
 const sliderValue = (v: number | readonly number[]) =>
   typeof v === "number" ? v : v[0];
 
-/** พื้นลายตารางแทนพื้นโปร่งใสของ OBS */
-const checkerboard: React.CSSProperties = {
-  backgroundColor: "#e5e5e5",
-  backgroundImage:
-    "conic-gradient(#d4d4d4 25%, transparent 0 50%, #d4d4d4 0 75%, transparent 0)",
-  backgroundSize: "24px 24px",
-};
-
 const sampleTop = rankDonors(
   SAMPLE_DONORS.map((d) => ({
     donorName: d.name,
@@ -78,6 +75,13 @@ const sampleTop = rankDonors(
   10,
 );
 const sampleRecent = SAMPLE_DONORS.map((d, i) => ({ id: `s${i}`, ...d }));
+
+const TABS: SegmentOption<WidgetKind>[] = [
+  { value: "goal", label: "Goal", icon: Target },
+  { value: "qr", label: "QR", icon: QrCode },
+  { value: "top", label: "อันดับ", icon: ListOrdered },
+  { value: "recent", label: "ล่าสุด", icon: TextCursorInput },
+];
 
 async function readError(res: Response, fallback: string) {
   const body = await res.json().catch(() => null);
@@ -100,6 +104,7 @@ export function OverlaysForm({
   const [error, setError] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [active, setActive] = useState<WidgetKind>("goal");
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const set = <K extends keyof OverlayWidgetInput>(
@@ -162,142 +167,159 @@ export function OverlaysForm({
 
   return (
     <div className="mt-6 grid gap-4 pb-24">
-      <WidgetCard
-        kind="goal"
-        icon={Target}
-        title="Donate Goal"
-        description="หลอดเป้าหมาย นับยอดโดเนทที่ผ่านแล้วตั้งแต่เริ่มนับ"
-        url={`${baseUrl}/goal`}
-        preview={
-          <GoalWidget
-            data={{
-              title: draft.goalTitle.trim() || "เป้าหมายโดเนท",
-              targetSatang: draft.goalTargetSatang,
-              currentSatang: data.goal.currentSatang,
-            }}
-          />
-        }
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
+      <SegmentedControl
+        role="tab"
+        label="เลือก overlay"
+        fullWidth
+        options={TABS}
+        value={active}
+        onChange={setActive}
+      />
+
+      {active === "goal" && (
+        <WidgetCard
+          kind="goal"
+          icon={Target}
+          title="Donate Goal"
+          description="หลอดเป้าหมาย นับยอดโดเนทที่ผ่านแล้วตั้งแต่เริ่มนับ"
+          url={`${baseUrl}/goal`}
+          preview={
+            <GoalWidget
+              data={{
+                title: draft.goalTitle.trim() || "เป้าหมายโดเนท",
+                targetSatang: draft.goalTargetSatang,
+                currentSatang: data.goal.currentSatang,
+              }}
+            />
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              id="goalTitle"
+              label="ชื่อเป้าหมาย"
+              placeholder="ซื้อไมค์ใหม่"
+              value={draft.goalTitle}
+              onChange={(v) => set("goalTitle", v)}
+            />
+            <div className="grid gap-1.5">
+              <Label htmlFor="goalTarget">ยอดเป้าหมาย (บาท)</Label>
+              <Input
+                id="goalTarget"
+                inputMode="numeric"
+                className="font-mono"
+                value={String(draft.goalTargetSatang / 100)}
+                onChange={(e) => {
+                  const baht = Number(e.target.value.replace(/\D/g, "") || 0);
+                  set(
+                    "goalTargetSatang",
+                    Math.min(GOAL_TARGET_SATANG.max, baht * 100),
+                  );
+                }}
+                onBlur={() => {
+                  if (draft.goalTargetSatang < GOAL_TARGET_SATANG.min)
+                    set("goalTargetSatang", GOAL_TARGET_SATANG.min);
+                }}
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">
+              เริ่มนับเมื่อ{" "}
+              {new Intl.DateTimeFormat("th-TH", {
+                dateStyle: "medium",
+                timeStyle: "short",
+                timeZone: "Asia/Bangkok",
+              }).format(new Date(initial.goalStartedAt))}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setResetOpen(true)}
+            >
+              <RotateCcw />
+              เริ่มนับใหม่
+            </Button>
+          </div>
+        </WidgetCard>
+      )}
+
+      {active === "qr" && (
+        <WidgetCard
+          kind="qr"
+          icon={QrCode}
+          title="QR โดเนทบนจอ"
+          description="ผู้ชมสแกนจากจอไลฟ์แล้วไปหน้าโดเนทของคุณ"
+          url={`${baseUrl}/qr`}
+          preview={
+            <QrWidget
+              data={{
+                caption: draft.qrCaption.trim() || "สแกนเพื่อโดเนท",
+                donateUrl: data.qr.donateUrl,
+              }}
+            />
+          }
+        >
           <TextField
-            id="goalTitle"
-            label="ชื่อเป้าหมาย"
-            placeholder="ซื้อไมค์ใหม่"
-            value={draft.goalTitle}
-            onChange={(v) => set("goalTitle", v)}
+            id="qrCaption"
+            label="ข้อความบนการ์ด"
+            placeholder="สแกนเพื่อโดเนท"
+            value={draft.qrCaption}
+            onChange={(v) => set("qrCaption", v)}
           />
-          <div className="grid gap-1.5">
-            <Label htmlFor="goalTarget">ยอดเป้าหมาย (บาท)</Label>
-            <Input
-              id="goalTarget"
-              inputMode="numeric"
-              className="font-mono"
-              value={String(draft.goalTargetSatang / 100)}
-              onChange={(e) => {
-                const baht = Number(e.target.value.replace(/\D/g, "") || 0);
-                set(
-                  "goalTargetSatang",
-                  Math.min(GOAL_TARGET_SATANG.max, baht * 100),
-                );
-              }}
-              onBlur={() => {
-                if (draft.goalTargetSatang < GOAL_TARGET_SATANG.min)
-                  set("goalTargetSatang", GOAL_TARGET_SATANG.min);
-              }}
+        </WidgetCard>
+      )}
+
+      {active === "top" && (
+        <WidgetCard
+          kind="top"
+          icon={ListOrdered}
+          title="อันดับผู้สนับสนุน"
+          description="รวมยอดตามชื่อที่ผู้บริจาคกรอก ไม่รวม Anonymous"
+          url={`${baseUrl}/top`}
+          preview={
+            <TopWidget data={{ period: draft.topPeriod, items: topItems }} />
+          }
+        >
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <span className="text-sm font-medium">ช่วงเวลา</span>
+              <SegmentedControl
+                label="ช่วงเวลาอันดับ"
+                options={TOP_PERIODS.map((p) => ({
+                  value: p,
+                  label: TOP_PERIOD_LABELS[p],
+                }))}
+                value={draft.topPeriod}
+                onChange={(v) => set("topPeriod", v)}
+              />
+            </div>
+            <CountSlider
+              label="จำนวนอันดับ"
+              value={draft.topCount}
+              range={TOP_COUNT}
+              onChange={(v) => set("topCount", v)}
             />
           </div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="text-muted-foreground">
-            เริ่มนับเมื่อ{" "}
-            {new Intl.DateTimeFormat("th-TH", {
-              dateStyle: "medium",
-              timeStyle: "short",
-              timeZone: "Asia/Bangkok",
-            }).format(new Date(initial.goalStartedAt))}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setResetOpen(true)}
-          >
-            <RotateCcw />
-            เริ่มนับใหม่
-          </Button>
-        </div>
-      </WidgetCard>
+        </WidgetCard>
+      )}
 
-      <WidgetCard
-        kind="qr"
-        icon={QrCode}
-        title="QR โดเนทบนจอ"
-        description="ผู้ชมสแกนจากจอไลฟ์แล้วไปหน้าโดเนทของคุณ"
-        url={`${baseUrl}/qr`}
-        preview={
-          <QrWidget
-            data={{
-              caption: draft.qrCaption.trim() || "สแกนเพื่อโดเนท",
-              donateUrl: data.qr.donateUrl,
-            }}
-          />
-        }
-      >
-        <TextField
-          id="qrCaption"
-          label="ข้อความบนการ์ด"
-          placeholder="สแกนเพื่อโดเนท"
-          value={draft.qrCaption}
-          onChange={(v) => set("qrCaption", v)}
-        />
-      </WidgetCard>
-
-      <WidgetCard
-        kind="top"
-        icon={ListOrdered}
-        title="อันดับผู้สนับสนุน"
-        description="รวมยอดตามชื่อที่ผู้บริจาคกรอก ไม่รวม Anonymous"
-        url={`${baseUrl}/top`}
-        preview={
-          <TopWidget data={{ period: draft.topPeriod, items: topItems }} />
-        }
-      >
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <span className="text-sm font-medium">ช่วงเวลา</span>
-            <SegmentedControl
-              label="ช่วงเวลาอันดับ"
-              options={TOP_PERIODS.map((p) => ({
-                value: p,
-                label: TOP_PERIOD_LABELS[p],
-              }))}
-              value={draft.topPeriod}
-              onChange={(v) => set("topPeriod", v)}
-            />
-          </div>
+      {active === "recent" && (
+        <WidgetCard
+          kind="recent"
+          icon={TextCursorInput}
+          title="แถบโดเนทล่าสุด"
+          description="ตัวหนังสือวิ่ง ชื่อ + ยอด ของโดเนทที่ผ่านล่าสุด"
+          url={`${baseUrl}/recent`}
+          preview={<RecentWidget data={{ items: recentItems }} />}
+        >
           <CountSlider
-            label="จำนวนอันดับ"
-            value={draft.topCount}
-            range={TOP_COUNT}
-            onChange={(v) => set("topCount", v)}
+            label="จำนวนรายการ"
+            value={draft.recentCount}
+            range={RECENT_COUNT}
+            onChange={(v) => set("recentCount", v)}
           />
-        </div>
-      </WidgetCard>
-
-      <WidgetCard
-        kind="recent"
-        icon={TextCursorInput}
-        title="แถบโดเนทล่าสุด"
-        description="ตัวหนังสือวิ่ง ชื่อ + ยอด ของโดเนทที่ผ่านล่าสุด"
-        url={`${baseUrl}/recent`}
-        preview={<RecentWidget data={{ items: recentItems }} />}
-      >
-        <CountSlider
-          label="จำนวนรายการ"
-          value={draft.recentCount}
-          range={RECENT_COUNT}
-          onChange={(v) => set("recentCount", v)}
-        />
-      </WidgetCard>
+        </WidgetCard>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -339,14 +361,6 @@ export function OverlaysForm({
   );
 }
 
-/** ซ่อน token ส่วนใหญ่ — ลิงก์นี้ห้ามขึ้นจอไลฟ์ */
-function maskUrl(url: string) {
-  return url.replace(
-    /\/overlay\/([^/]{4})[^/]+/,
-    (_, head) => `/overlay/${head}${"•".repeat(10)}`,
-  );
-}
-
 function WidgetCard({
   kind,
   icon,
@@ -371,33 +385,36 @@ function WidgetCard({
       icon={icon}
       title={title}
       description={description}
+      bodyClassName="px-0 pb-0"
     >
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="min-w-0">
-          {children}
-          <div className="mt-5 grid gap-1.5">
-            <span className="text-sm font-medium">ลิงก์ OBS</span>
-            <div className="flex gap-2">
-              <p
-                data-testid={`widget-url-${kind}`}
-                className="min-w-0 flex-1 truncate rounded-lg border bg-background px-3 py-2 font-mono text-sm"
-              >
-                {maskUrl(url)}
-              </p>
-              <CopyButton text={url} ariaLabel={`คัดลอกลิงก์ ${title}`} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Browser Source กว้าง {size.width} สูง {size.height}
-            </p>
-          </div>
+      <div className="grid gap-6 px-6 pb-6">
+        <div className="grid gap-2">
+          <p className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>พรีวิวตามขนาดจริงใน OBS</span>
+            <span className="font-mono">
+              {size.width}×{size.height}
+            </span>
+          </p>
+          <ScaledPreview
+            testId={`widget-preview-${kind}`}
+            width={size.width}
+            height={size.height}
+          >
+            <WidgetStage kind={kind} className="size-full">
+              {preview}
+            </WidgetStage>
+          </ScaledPreview>
         </div>
-        <div
-          data-testid={`widget-preview-${kind}`}
-          className="flex min-h-48 items-center justify-center overflow-hidden rounded-xl border p-4"
-          style={checkerboard}
-        >
-          {preview}
-        </div>
+        <div className="min-w-0">{children}</div>
+      </div>
+      <div className="grid gap-2 rounded-b-2xl border-t bg-muted/40 px-6 py-4">
+        <span className="text-sm font-medium">ลิงก์ OBS</span>
+        <ObsUrlField
+          url={url}
+          size={size}
+          testId={`widget-url-${kind}`}
+          copyLabel={`คัดลอกลิงก์ ${title}`}
+        />
       </div>
     </SectionCard>
   );

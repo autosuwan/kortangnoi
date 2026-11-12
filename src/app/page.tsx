@@ -68,14 +68,6 @@ const steps = [
   },
 ];
 
-/** พื้นลายตารางแทนพื้นโปร่งใสของ OBS */
-const checkerboard: React.CSSProperties = {
-  backgroundColor: "#e5e5e5",
-  backgroundImage:
-    "conic-gradient(#d4d4d4 25%, transparent 0 50%, #d4d4d4 0 75%, transparent 0)",
-  backgroundSize: "24px 24px",
-};
-
 export default function Home() {
   return (
     <div className="app-bg flex flex-1 flex-col">
@@ -129,10 +121,7 @@ export default function Home() {
           </div>
 
           <figure className="rounded-2xl border bg-card p-3">
-            <div
-              className="flex min-h-[320px] items-center justify-center rounded-xl p-4"
-              style={checkerboard}
-            >
+            <div className="flex min-h-[320px] items-center justify-center rounded-xl bg-obs-checker p-4">
               <AlertCard
                 imageUrl={DEFAULT_ALERT_IMAGE}
                 donorName="ผู้ชมใจดี"

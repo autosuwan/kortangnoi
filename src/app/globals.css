@@ -202,3 +202,15 @@
 @utility animate-marquee {
   animation: marquee var(--marquee-duration, 30s) linear infinite;
 }
+
+/* พื้นลายตารางแทนพื้นโปร่งใสของ OBS (พรีวิว alert/overlay) */
+@utility bg-obs-checker {
+  background-color: #e5e5e5;
+  background-image: conic-gradient(
+    #d4d4d4 25%,
+    transparent 0 50%,
+    #d4d4d4 0 75%,
+    transparent 0
+  );
+  background-size: 24px 24px;
+}

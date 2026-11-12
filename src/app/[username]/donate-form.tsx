@@ -240,15 +240,7 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
             </div>
           )}
 
-          <div
-            className="flex justify-center overflow-hidden rounded-lg p-4"
-            style={{
-              backgroundColor: "#e5e5e5",
-              backgroundImage:
-                "conic-gradient(#d4d4d4 25%, transparent 0 50%, #d4d4d4 0 75%, transparent 0)",
-              backgroundSize: "20px 20px",
-            }}
-          >
+          <div className="flex justify-center overflow-hidden rounded-lg bg-obs-checker p-4">
             <AlertCard
               imageUrl={gifUrl ?? opts.defaults.imageUrl}
               donorName={

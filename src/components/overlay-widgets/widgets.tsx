@@ -12,6 +12,7 @@ import {
   type QrData,
   type RecentData,
   type TopData,
+  type WidgetKind,
 } from "@/lib/overlay-widgets";
 import { cn } from "@/lib/utils";
 
@@ -209,6 +210,31 @@ export function RecentWidget({
           {content(true)}
         </div>
       )}
+    </div>
+  );
+}
+
+/** วาง widget ในกรอบ Browser Source แบบเดียวกันทั้งใน OBS และพรีวิว */
+export function WidgetStage({
+  kind,
+  className,
+  children,
+}: {
+  kind: WidgetKind;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex p-4",
+        kind === "top"
+          ? "items-start justify-start"
+          : "items-center justify-center",
+        className,
+      )}
+    >
+      {children}
     </div>
   );
 }

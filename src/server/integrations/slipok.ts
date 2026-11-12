@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SlipData } from "@/lib/slip-check";
+import { parseQuota, type SlipOkQuota } from "@/lib/slipok-quota";
 import { readSlipQr } from "@/server/slip-qr";
 
 export type SlipOkResult =
@@ -107,4 +108,47 @@ async function fakeSlipOk(input: SlipOkInput): Promise<SlipOkResult> {
   }
   if (spec.code) return { ok: false, code: spec.code, message: "fake error" };
   return { ok: true, data: spec.data! };
+}
+
+const QUOTA_CACHE_MS = 60_000;
+let quotaCache: { at: number; value: SlipOkQuota | null } | null = null;
+
+/** โควตา SlipOK คงเหลือ (cache 60 วินาที) — ล่ม/ไม่มี key → null หน้าแอดมินไม่พัง */
+export async function getSlipOkQuota(): Promise<SlipOkQuota | null> {
+  if (quotaCache && Date.now() - quotaCache.at < QUOTA_CACHE_MS) {
+    return quotaCache.value;
+  }
+  let value: SlipOkQuota | null = null;
+  if (process.env.SLIPOK_PROVIDER === "fake") {
+    value = parseQuota({
+      quota: 87,
+      overQuota: 0,
+      specialQuota: 0,
+      endDate: "2026-12-31",
+      specialEndDate: null,
+    });
+  } else {
+    const key = process.env.SLIPOK_API_KEY;
+    const branch = process.env.SLIPOK_BRANCH_ID;
+    if (key && branch) {
+      try {
+        const res = await fetch(
+          `https://api.slipok.com/api/line/apikey/${encodeURIComponent(branch)}/quota`,
+          {
+            headers: { "x-authorization": key },
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+          },
+        );
+        const json = (await res.json().catch(() => null)) as {
+          success?: boolean;
+          data?: unknown;
+        } | null;
+        if (res.ok && json?.success) value = parseQuota(json.data);
+      } catch (error) {
+        console.error("slipok quota failed", error);
+      }
+    }
+  }
+  quotaCache = { at: Date.now(), value };
+  return value;
 }

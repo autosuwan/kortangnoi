@@ -147,6 +147,15 @@ export function ProfileForm({
           >
             {profile.realName || "–"}
           </p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            รหัสผู้ใช้ (ใช้ตั้งสิทธิ์แอดมิน):{" "}
+            <code
+              data-testid="user-id"
+              className="font-mono break-all select-all"
+            >
+              {profile.id}
+            </code>
+          </p>
         </section>
 
         {error && (

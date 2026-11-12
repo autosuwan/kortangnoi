@@ -4,6 +4,7 @@ import {
   Bell,
   House,
   ReceiptText,
+  ShieldCheck,
   UserRound,
   Wallet,
   type LucideIcon,
@@ -50,10 +51,16 @@ const items: NavItem[] = [
   { href: "/dashboard/profile", label: "โปรไฟล์", icon: UserRound },
 ];
 
+const ADMIN_ITEM: NavItem = {
+  href: "/dashboard/admin",
+  label: "แอดมิน",
+  icon: ShieldCheck,
+};
+
 const itemClass =
   "relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors";
 
-export function SidebarNav() {
+export function SidebarNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const [pending, setPending] = useState(0);
 
@@ -66,48 +73,50 @@ export function SidebarNav() {
 
   return (
     <nav aria-label="เมนูหลัก" className="flex flex-col gap-1">
-      {items.map(({ href, label, icon: Icon, soon, badge }) => {
-        const active = pathname === href;
-        return (
-          <Tooltip key={href}>
-            <TooltipTrigger
-              render={
-                soon ? (
+      {[...items, ...(isAdmin ? [ADMIN_ITEM] : [])].map(
+        ({ href, label, icon: Icon, soon, badge }) => {
+          const active = pathname === href;
+          return (
+            <Tooltip key={href}>
+              <TooltipTrigger
+                render={
+                  soon ? (
+                    <span
+                      aria-disabled
+                      className={cn(itemClass, "cursor-not-allowed opacity-40")}
+                    />
+                  ) : (
+                    <Link
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        itemClass,
+                        "hover:bg-sidebar-accent hover:text-foreground",
+                        active && "bg-sidebar-accent text-foreground",
+                      )}
+                    />
+                  )
+                }
+              >
+                <Icon className="size-4" aria-hidden />
+                <span className="sr-only">{label}</span>
+                {badge && pending > 0 && (
                   <span
-                    aria-disabled
-                    className={cn(itemClass, "cursor-not-allowed opacity-40")}
-                  />
-                ) : (
-                  <Link
-                    href={href}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      itemClass,
-                      "hover:bg-sidebar-accent hover:text-foreground",
-                      active && "bg-sidebar-accent text-foreground",
-                    )}
-                  />
-                )
-              }
-            >
-              <Icon className="size-4" aria-hidden />
-              <span className="sr-only">{label}</span>
-              {badge && pending > 0 && (
-                <span
-                  data-testid="pending-badge"
-                  className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] leading-none text-primary-foreground"
-                >
-                  {pending > 99 ? "99+" : pending}
-                  <span className="sr-only"> รายการรอตรวจ</span>
-                </span>
-              )}
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {soon ? `${label} · เร็วๆ นี้` : label}
-            </TooltipContent>
-          </Tooltip>
-        );
-      })}
+                    data-testid="pending-badge"
+                    className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] leading-none text-primary-foreground"
+                  >
+                    {pending > 99 ? "99+" : pending}
+                    <span className="sr-only"> รายการรอตรวจ</span>
+                  </span>
+                )}
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {soon ? `${label} · เร็วๆ นี้` : label}
+              </TooltipContent>
+            </Tooltip>
+          );
+        },
+      )}
     </nav>
   );
 }

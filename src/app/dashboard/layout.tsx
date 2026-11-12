@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getCurrentUser } from "@/server/auth";
+import { getCurrentUser, isAdmin } from "@/server/auth";
 
 import { DonationWatcher } from "./donation-watcher";
 import { SidebarNav } from "./sidebar-nav";
@@ -28,7 +28,9 @@ export default function DashboardLayout({
         >
           <LogoMark />
         </Link>
-        <SidebarNav />
+        <Suspense fallback={<SidebarNav />}>
+          <NavWithRole />
+        </Suspense>
         <form action="/auth/signout" method="post" className="mt-auto">
           <Tooltip>
             <TooltipTrigger
@@ -58,4 +60,9 @@ export default function DashboardLayout({
 async function Watcher() {
   const user = await getCurrentUser();
   return user ? <DonationWatcher userId={user.id} /> : null;
+}
+
+async function NavWithRole() {
+  const user = await getCurrentUser();
+  return <SidebarNav isAdmin={user ? isAdmin(user.id) : false} />;
 }

@@ -94,9 +94,11 @@ export async function setUsername(
 const MEDIA_BUCKET = "profile-media";
 const PROFILE_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
 const PROFILE_COLUMNS =
-  "username, display_name, real_name, bio, avatar_url, avatar_path, banner_url, banner_path";
+  "id, username, display_name, real_name, bio, avatar_url, avatar_path, banner_url, banner_path";
 
 export type ProfileSettings = {
+  /** รหัสผู้ใช้ (ใช้ตั้ง ADMIN_USER_IDS) */
+  id: string;
   username: string | null;
   displayName: string;
   /** ชื่อจาก Google/Discord — ส่วนตัว ไม่แสดงต่อผู้ชม */
@@ -107,6 +109,7 @@ export type ProfileSettings = {
 };
 
 type ProfileRow = {
+  id: string;
   username: string | null;
   display_name: string;
   real_name: string;
@@ -118,6 +121,7 @@ type ProfileRow = {
 };
 
 const toProfileSettings = (r: ProfileRow): ProfileSettings => ({
+  id: r.id,
   username: r.username,
   displayName: r.display_name || r.username || "",
   realName: r.real_name,

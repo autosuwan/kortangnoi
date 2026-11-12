@@ -16,7 +16,12 @@ import {
   updateOverlayWidgetSettings,
 } from "./overlay-widgets";
 import { verifySlip } from "./slip";
-import { applyDonationTimer, getDonationDetail } from "./streamer-donations";
+import {
+  applyAllRoundDonations,
+  applyDonationTimer,
+  getDonationDetail,
+  listRoundDonations,
+} from "./streamer-donations";
 import { DEFAULT_STYLES } from "@/lib/overlay-widgets";
 
 const closers: (() => Promise<unknown>)[] = [];
@@ -394,5 +399,38 @@ describe("Subathon timer", () => {
     await expect(applyDonationTimer(other.id, id)).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it("เมนู Subathon: เฉพาะโดเนทของรอบนี้ · ใช้ทั้งหมดครั้งเดียว · auto ไม่มีรายการรอ", async () => {
+    const s = await createReadyStreamer("tmr8");
+    await updateOverlayWidgetSettings(s.id, {
+      ...settings,
+      timerMode: "manual",
+      timerAllowSubtract: true,
+    });
+    await approved(s.username, "ก่อนเริ่ม", "50");
+    expect((await listRoundDonations(s.id)).items).toHaveLength(0);
+
+    await controlTimer(s.id, { action: "start" });
+    await controlTimer(s.id, { action: "pause" });
+    const paused = (await getTimer(s.id)).remainingSec;
+    await approved(s.username, "แมว", "100"); // +600
+    await approved(s.username, "หมี", "30", { timerDirection: "subtract" }); // -180
+
+    const round = await listRoundDonations(s.id, "pending");
+    expect(round.items.map((d) => d.donorName)).toEqual(["หมี", "แมว"]);
+    expect(round).toMatchObject({ pendingCount: 2, pendingTotalSec: 420 });
+
+    const result = await applyAllRoundDonations(s.id);
+    expect(result).toMatchObject({ applied: 2, totalSec: 420 });
+    expect(result.timer.remainingSec).toBe(paused + 420);
+    expect(await applyAllRoundDonations(s.id)).toMatchObject({ applied: 0 });
+    expect((await listRoundDonations(s.id)).pendingCount).toBe(0);
+
+    await updateOverlayWidgetSettings(s.id, { ...settings, timerMode: "auto" });
+    await approved(s.username, "นก", "20");
+    const auto = await listRoundDonations(s.id);
+    expect(auto.pendingCount).toBe(0);
+    expect(auto.items).toHaveLength(3);
   });
 });

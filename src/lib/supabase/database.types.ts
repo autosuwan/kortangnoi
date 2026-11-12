@@ -237,6 +237,7 @@ export type Database = {
           timer_label: string;
           timer_mode: string;
           timer_remaining_sec: number;
+          timer_started_at: string | null;
           timer_status: string;
           timer_step_satang: number;
           timer_step_seconds: number;
@@ -259,6 +260,7 @@ export type Database = {
           timer_label?: string;
           timer_mode?: string;
           timer_remaining_sec?: number;
+          timer_started_at?: string | null;
           timer_status?: string;
           timer_step_satang?: number;
           timer_step_seconds?: number;
@@ -280,6 +282,7 @@ export type Database = {
           timer_label?: string;
           timer_mode?: string;
           timer_remaining_sec?: number;
+          timer_started_at?: string | null;
           timer_status?: string;
           timer_step_satang?: number;
           timer_step_seconds?: number;

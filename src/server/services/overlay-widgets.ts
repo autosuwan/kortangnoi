@@ -251,6 +251,41 @@ export async function applyDonationTimeManually(
   await notifyOverlaySettingsChanged(userId);
 }
 
+/** กฎ + สถานะรอบปัจจุบัน — ใช้ตัดสินป้าย/ปุ่ม "ใช้" ของแต่ละโดเนท */
+export type TimerRule = {
+  timerMode: TimerMode;
+  timerStepSatang: number;
+  timerStepSeconds: number;
+  /** เริ่มรอบล่าสุด (null = ยังไม่เคยเริ่ม) */
+  startedAt: string | null;
+  /** กำลังนับ/พัก */
+  active: boolean;
+};
+
+export async function getTimerRule(userId: string): Promise<TimerRule> {
+  const { data, error } = await createAdminClient()
+    .from("overlay_widgets")
+    .select(
+      "timer_mode, timer_step_satang, timer_step_seconds, timer_started_at, timer_status, timer_ends_at, timer_remaining_sec, timer_initial_sec",
+    )
+    .eq("user_id", userId)
+    .single();
+  if (error) throw error;
+  const state = timerState({
+    status: data.timer_status as "idle" | "running" | "paused",
+    endsAt: data.timer_ends_at,
+    remainingSec: data.timer_remaining_sec,
+    initialSec: data.timer_initial_sec,
+  });
+  return {
+    timerMode: data.timer_mode as TimerMode,
+    timerStepSatang: data.timer_step_satang,
+    timerStepSeconds: data.timer_step_seconds,
+    startedAt: data.timer_started_at,
+    active: state.status === "running" || state.status === "paused",
+  };
+}
+
 /** ข้อมูล timer ที่หน้าโดเนทใช้ (ไม่มีข้อมูลอื่นของสตรีมเมอร์) */
 export async function getPublicTimerInfo(userId: string) {
   const { data, error } = await createAdminClient()

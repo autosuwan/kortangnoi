@@ -178,9 +178,8 @@ test("Subathon: เริ่มที่ 01:00:00 → OBS นับถอยห�
   );
   await obs.waitForTimeout(1500);
 
-  await page.goto("/dashboard/overlays");
+  await page.goto("/dashboard/subathon");
   await page.waitForLoadState("networkidle");
-  await page.getByRole("tab", { name: "Subathon" }).click();
   await expect(page.getByTestId("timer-clock")).toHaveText("01:00:00");
   await page.getByRole("button", { name: "เริ่มนับ" }).click();
   await expect(page.getByTestId("timer-status")).toHaveText("กำลังนับ");
@@ -219,7 +218,7 @@ test("Subathon: เริ่มที่ 01:00:00 → OBS นับถอยห�
   await expect(time).toHaveText(frozen!);
 });
 
-test("Subathon โหมดกดเอง: คนดูเลือกลดเวลา → ประวัติแสดง −3:00 → กดใช้กับ timer → OBS ลด", async ({
+test("เมนู Subathon โหมดกดเอง: คนดูเลือก +/− → รายการขึ้นเอง → ใช้ทีละรายการ + ใช้ทั้งหมด → OBS ตรง", async ({
   page,
   context,
   request,
@@ -229,10 +228,12 @@ test("Subathon โหมดกดเอง: คนดูเลือกลดเ
   await page.waitForURL(/\/dashboard$/);
   const token = await tokenOf(s.id);
 
-  await page.goto("/dashboard/overlays");
+  // โดเนทก่อนเริ่มรอบ ไม่ขึ้นในรายการ
+  await donateViaApi(request, s.username, "ก่อนเริ่ม", 20, 2000);
+
+  await page.getByRole("link", { name: "Subathon" }).first().click();
+  await page.waitForURL(/\/dashboard\/subathon$/);
   await page.waitForLoadState("networkidle");
-  await page.getByRole("tab", { name: "Subathon" }).click();
-  // ข้อความใบ้อ่านเป็นคำ
   await expect(page.getByText("(1 นาที)")).toBeVisible();
   await page.getByRole("radio", { name: "กดเอง" }).click();
   await page.getByRole("switch", { name: "ให้คนดูเลือกลดเวลาได้" }).click();
@@ -261,29 +262,32 @@ test("Subathon โหมดกดเอง: คนดูเลือกลดเ
   );
   await obs.waitForTimeout(1500);
 
-  const { status } = await donateViaApi(
-    request,
-    s.username,
-    "หมีขาว",
-    30,
-    3000,
-    {
-      timerDirection: "subtract",
-    },
-  );
-  expect(status).toBe("approved");
-  // โหมดกดเอง: timer ยังไม่เปลี่ยน
-  await obs.waitForTimeout(1500);
+  await donateViaApi(request, s.username, "หมีขาว", 30, 3000, {
+    timerDirection: "subtract",
+  });
+  await donateViaApi(request, s.username, "แมวส้ม", 20, 2000);
+  // โหมดกดเอง: timer ยังไม่เปลี่ยน แต่รายการขึ้นเอง (realtime)
+  const items = page.getByTestId("round-item");
+  await expect(items).toHaveCount(2, { timeout: 10000 });
+  await expect(page.getByText("ก่อนเริ่ม")).toBeHidden();
   await expect(obs.getByTestId("timer-delta")).toBeHidden();
 
-  await page.goto("/dashboard/donations");
-  const chip = page.getByTestId("timer-chip").filter({ visible: true }).first();
-  await expect(chip).toContainText("−3:00");
-  await chip.click();
-  await page.getByRole("button", { name: "ใช้กับ timer (−3:00)" }).click();
-  await expect(page.getByText("ใช้กับ timer แล้ว (−3:00)")).toBeVisible();
+  await page.getByRole("button", { name: "ใช้เวลาของ หมีขาว" }).click();
   await expect(obs.getByTestId("timer-delta")).toHaveText("−3:00", {
     timeout: 8000,
   });
-  await expect(obs.getByTestId("timer-time")).toHaveText(/^00:56:\d\d$/);
+  await page.getByRole("button", { name: "ใช้ทั้งหมด (+2:00)" }).click();
+  await expect(page.getByText("ใช้แล้ว 1 รายการ · รวม +2:00")).toBeVisible();
+  await expect(obs.getByTestId("timer-delta")).toHaveText("+2:00", {
+    timeout: 8000,
+  });
+  await expect(obs.getByTestId("timer-time")).toHaveText(/^00:5[89]:\d\d$/);
+  await expect(page.getByTestId("applied-mark")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: /^ใช้ทั้งหมด/ })).toBeHidden();
+
+  // ประวัติโดเนทแสดงป้ายที่ใช้แล้ว
+  await page.goto("/dashboard/donations");
+  await expect(
+    page.getByTestId("timer-chip").filter({ visible: true }).first(),
+  ).toBeVisible();
 });

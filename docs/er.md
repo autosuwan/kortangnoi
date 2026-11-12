@@ -86,6 +86,7 @@ erDiagram
     text timer_label "1-40 ตัว, default Subathon"
     text timer_mode "auto | manual"
     boolean timer_allow_subtract "default false"
+    timestamptz timer_started_at "nullable, เริ่มรอบล่าสุด"
     jsonb styles "หน้าตาต่อ widget, default {}"
     timestamptz updated_at
   }

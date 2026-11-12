@@ -650,6 +650,15 @@ type OverlayAlert = {
 - API: `GET/POST /api/settings/overlays/timer` (`{ action: start|pause|resume|reset }` หรือ `{ action: "adjust", seconds }`; สถานะไม่ถูก → 409 `TIMER_INVALID_STATE`); widget `GET /api/overlay/{token}/widgets/timer` → `{ status, remainingSec, endsAt, label, style }`
 - ค่าตั้ง (`timerInitialSec`, `timerStepSatang`, `timerStepSeconds`, `timerLabel`, `timerMode`, `timerAllowSubtract`) บันทึกผ่าน `PUT /api/settings/overlays`
 
+### เมนู Subathon (`/dashboard/subathon`)
+
+- จัดการ subathon ทั้งหมดในหน้าเดียว: นาฬิกาสด + ปุ่มควบคุม + ลิงก์ OBS, **รายการโดเนทของรอบนี้**, ตั้งค่ากฎ/โหมด/ลดเวลา/เวลาเริ่มต้น/ป้าย (แถบ "ยังไม่บันทึก")
+- **รอบนี้** = โดเนทที่ผ่านแล้วและสร้างหลัง `timer_started_at` (ตั้งตอนกดเริ่มนับ) — โดเนทก่อนเริ่มรอบไม่ขึ้น "รอกดใช้"
+- รายการ (ใหม่สุดก่อน, ล่าสุด 50, อัปเดต realtime): ชื่อ · ยอด · ป้ายเวลา · ปุ่ม **"ใช้"** ในแถว (โหมดกดเอง) หรือ "ใช้แล้ว"; ตัวกรอง รอกดใช้ / ทั้งหมด; ปุ่ม **"ใช้ทั้งหมด (N)"** + ผลรวม
+- `canApply` = โหมดกดเอง + `approved` + ยังไม่ใช้ + อยู่ในรอบนี้ + timer กำลังนับ/พัก
+- API: `GET /api/settings/overlays/timer/donations?filter=pending|all` → `{ timer, mode, items: DonationRow[], pendingCount, pendingTotalSec }`; `POST /api/settings/overlays/timer/apply-all` → `{ applied, totalSec, timer }`
+- แท็บ Subathon ในหน้า Overlay เหลือ หน้าตา + พรีวิว + ลิงก์ OBS และลิงก์ไปเมนูนี้
+
 ### หน้าตา (แต่ละแท็บมีส่วน "หน้าตา" + ปุ่มคืนค่าเริ่มต้น)
 
 | Widget | ปรับได้                                                                                             |

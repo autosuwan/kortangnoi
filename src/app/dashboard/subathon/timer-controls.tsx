@@ -50,15 +50,15 @@ export function TimerControls({
   }));
   const [now, setNow] = useState(() => Date.now());
 
-  const update = useCallback(
-    (t: TimerData) => {
-      const at = Date.now();
-      setBase({ at, sec: t.remainingSec });
-      setNow(at);
-      onChange(t);
-    },
-    [onChange],
-  );
+  const update = useCallback((t: TimerData) => onChange(t), [onChange]);
+
+  // ข้อมูลใหม่ (จากปุ่ม, poll หรือหน้าแม่ เช่น กดใช้เวลาโดเนท) → ตั้งจุดอ้างอิงใหม่
+  useEffect(() => {
+    const at = Date.now();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync นาฬิกากับข้อมูลจาก server
+    setBase({ at, sec: timer.remainingSec });
+    setNow(at);
+  }, [timer]);
 
   useEffect(() => {
     if (timer.status !== "running") return;

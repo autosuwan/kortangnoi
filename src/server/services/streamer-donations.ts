@@ -7,15 +7,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import { verifyReasons } from "@/lib/verify-reason";
 import { sendDonationAlert } from "@/server/services/overlay";
-import {
-  subathonDeltaFor,
-  type OverlayWidgetSettings,
-  type TimerDirection,
-} from "@/lib/overlay-widgets";
+import { subathonDeltaFor, type TimerDirection } from "@/lib/overlay-widgets";
 import {
   addDonationTime,
   applyDonationTimeManually,
-  getOverlayWidgetSettings,
+  getTimer,
+  getTimerRule,
+  type TimerRule,
 } from "@/server/services/overlay-widgets";
 
 type DonationStatus = Database["public"]["Enums"]["donation_status"];
@@ -76,11 +74,6 @@ const ROW_COLUMNS =
   "id, created_at, donor_name, amount_satang, message, status, timer_direction, timer_applied_sec";
 const notFound = () => new AppError(404, "NOT_FOUND", "ไม่พบรายการนี้");
 
-type TimerRule = Pick<
-  OverlayWidgetSettings,
-  "timerMode" | "timerStepSatang" | "timerStepSeconds"
->;
-
 const toRow = (
   d: {
     id: string;
@@ -96,8 +89,15 @@ const toRow = (
 ): DonationRow => {
   const direction = d.timer_direction as TimerDirection;
   const applied = d.timer_applied_sec;
+  const inRound =
+    rule.startedAt !== null &&
+    Date.parse(d.created_at) >= Date.parse(rule.startedAt);
   const canApply =
-    rule.timerMode === "manual" && d.status === "approved" && applied === null;
+    rule.timerMode === "manual" &&
+    rule.active &&
+    inRound &&
+    d.status === "approved" &&
+    applied === null;
   // แสดงเมื่อใช้แล้ว, รอกดใช้ (manual) หรือคนดูเลือกลดเวลา
   const show = applied !== null || canApply || direction === "subtract";
   return {
@@ -138,7 +138,7 @@ export async function listDonations(
 }> {
   const safePage = Math.max(1, Math.floor(page) || 1);
   const from = (safePage - 1) * PAGE_SIZE;
-  const rule = await getOverlayWidgetSettings(userId);
+  const rule = await getTimerRule(userId);
   const { data, count, error } = await createAdminClient()
     .from("donations")
     .select(ROW_COLUMNS, { count: "exact" })
@@ -190,7 +190,7 @@ export async function getDonationDetail(
   id: string,
 ): Promise<DonationDetail> {
   const admin = createAdminClient();
-  const rule = await getOverlayWidgetSettings(userId);
+  const rule = await getTimerRule(userId);
   const { data, error } = await admin
     .from("donations")
     .select(
@@ -308,4 +308,87 @@ export async function applyDonationTimer(userId: string, id: string) {
   await getDonationDetail(userId, id); // ไม่ใช่ของเรา → 404
   await applyDonationTimeManually(userId, id);
   return getDonationDetail(userId, id);
+}
+
+const ROUND_LIMIT = 50;
+
+/** เมนู Subathon: โดเนทที่ผ่านแล้วของรอบนี้ (ใหม่สุดก่อน) */
+export async function listRoundDonations(
+  userId: string,
+  filter: "pending" | "all" = "all",
+) {
+  const rule = await getTimerRule(userId);
+  const timer = await getTimer(userId);
+  if (!rule.startedAt) {
+    return {
+      timer,
+      mode: rule.timerMode,
+      items: [],
+      pendingCount: 0,
+      pendingTotalSec: 0,
+    };
+  }
+  const { data, error } = await createAdminClient()
+    .from("donations")
+    .select(ROW_COLUMNS)
+    .eq("streamer_id", userId)
+    .eq("status", "approved")
+    .gte("created_at", rule.startedAt)
+    .order("created_at", { ascending: false })
+    .limit(ROUND_LIMIT);
+  if (error) throw error;
+  // ทุกรายการในรอบแสดงป้ายเวลา (แม้คนดูเลือกเพิ่มและยังไม่ใช้)
+  const all = (data ?? []).map((d) => {
+    const row = toRow(d, rule);
+    return {
+      ...row,
+      timer: row.timer ?? {
+        direction: d.timer_direction as TimerDirection,
+        seconds: subathonDeltaFor(
+          d.amount_satang,
+          d.timer_direction as TimerDirection,
+          rule.timerStepSatang,
+          rule.timerStepSeconds,
+        ),
+        appliedSec: d.timer_applied_sec,
+        canApply: false,
+      },
+    };
+  });
+  const pending = all.filter((r) => r.timer.canApply);
+  return {
+    timer,
+    mode: rule.timerMode,
+    items: filter === "pending" ? pending : all,
+    pendingCount: pending.length,
+    pendingTotalSec: pending.reduce((sum, r) => sum + r.timer.seconds, 0),
+  };
+}
+
+/** ใช้ทุกรายการที่ค้างของรอบนี้ (เก่าก่อน) — ตัวกันซ้ำอยู่ใน SQL */
+export async function applyAllRoundDonations(userId: string) {
+  const { items } = await listRoundDonations(userId, "pending");
+  const done: string[] = [];
+  for (const item of [...items].reverse()) {
+    try {
+      await applyDonationTimeManually(userId, item.id);
+      done.push(item.id);
+    } catch (e) {
+      // ใช้ไปแล้ว (กดซ้ำ/อีกแท็บ) → ข้าม; timer หยุด/หมด → จบ
+      if (e instanceof AppError && e.code === "TIMER_ALREADY_APPLIED") continue;
+      if (e instanceof AppError && e.code === "TIMER_INVALID_STATE") break;
+      throw e;
+    }
+  }
+  let totalSec = 0;
+  if (done.length) {
+    const { data, error } = await createAdminClient()
+      .from("donations")
+      .select("timer_applied_sec")
+      .eq("streamer_id", userId)
+      .in("id", done);
+    if (error) throw error;
+    totalSec = (data ?? []).reduce((s, d) => s + (d.timer_applied_sec ?? 0), 0);
+  }
+  return { applied: done.length, totalSec, timer: await getTimer(userId) };
 }

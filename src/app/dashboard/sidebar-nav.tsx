@@ -9,6 +9,7 @@ import {
   UserRound,
   Wallet,
   type LucideIcon,
+  Timer,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -61,6 +62,12 @@ const ITEMS: NavItem[] = [
     label: "Overlay",
     shortLabel: "Overlay",
     icon: Layers,
+  },
+  {
+    href: "/dashboard/subathon",
+    label: "Subathon",
+    shortLabel: "Subathon",
+    icon: Timer,
   },
   {
     href: "/dashboard/profile",

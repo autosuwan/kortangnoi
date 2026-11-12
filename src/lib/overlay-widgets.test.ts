@@ -149,6 +149,23 @@ describe("widgetSize", () => {
     });
     expect(lg.width).toBeGreaterThan(sm.width);
   });
+
+  it("QR ซ่อนข้อความ/ลิงก์ → เตี้ยลง; style เก่าที่ไม่มีช่องใหม่ได้ค่าเริ่มต้น", () => {
+    const full = widgetSize("qr", DEFAULT_STYLES);
+    const bare = widgetSize("qr", {
+      ...DEFAULT_STYLES,
+      qr: { ...DEFAULT_STYLES.qr, showCaption: false, showUrl: false },
+    });
+    expect(bare.height).toBeLessThan(full.height);
+    expect(
+      resolveStyles({ qr: { size: "lg", borderColor: "#000000" } }).qr,
+    ).toMatchObject({
+      size: "lg",
+      showBackground: true,
+      showCaption: true,
+      showUrl: true,
+    });
+  });
 });
 
 describe("subathon", () => {

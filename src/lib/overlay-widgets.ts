@@ -89,7 +89,15 @@ export const widgetStyleSchemas = {
     showPercent: z.boolean(),
     showAmount: z.boolean(),
   }),
-  qr: z.object({ ...common, borderColor: hex, size }),
+  // showBackground = การ์ดขาว+กรอบ (ปิดแล้ว QR ยังมีขอบขาวบางๆ ให้สแกนได้)
+  qr: z.object({
+    ...common,
+    borderColor: hex,
+    size,
+    showBackground: z.boolean(),
+    showCaption: z.boolean(),
+    showUrl: z.boolean(),
+  }),
   top: z.object({ ...common, title: titleText, nameColor: hex }),
   recent: z.object({
     ...common,
@@ -136,6 +144,9 @@ export const DEFAULT_STYLES: WidgetStyles = {
     amountColor: AMOUNT_ORANGE,
     borderColor: AMOUNT_ORANGE,
     size: "md",
+    showBackground: true,
+    showCaption: true,
+    showUrl: true,
   },
   top: {
     textSize: "md",
@@ -206,9 +217,12 @@ export function widgetSize(
     case "qr": {
       const s = styles.qr;
       const img = QR_SIZE[s.size];
+      const text = TEXT_SCALE[s.textSize];
+      const lines =
+        (s.showCaption ? 50 * text : 0) + (s.showUrl ? 30 * text : 0);
       return {
         width: img + 80,
-        height: Math.round(img + 130 * TEXT_SCALE[s.textSize]),
+        height: Math.round(img + 80 + lines),
       };
     }
     case "top": {

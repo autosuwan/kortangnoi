@@ -100,6 +100,18 @@ test("QR overlay ชี้ไปหน้าโดเนท และลิง�
   await expect(qr).toContainText("สแกนเพื่อโดเนท");
   await expect(qr.getByRole("img")).toBeVisible();
 
+  // ปิดพื้นหลัง + ข้อความ → OBS เหลือ QR (ผ่าน API เดียวกับหน้า dashboard)
+  await adminClient()
+    .from("overlay_widgets")
+    .update({
+      styles: { qr: { showBackground: false, showCaption: false } },
+    })
+    .eq("user_id", s.id);
+  await page.reload();
+  await expect(qr).toHaveAttribute("data-background", "false");
+  await expect(qr).not.toContainText("สแกนเพื่อโดเนท");
+  await expect(qr).toContainText(s.username);
+
   await page.goto(`/overlay/${"x".repeat(43)}/goal`);
   await expect(page.getByText(/ลิงก์ overlay ไม่ถูกต้อง/)).toBeVisible();
 

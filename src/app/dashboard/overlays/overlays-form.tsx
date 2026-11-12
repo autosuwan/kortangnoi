@@ -358,7 +358,7 @@ export function OverlaysForm({
       content: (
         <TextField
           id="qrCaption"
-          label="ข้อความบนการ์ด"
+          label="ข้อความใต้ QR"
           placeholder="สแกนเพื่อโดเนท"
           value={draft.qrCaption}
           onChange={(v) => set("qrCaption", v)}
@@ -374,7 +374,7 @@ export function OverlaysForm({
           <div className={COLOR_GRID}>
             <ColorField
               id="qrBorder"
-              label="สีกรอบ"
+              label="สีกรอบการ์ด"
               value={st.qr.borderColor}
               onChange={(v) => setStyle("qr", "borderColor", v)}
             />
@@ -389,6 +389,32 @@ export function OverlaysForm({
             label="ขนาดตัวอักษร"
             value={st.qr.textSize}
             onChange={(v) => setStyle("qr", "textSize", v)}
+          />
+          <SettingRow
+            id="qrShowBg"
+            label="แสดงพื้นหลังการ์ด"
+            hint="ปิดแล้วเหลือแค่ QR (มีขอบขาวบางๆ ให้สแกนได้) กับตัวหนังสือขอบดำ"
+            checked={st.qr.showBackground}
+            onChange={(v) => {
+              setStyle("qr", "showBackground", v);
+              // สีข้อความเริ่มต้นเข้ม — ปิดการ์ดแล้วสลับเป็นขาวให้อ่านบนจอได้
+              if (!v && st.qr.textColor === DEFAULT_STYLES.qr.textColor)
+                setStyle("qr", "textColor", "#FFFFFF");
+              if (v && st.qr.textColor === "#FFFFFF")
+                setStyle("qr", "textColor", DEFAULT_STYLES.qr.textColor);
+            }}
+          />
+          <SettingRow
+            id="qrShowCaption"
+            label="แสดงข้อความ"
+            checked={st.qr.showCaption}
+            onChange={(v) => setStyle("qr", "showCaption", v)}
+          />
+          <SettingRow
+            id="qrShowUrl"
+            label="แสดงลิงก์ใต้ QR"
+            checked={st.qr.showUrl}
+            onChange={(v) => setStyle("qr", "showUrl", v)}
           />
         </>
       ),

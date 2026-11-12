@@ -115,24 +115,31 @@ export function QrWidget({
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    QRCode.toDataURL(data.donateUrl, { margin: 1, width: 512 }).then((url) => {
+    // ไม่มีการ์ด: ขอบขาว (quiet zone) กว้างขึ้นให้กล้องแยก QR ออกจากฉากหลังได้
+    QRCode.toDataURL(data.donateUrl, {
+      margin: s.showBackground ? 1 : 2,
+      width: 512,
+    }).then((url) => {
       if (alive) setSrc(url);
     });
     return () => {
       alive = false;
     };
-  }, [data.donateUrl]);
+  }, [data.donateUrl, s.showBackground]);
 
+  const hasText = s.showCaption || s.showUrl;
   return (
     <figure
       data-testid="qr-widget"
       data-url={data.donateUrl}
+      data-background={s.showBackground}
       className={cn(
-        "flex flex-col items-center gap-[0.5em] rounded-2xl border-4 bg-white p-[1em] text-center shadow-xl",
+        "flex flex-col items-center gap-[0.5em] text-center",
+        s.showBackground && "rounded-2xl border-4 bg-white p-[1em] shadow-xl",
         className,
       )}
       style={{
-        borderColor: s.borderColor,
+        borderColor: s.showBackground ? s.borderColor : undefined,
         fontSize: baseFont(s.textSize),
         color: s.textColor,
         width: img + 48,
@@ -143,17 +150,29 @@ export function QrWidget({
         <img
           src={src}
           alt={`QR ไปหน้าโดเนท ${data.donateUrl}`}
+          className={cn(!s.showBackground && "rounded-lg")}
           style={{ width: img, height: img }}
         />
       ) : (
         <div style={{ width: img, height: img }} />
       )}
-      <figcaption className="w-full">
-        <p className="text-[1.125em] font-semibold">{data.caption}</p>
-        <p className="font-mono text-[0.75em] break-all opacity-60">
-          {data.donateUrl.replace(/^https?:\/\//, "")}
-        </p>
-      </figcaption>
+      {hasText && (
+        <figcaption className={cn("w-full", !s.showBackground && "alert-text")}>
+          {s.showCaption && (
+            <p className="text-[1.125em] font-semibold">{data.caption}</p>
+          )}
+          {s.showUrl && (
+            <p
+              className={cn(
+                "font-mono text-[0.75em] break-all",
+                s.showBackground && "opacity-60",
+              )}
+            >
+              {data.donateUrl.replace(/^https?:\/\//, "")}
+            </p>
+          )}
+        </figcaption>
+      )}
     </figure>
   );
 }

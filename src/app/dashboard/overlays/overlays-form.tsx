@@ -7,9 +7,10 @@ import {
   RotateCcw,
   Target,
   TextCursorInput,
+  Timer,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ColorField } from "@/components/dashboard/color-field";
 import { ObsUrlField } from "@/components/dashboard/obs-url-field";
@@ -23,6 +24,7 @@ import {
   GoalWidget,
   QrWidget,
   RecentWidget,
+  TimerWidget,
   TopWidget,
   WidgetStage,
 } from "@/components/overlay-widgets/widgets";
@@ -53,7 +55,11 @@ import {
   SPEED_LABELS,
   SPEEDS,
   WIDGET_TEXT_MAX,
+  formatDelta,
   rankDonors,
+  subathonSecondsFor,
+  TIMER_INITIAL_SEC,
+  type TimerData,
   widgetSize,
   type WidgetStyles,
   type OverlayWidgetInput,
@@ -63,6 +69,7 @@ import {
 } from "@/lib/overlay-widgets";
 
 import { UnsavedBar } from "../unsaved-bar";
+import { TimerControls } from "./timer-controls";
 
 const pick = (s: OverlayWidgetSettings): OverlayWidgetInput => ({
   goalTitle: s.goalTitle,
@@ -71,6 +78,10 @@ const pick = (s: OverlayWidgetSettings): OverlayWidgetInput => ({
   topPeriod: s.topPeriod,
   topCount: s.topCount,
   recentCount: s.recentCount,
+  timerInitialSec: s.timerInitialSec,
+  timerStepSatang: s.timerStepSatang,
+  timerStepSeconds: s.timerStepSeconds,
+  timerLabel: s.timerLabel,
   styles: s.styles,
 });
 
@@ -94,6 +105,7 @@ const TABS: SegmentOption<WidgetKind>[] = [
   { value: "qr", label: "QR", icon: QrCode },
   { value: "top", label: "อันดับ", icon: ListOrdered },
   { value: "recent", label: "ล่าสุด", icon: TextCursorInput },
+  { value: "timer", label: "Subathon", icon: Timer },
 ];
 
 async function readError(res: Response, fallback: string) {
@@ -118,6 +130,7 @@ export function OverlaysForm({
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [active, setActive] = useState<WidgetKind>("goal");
+  const [timer, setTimer] = useState<TimerData>(data.timer);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const set = <K extends keyof OverlayWidgetInput>(
@@ -196,6 +209,23 @@ export function OverlaysForm({
   const recentItems = (
     data.recent.items.length ? data.recent.items : sampleRecent
   ).slice(0, draft.recentCount);
+
+  // พรีวิว timer นับถอยหลังจริง — memo ไว้ ไม่งั้นทุก render นับว่า "ข้อมูลใหม่"
+  const timerPreview = useMemo(
+    () => ({
+      ...timer,
+      remainingSec:
+        timer.status === "idle" ? draft.timerInitialSec : timer.remainingSec,
+      label: draft.timerLabel.trim() || "Subathon",
+      style: st.timer,
+    }),
+    [timer, draft.timerInitialSec, draft.timerLabel, st.timer],
+  );
+  const perHundred = subathonSecondsFor(
+    10000,
+    draft.timerStepSatang,
+    draft.timerStepSeconds,
+  );
 
   const card = {
     goal: {
@@ -474,6 +504,97 @@ export function OverlaysForm({
             hint="ปิดแล้วเหลือแค่ตัวหนังสือขอบดำ"
             checked={st.recent.showBackground}
             onChange={(v) => setStyle("recent", "showBackground", v)}
+          />
+        </>
+      ),
+    },
+    timer: {
+      icon: Timer,
+      title: "Subathon timer",
+      description: "นับถอยหลังบนจอไลฟ์ โดเนทผ่านแล้วเวลาเพิ่มอัตโนมัติ",
+      preview: <TimerWidget data={timerPreview} />,
+      content: (
+        <div className="grid gap-5">
+          <TimerControls timer={timer} onChange={setTimer} onError={setError} />
+          <TextField
+            id="timerLabel"
+            label="ป้ายข้อความ"
+            placeholder="Subathon"
+            value={draft.timerLabel}
+            onChange={(v) => set("timerLabel", v)}
+          />
+          <DurationField
+            label="เวลาเริ่มต้น"
+            hint="ใช้ตอนกดเริ่มครั้งแรก/หลังรีเซ็ต"
+            value={draft.timerInitialSec}
+            onChange={(v) => set("timerInitialSec", v)}
+          />
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">กฎเพิ่มเวลา</span>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              ทุก
+              <NumberInput
+                ariaLabel="ทุกกี่บาท"
+                value={draft.timerStepSatang / 100}
+                min={1}
+                max={100000}
+                onChange={(v) => set("timerStepSatang", v * 100)}
+              />
+              บาท เพิ่ม
+              <NumberInput
+                ariaLabel="เพิ่มกี่วินาที"
+                value={draft.timerStepSeconds}
+                min={1}
+                max={86400}
+                onChange={(v) => set("timerStepSeconds", v)}
+              />
+              วินาที
+            </div>
+            <p className="text-xs text-muted-foreground">
+              คิดตามสัดส่วน เช่น โดเนท 100 บาท = {formatDelta(perHundred)} ·
+              เพิ่มเฉพาะตอนกำลังนับหรือพักอยู่
+            </p>
+          </div>
+        </div>
+      ),
+      appearance: (
+        <>
+          <div className={COLOR_GRID}>
+            <ColorField
+              id="timerTime"
+              label="สีเวลา"
+              value={st.timer.textColor}
+              onChange={(v) => setStyle("timer", "textColor", v)}
+            />
+            <ColorField
+              id="timerLabelColor"
+              label="สีป้าย"
+              value={st.timer.labelColor}
+              onChange={(v) => setStyle("timer", "labelColor", v)}
+            />
+            <ColorField
+              id="timerDelta"
+              label="สี +เวลา"
+              value={st.timer.amountColor}
+              onChange={(v) => setStyle("timer", "amountColor", v)}
+            />
+            <ColorField
+              id="timerBg"
+              label="สีพื้นหลัง"
+              value={st.timer.backgroundColor}
+              onChange={(v) => setStyle("timer", "backgroundColor", v)}
+            />
+          </div>
+          <SizeField
+            label="ขนาดตัวอักษร"
+            value={st.timer.textSize}
+            onChange={(v) => setStyle("timer", "textSize", v)}
+          />
+          <SettingRow
+            id="timerShowBg"
+            label="แสดงพื้นหลัง"
+            checked={st.timer.showBackground}
+            onChange={(v) => setStyle("timer", "showBackground", v)}
           />
         </>
       ),
@@ -771,6 +892,78 @@ function RangeField({
         value={[value]}
         onValueChange={(v) => onChange(sliderValue(v))}
       />
+    </div>
+  );
+}
+
+function NumberInput({
+  ariaLabel,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <Input
+      aria-label={ariaLabel}
+      inputMode="numeric"
+      className="h-9 w-24 text-center font-mono"
+      value={String(value)}
+      onChange={(e) => {
+        const n = Number(e.target.value.replace(/\D/g, "") || 0);
+        onChange(Math.min(max, n));
+      }}
+      onBlur={() => {
+        if (value < min) onChange(min);
+      }}
+    />
+  );
+}
+
+/** เวลาแบบ ชั่วโมง + นาที */
+function DurationField({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  onChange: (sec: number) => void;
+}) {
+  const h = Math.floor(value / 3600);
+  const m = Math.floor((value % 3600) / 60);
+  const clamp = (sec: number) =>
+    Math.min(TIMER_INITIAL_SEC.max, Math.max(TIMER_INITIAL_SEC.min, sec));
+  return (
+    <div className="grid gap-1.5">
+      <span className="text-sm font-medium">{label}</span>
+      <div className="flex items-center gap-2 text-sm">
+        <NumberInput
+          ariaLabel={`${label} (ชั่วโมง)`}
+          value={h}
+          min={0}
+          max={24}
+          onChange={(v) => onChange(clamp(v * 3600 + m * 60))}
+        />
+        ชั่วโมง
+        <NumberInput
+          ariaLabel={`${label} (นาที)`}
+          value={m}
+          min={0}
+          max={59}
+          onChange={(v) => onChange(clamp(h * 3600 + Math.min(59, v) * 60))}
+        />
+        นาที
+      </div>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }

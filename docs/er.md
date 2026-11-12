@@ -77,6 +77,13 @@ erDiagram
     text top_period "today | month | all"
     smallint top_count "3-10, default 5"
     smallint recent_count "3-20, default 10"
+    text timer_status "idle | running | paused"
+    timestamptz timer_ends_at "nullable, ตอนกำลังนับ"
+    int timer_remaining_sec "ตอนพัก"
+    int timer_initial_sec "60-86400, default 3600"
+    int timer_step_satang "default 1000"
+    int timer_step_seconds "default 60"
+    text timer_label "1-40 ตัว, default Subathon"
     jsonb styles "หน้าตาต่อ widget, default {}"
     timestamptz updated_at
   }

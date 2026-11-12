@@ -222,6 +222,13 @@ export type Database = {
           qr_caption: string;
           recent_count: number;
           styles: NonNullable<Json>;
+          timer_ends_at: string | null;
+          timer_initial_sec: number;
+          timer_label: string;
+          timer_remaining_sec: number;
+          timer_status: string;
+          timer_step_satang: number;
+          timer_step_seconds: number;
           top_count: number;
           top_period: string;
           updated_at: string;
@@ -235,6 +242,13 @@ export type Database = {
           qr_caption?: string;
           recent_count?: number;
           styles?: NonNullable<Json>;
+          timer_ends_at?: string | null;
+          timer_initial_sec?: number;
+          timer_label?: string;
+          timer_remaining_sec?: number;
+          timer_status?: string;
+          timer_step_satang?: number;
+          timer_step_seconds?: number;
           top_count?: number;
           top_period?: string;
           updated_at?: string;
@@ -247,6 +261,13 @@ export type Database = {
           qr_caption?: string;
           recent_count?: number;
           styles?: NonNullable<Json>;
+          timer_ends_at?: string | null;
+          timer_initial_sec?: number;
+          timer_label?: string;
+          timer_remaining_sec?: number;
+          timer_status?: string;
+          timer_step_satang?: number;
+          timer_step_seconds?: number;
           top_count?: number;
           top_period?: string;
           updated_at?: string;
@@ -422,7 +443,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      subathon_add_seconds: {
+        Args: { p_seconds: number; p_user: string };
+        Returns: boolean;
+      };
+      subathon_control: {
+        Args: { p_action: string; p_seconds?: number; p_user: string };
+        Returns: boolean;
+      };
     };
     Enums: {
       alert_media_type: "default" | "gif" | "upload";

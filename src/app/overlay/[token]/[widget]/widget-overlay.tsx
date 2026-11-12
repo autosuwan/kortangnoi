@@ -6,6 +6,7 @@ import {
   GoalWidget,
   QrWidget,
   RecentWidget,
+  TimerWidget,
   TopWidget,
   WidgetStage,
 } from "@/components/overlay-widgets/widgets";
@@ -105,6 +106,9 @@ export function WidgetOverlay({
         {data && kind === "qr" && <QrWidget data={data as WidgetData["qr"]} />}
         {data && kind === "top" && (
           <TopWidget data={data as WidgetData["top"]} />
+        )}
+        {data && kind === "timer" && (
+          <TimerWidget data={data as WidgetData["timer"]} />
         )}
         {data && kind === "recent" && (
           <RecentWidget data={data as WidgetData["recent"]} />

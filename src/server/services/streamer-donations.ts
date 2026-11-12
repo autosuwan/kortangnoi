@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import { verifyReasons } from "@/lib/verify-reason";
 import { sendDonationAlert } from "@/server/services/overlay";
+import { addDonationTime } from "@/server/services/overlay-widgets";
 
 type DonationStatus = Database["public"]["Enums"]["donation_status"];
 
@@ -219,6 +220,10 @@ export async function approveDonation(userId: string, id: string) {
     approved_via: "manual",
     result_message: "สตรีมเมอร์อนุมัติแล้ว ขอบคุณ!",
   });
+  // subathon ก่อน alert: widget ดึงใหม่ตอนได้ event donation จะเห็นเวลาใหม่
+  await addDonationTime(id).catch((e) =>
+    console.error("add subathon time failed", e),
+  );
   await sendDonationAlert(id).catch((e) =>
     console.error("send donation alert failed", e),
   );

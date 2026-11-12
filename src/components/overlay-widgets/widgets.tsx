@@ -2,12 +2,15 @@
 
 import { Trophy } from "lucide-react";
 import QRCode from "qrcode";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { formatSatangNumber } from "@/lib/money";
 import {
   BAR_HEIGHT,
+  formatDelta,
+  formatDuration,
   goalPercent,
+  timerDelta,
   QR_SIZE,
   SPEED_SECONDS,
   TEXT_SCALE,
@@ -15,6 +18,7 @@ import {
   type GoalData,
   type QrData,
   type RecentData,
+  type TimerData,
   type TopData,
   type WidgetKind,
 } from "@/lib/overlay-widgets";
@@ -276,6 +280,117 @@ export function RecentWidget({
           {content(false)}
           {content(true)}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * นับถอยหลังในเครื่องจากค่าที่ server ส่งมา (เวลาคงเหลือ ณ ตอนได้ข้อมูล)
+ * ข้อมูลใหม่มา → เริ่มนับจากค่าใหม่; เวลาเพิ่ม/ลด → คืน delta ให้เด้ง "+2:30"
+ */
+function useCountdown(data: TimerData) {
+  const [now, setNow] = useState(0);
+  const [base, setBase] = useState({ at: 0, sec: data.remainingSec });
+  const [delta, setDelta] = useState<{ id: number; sec: number } | null>(null);
+  // ค่าก่อนหน้า ใช้เทียบใน effect เท่านั้น
+  const last = useRef<TimerData>(null);
+
+  useEffect(() => {
+    const t = Date.now();
+    const prev = last.current;
+    if (prev) {
+      // เทียบกับข้อมูลก่อนหน้า: เวลาเพิ่ม/ลดจากโดเนทหรือปรับเอง → เด้ง "+2:30"
+      const diff = timerDelta(prev, data);
+      if (Math.abs(diff) >= 1) setDelta({ id: t, sec: diff });
+    }
+    last.current = data;
+    setBase({ at: t, sec: data.remainingSec });
+    setNow(t);
+  }, [data]);
+
+  useEffect(() => {
+    if (data.status !== "running") return;
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [data.status]);
+
+  useEffect(() => {
+    if (!delta) return;
+    const t = setTimeout(() => setDelta(null), 2500);
+    return () => clearTimeout(t);
+  }, [delta]);
+
+  const remaining =
+    data.status === "running" && base.at
+      ? Math.max(0, base.sec - (now - base.at) / 1000)
+      : data.remainingSec;
+  return { remaining: Math.ceil(remaining), delta };
+}
+
+/** Subathon timer */
+export function TimerWidget({
+  data,
+  className,
+}: {
+  data: TimerData;
+  className?: string;
+}) {
+  const s = data.style;
+  const { remaining, delta } = useCountdown(data);
+  const ended = data.status === "ended" || remaining <= 0;
+  const badge =
+    data.status === "paused"
+      ? "พัก"
+      : ended && data.status !== "idle"
+        ? "หมดเวลา"
+        : null;
+
+  return (
+    <div
+      data-testid="timer-widget"
+      data-status={ended && data.status !== "idle" ? "ended" : data.status}
+      className={cn(
+        "relative flex flex-col items-center rounded-3xl px-[1.5em] py-[0.75em] text-center",
+        className,
+      )}
+      style={{
+        fontSize: baseFont(s.textSize),
+        color: s.textColor,
+        backgroundColor: s.showBackground
+          ? `${s.backgroundColor}80`
+          : undefined,
+      }}
+    >
+      <p
+        className="text-[1.25em] font-semibold tracking-wide alert-text"
+        style={{ color: s.labelColor }}
+      >
+        {data.label}
+        {badge && (
+          <span className="ml-[0.5em] rounded-md bg-black/60 px-[0.4em] text-[0.75em] text-white">
+            {badge}
+          </span>
+        )}
+      </p>
+      <p
+        data-testid="timer-time"
+        className={cn(
+          "font-mono text-[3.5em] leading-none font-bold tabular-nums alert-text",
+          data.status === "paused" && "opacity-70",
+        )}
+      >
+        {formatDuration(ended && data.status !== "idle" ? 0 : remaining)}
+      </p>
+      {delta && (
+        <span
+          key={delta.id}
+          data-testid="timer-delta"
+          className="absolute -top-[0.4em] right-[0.5em] animate-in font-mono text-[1.75em] font-bold duration-300 alert-text fade-in-0 slide-in-from-bottom-4"
+          style={{ color: delta.sec > 0 ? s.amountColor : "#EF4444" }}
+        >
+          {formatDelta(delta.sec)}
+        </span>
       )}
     </div>
   );

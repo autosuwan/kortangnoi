@@ -156,3 +156,65 @@ test("ปรับหน้าตา goal (ความกว้าง + สี�
     "#FBBF24",
   );
 });
+
+test("Subathon: เริ่มที่ 01:00:00 → OBS นับถอยหลัง → โดเนทผ่านเวลาเพิ่ม → พัก", async ({
+  page,
+  context,
+  request,
+}) => {
+  const s = await createReadyStreamer("subathon");
+  await loginWithPassword(page, s.email);
+  await page.waitForURL(/\/dashboard$/);
+  const token = await tokenOf(s.id);
+
+  const obs = await context.newPage();
+  await obs.setViewportSize({ width: 1280, height: 720 });
+  await obs.goto(`/overlay/${token}/timer`);
+  const time = obs.getByTestId("timer-time");
+  await expect(time).toHaveText("01:00:00");
+  await expect(obs.getByTestId("timer-widget")).toHaveAttribute(
+    "data-status",
+    "idle",
+  );
+  await obs.waitForTimeout(1500);
+
+  await page.goto("/dashboard/overlays");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("tab", { name: "Subathon" }).click();
+  await expect(page.getByTestId("timer-clock")).toHaveText("01:00:00");
+  await page.getByRole("button", { name: "เริ่มนับ" }).click();
+  await expect(page.getByTestId("timer-status")).toHaveText("กำลังนับ");
+
+  // OBS ได้ event → นับถอยหลัง
+  await expect(obs.getByTestId("timer-widget")).toHaveAttribute(
+    "data-status",
+    "running",
+    { timeout: 8000 },
+  );
+  await expect(time).toHaveText(/^00:59:5\d$/, { timeout: 5000 });
+
+  // โดเนท 100 บาท = +10 นาที
+  const { status } = await donateViaApi(
+    request,
+    s.username,
+    "แมวส้ม",
+    100,
+    10000,
+  );
+  expect(status).toBe("approved");
+  await expect(obs.getByTestId("timer-delta")).toHaveText("+10:00", {
+    timeout: 8000,
+  });
+  await expect(time).toHaveText(/^01:09:\d\d$/);
+
+  await page.getByRole("button", { name: "พัก" }).click();
+  await expect(page.getByTestId("timer-status")).toHaveText("พักอยู่");
+  await expect(obs.getByTestId("timer-widget")).toHaveAttribute(
+    "data-status",
+    "paused",
+    { timeout: 8000 },
+  );
+  const frozen = await time.textContent();
+  await obs.waitForTimeout(1500);
+  await expect(time).toHaveText(frozen!);
+});

@@ -59,7 +59,12 @@ export function SegmentedControl<T extends string>({
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            {Icon && <Icon className="size-3.5" aria-hidden />}
+            {Icon && (
+              <Icon
+                className={cn("size-3.5", fullWidth && "hidden sm:block")}
+                aria-hidden
+              />
+            )}
             {text}
           </button>
         );

@@ -6,8 +6,11 @@ import { createReadyStreamer } from "../../../test/streamer";
 import { adminClient, signedInClient } from "../../../test/supabase";
 import { overlayChannelName } from "../realtime/overlay";
 import { createDonation } from "./donation";
+import { sendTestAlert } from "./overlay";
 import {
+  controlTimer,
   getOverlayWidgetSettings,
+  getTimer,
   getWidgetData,
   resetGoal,
   updateOverlayWidgetSettings,
@@ -60,6 +63,10 @@ const settings = {
   topPeriod: "all",
   topCount: 3,
   recentCount: 3,
+  timerInitialSec: 3600,
+  timerStepSatang: 1000,
+  timerStepSeconds: 60,
+  timerLabel: "Subathon",
   styles: {
     ...DEFAULT_STYLES,
     goal: { ...DEFAULT_STYLES.goal, width: 420, barFrom: "#22C55E" },
@@ -75,6 +82,8 @@ describe("F14 overlay widgets", () => {
       topPeriod: "month",
       topCount: 5,
       recentCount: 10,
+      timerInitialSec: 3600,
+      timerLabel: "Subathon",
       styles: DEFAULT_STYLES,
     });
 
@@ -198,6 +207,96 @@ describe("F14 overlay widgets", () => {
     });
     await expect(getWidgetData("bad", "top")).rejects.toMatchObject({
       status: 404,
+    });
+  });
+});
+
+describe("Subathon timer", () => {
+  it("ครั้งแรก 01:00:00 → เริ่ม → โดเนทผ่านเพิ่มเวลา (พร้อมกัน 2 รายการครบ) → test alert ไม่เพิ่ม", async () => {
+    const s = await createReadyStreamer("tmr");
+    expect(await getTimer(s.id)).toMatchObject({
+      status: "idle",
+      remainingSec: 3600,
+      label: "Subathon",
+    });
+    // ยังไม่เริ่ม: โดเนทไม่เพิ่มเวลา
+    await approved(s.username, "แมว", "100");
+    expect((await getTimer(s.id)).remainingSec).toBe(3600);
+
+    const started = await controlTimer(s.id, { action: "start" });
+    expect(started.status).toBe("running");
+    expect(started.remainingSec).toBeGreaterThan(3595);
+
+    await Promise.all([
+      approved(s.username, "แมว", "100"), // +600
+      approved(s.username, "หมี", "25"), // +150
+    ]);
+    const t = await getTimer(s.id);
+    expect(t.remainingSec).toBeGreaterThan(3600 + 750 - 10);
+    expect(t.remainingSec).toBeLessThanOrEqual(3600 + 750);
+
+    await sendTestAlert(s.id);
+    expect((await getTimer(s.id)).remainingSec).toBeLessThanOrEqual(
+      t.remainingSec,
+    );
+  });
+
+  it("พัก → เวลาไม่ลด + โดเนทยังเพิ่ม → นับต่อ / ปรับเวลา / รีเซ็ต", async () => {
+    const s = await createReadyStreamer("tmr2");
+    await controlTimer(s.id, { action: "start" });
+    const paused = await controlTimer(s.id, { action: "pause" });
+    expect(paused.status).toBe("paused");
+    await new Promise((r) => setTimeout(r, 1200));
+    expect((await getTimer(s.id)).remainingSec).toBe(paused.remainingSec);
+
+    await approved(s.username, "แมว", "20"); // +120
+    expect((await getTimer(s.id)).remainingSec).toBe(paused.remainingSec + 120);
+
+    const adjusted = await controlTimer(s.id, {
+      action: "adjust",
+      seconds: -300,
+    });
+    expect(adjusted.remainingSec).toBe(paused.remainingSec + 120 - 300);
+
+    await expect(controlTimer(s.id, { action: "start" })).rejects.toMatchObject(
+      {
+        status: 409,
+        code: "TIMER_INVALID_STATE",
+      },
+    );
+    expect((await controlTimer(s.id, { action: "resume" })).status).toBe(
+      "running",
+    );
+    const reset = await controlTimer(s.id, { action: "reset" });
+    expect(reset).toMatchObject({ status: "idle", remainingSec: 3600 });
+  });
+
+  it("หมดเวลาแล้วโดเนทไม่เพิ่ม", async () => {
+    const s = await createReadyStreamer("tmr3");
+    await controlTimer(s.id, { action: "start" });
+    await adminClient()
+      .from("overlay_widgets")
+      .update({ timer_ends_at: new Date(Date.now() - 1000).toISOString() })
+      .eq("user_id", s.id);
+    expect((await getTimer(s.id)).status).toBe("ended");
+    await approved(s.username, "แมว", "100");
+    expect(await getTimer(s.id)).toMatchObject({
+      status: "ended",
+      remainingSec: 0,
+    });
+  });
+
+  it("client เรียก SQL function ตรงไม่ได้ + คำสั่งผิด 400", async () => {
+    const s = await createReadyStreamer("tmr4");
+    const client = await signedInClient(s.email);
+    const { error } = await client.rpc("subathon_add_seconds", {
+      p_user: s.id,
+      p_seconds: 99999,
+    });
+    expect(error).not.toBeNull();
+    expect((await getTimer(s.id)).remainingSec).toBe(3600);
+    await expect(controlTimer(s.id, { action: "warp" })).rejects.toMatchObject({
+      status: 400,
     });
   });
 });

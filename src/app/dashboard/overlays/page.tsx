@@ -42,19 +42,20 @@ async function LoadedForm() {
   const token = await getOverlayToken(user.id);
   if (!token) redirect("/dashboard");
 
-  const [settings, goal, qr, top, recent] = await Promise.all([
+  const [settings, goal, qr, top, recent, timer] = await Promise.all([
     getOverlayWidgetSettings(user.id),
     getWidgetData(token, "goal"),
     getWidgetData(token, "qr"),
     getWidgetData(token, "top"),
     getWidgetData(token, "recent"),
+    getWidgetData(token, "timer"),
   ]);
 
   return (
     <OverlaysForm
       initial={settings}
       baseUrl={overlayUrl(token)}
-      data={{ goal, qr, top, recent }}
+      data={{ goal, qr, top, recent, timer }}
     />
   );
 }

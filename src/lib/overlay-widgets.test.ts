@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_STYLES,
+  formatDelta,
+  formatDuration,
   goalPercent,
   overlayWidgetInputSchema,
   rankDonors,
   resolveStyles,
+  subathonSecondsFor,
+  timerControlSchema,
+  timerDelta,
+  timerState,
   widgetSize,
 } from "./overlay-widgets";
 
@@ -50,6 +56,10 @@ describe("overlayWidgetInputSchema", () => {
     topPeriod: "month",
     topCount: 5,
     recentCount: 10,
+    timerInitialSec: 3600,
+    timerStepSatang: 1000,
+    timerStepSeconds: 60,
+    timerLabel: "Subathon",
     styles: DEFAULT_STYLES,
   };
 
@@ -66,6 +76,9 @@ describe("overlayWidgetInputSchema", () => {
     { topPeriod: "year" },
     { topCount: 11 },
     { recentCount: 2 },
+    { timerInitialSec: 30 },
+    { timerInitialSec: 90000 },
+    { timerStepSeconds: 0 },
     {
       styles: {
         ...DEFAULT_STYLES,
@@ -131,5 +144,100 @@ describe("widgetSize", () => {
       qr: { ...DEFAULT_STYLES.qr, size: "lg" },
     });
     expect(lg.width).toBeGreaterThan(sm.width);
+  });
+});
+
+describe("subathon", () => {
+  it("เพิ่มเวลาตามสัดส่วน ทุก 10 บาท +60 วิ", () => {
+    expect(subathonSecondsFor(1000, 1000, 60)).toBe(60);
+    expect(subathonSecondsFor(2500, 1000, 60)).toBe(150);
+    expect(subathonSecondsFor(10000, 1000, 60)).toBe(600);
+    expect(subathonSecondsFor(150, 1000, 60)).toBe(9);
+    expect(subathonSecondsFor(0, 1000, 60)).toBe(0);
+  });
+
+  it("format เวลา", () => {
+    expect(formatDuration(3600)).toBe("01:00:00");
+    expect(formatDuration(59.9)).toBe("00:00:59");
+    expect(formatDuration(90061)).toBe("25:01:01");
+    expect(formatDuration(-5)).toBe("00:00:00");
+    expect(formatDelta(150)).toBe("+2:30");
+    expect(formatDelta(3600)).toBe("+1:00:00");
+    expect(formatDelta(-300)).toBe("-5:00");
+  });
+
+  it("สถานะ + เวลาคงเหลือ", () => {
+    const now = new Date("2026-11-12T10:00:00Z");
+    const base = { endsAt: null, remainingSec: 0, initialSec: 3600 };
+    expect(timerState({ ...base, status: "idle" }, now)).toEqual({
+      status: "idle",
+      remainingSec: 3600,
+      endsAt: null,
+    });
+    expect(
+      timerState(
+        { ...base, status: "running", endsAt: "2026-11-12T10:30:00.400Z" },
+        now,
+      ),
+    ).toEqual({
+      status: "running",
+      remainingSec: 1801,
+      endsAt: "2026-11-12T10:30:00.400Z",
+    });
+    expect(
+      timerState(
+        { ...base, status: "running", endsAt: "2026-11-12T09:59:00Z" },
+        now,
+      ),
+    ).toEqual({ status: "ended", remainingSec: 0, endsAt: null });
+    expect(
+      timerState({ ...base, status: "paused", remainingSec: 42 }, now),
+    ).toEqual({
+      status: "paused",
+      remainingSec: 42,
+      endsAt: null,
+    });
+    expect(timerState({ ...base, status: "paused" }, now).status).toBe("ended");
+  });
+
+  it("คำสั่งควบคุม", () => {
+    expect(timerControlSchema.safeParse({ action: "start" }).success).toBe(
+      true,
+    );
+    expect(
+      timerControlSchema.safeParse({ action: "adjust", seconds: -300 }).success,
+    ).toBe(true);
+    expect(timerControlSchema.safeParse({ action: "adjust" }).success).toBe(
+      false,
+    );
+    expect(timerControlSchema.safeParse({ action: "boom" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("timerDelta", () => {
+  const run = (endsAt: string) => ({
+    status: "running" as const,
+    remainingSec: 0,
+    endsAt,
+  });
+  it("กำลังนับ: ใช้เวลาจบ แม่นยำทุกวินาที", () => {
+    expect(
+      timerDelta(run("2026-11-12T10:00:00Z"), run("2026-11-12T10:02:30Z")),
+    ).toBe(150);
+    expect(
+      timerDelta(run("2026-11-12T10:00:00Z"), run("2026-11-12T09:55:00Z")),
+    ).toBe(-300);
+  });
+  it("พัก: เทียบเวลาคงเหลือ; เปลี่ยนสถานะ = 0", () => {
+    const p = (sec: number) => ({
+      status: "paused" as const,
+      remainingSec: sec,
+      endsAt: null,
+    });
+    expect(timerDelta(p(100), p(160))).toBe(60);
+    expect(timerDelta(run("2026-11-12T10:00:00Z"), p(100))).toBe(0);
+    expect(timerDelta(p(100), run("2026-11-12T10:00:00Z"))).toBe(0);
   });
 });

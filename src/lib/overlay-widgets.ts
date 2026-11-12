@@ -7,7 +7,7 @@ import {
 } from "@/lib/donation";
 
 /** F14 widget บน OBS นอกจาก alert */
-export const WIDGET_KINDS = ["goal", "qr", "top", "recent"] as const;
+export const WIDGET_KINDS = ["goal", "qr", "top", "recent", "timer"] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
 export const TOP_PERIODS = ["today", "month", "all"] as const;
@@ -23,6 +23,10 @@ export const WIDGET_TEXT_MAX = 40;
 export const GOAL_TARGET_SATANG = { min: 100, max: MAX_AMOUNT_SATANG };
 export const TOP_COUNT = { min: 3, max: 10 };
 export const RECENT_COUNT = { min: 3, max: 20 };
+/** Subathon: เวลาตั้งต้น 1 นาที–24 ชม. (ค่าเริ่มต้น 1 ชม.) */
+export const TIMER_INITIAL_SEC = { min: 60, max: 86400 };
+export const TIMER_STEP_SATANG = { min: 100, max: MAX_AMOUNT_SATANG };
+export const TIMER_STEP_SECONDS = { min: 1, max: 86400 };
 
 // ---- หน้าตา (สี/ขนาด) ต่อ widget — เก็บใน overlay_widgets.styles (jsonb) ----
 
@@ -87,6 +91,13 @@ export const widgetStyleSchemas = {
     showBackground: z.boolean(),
     backgroundColor: hex,
   }),
+  // textColor = สีเวลา, amountColor = สี "+เวลา"
+  timer: z.object({
+    ...common,
+    labelColor: hex,
+    showBackground: z.boolean(),
+    backgroundColor: hex,
+  }),
 };
 
 export type WidgetStyles = {
@@ -96,6 +107,7 @@ export type GoalStyle = WidgetStyles["goal"];
 export type QrStyle = WidgetStyles["qr"];
 export type TopStyle = WidgetStyles["top"];
 export type RecentStyle = WidgetStyles["recent"];
+export type TimerStyle = WidgetStyles["timer"];
 
 const AMOUNT_ORANGE = "#F97316";
 
@@ -131,6 +143,14 @@ export const DEFAULT_STYLES: WidgetStyles = {
     textColor: "#FFFFFF",
     amountColor: AMOUNT_ORANGE,
     speed: "normal",
+    showBackground: true,
+    backgroundColor: "#000000",
+  },
+  timer: {
+    textSize: "md",
+    textColor: "#FFFFFF",
+    amountColor: "#22C55E",
+    labelColor: AMOUNT_ORANGE,
     showBackground: true,
     backgroundColor: "#000000",
   },
@@ -194,6 +214,10 @@ export function widgetSize(
         width: 1280,
         height: Math.round(80 * TEXT_SCALE[styles.recent.textSize]),
       };
+    case "timer": {
+      const text = TEXT_SCALE[styles.timer.textSize];
+      return { width: Math.round(480 * text), height: Math.round(200 * text) };
+    }
   }
 }
 
@@ -205,6 +229,10 @@ export type OverlayWidgetSettings = {
   topPeriod: TopPeriod;
   topCount: number;
   recentCount: number;
+  timerInitialSec: number;
+  timerStepSatang: number;
+  timerStepSeconds: number;
+  timerLabel: string;
   styles: WidgetStyles;
 };
 
@@ -226,6 +254,22 @@ export const overlayWidgetInputSchema = z.object({
   topPeriod: z.enum(TOP_PERIODS),
   topCount: z.number().int().min(TOP_COUNT.min).max(TOP_COUNT.max),
   recentCount: z.number().int().min(RECENT_COUNT.min).max(RECENT_COUNT.max),
+  timerInitialSec: z
+    .number()
+    .int()
+    .min(TIMER_INITIAL_SEC.min)
+    .max(TIMER_INITIAL_SEC.max),
+  timerStepSatang: z
+    .number()
+    .int()
+    .min(TIMER_STEP_SATANG.min)
+    .max(TIMER_STEP_SATANG.max),
+  timerStepSeconds: z
+    .number()
+    .int()
+    .min(TIMER_STEP_SECONDS.min)
+    .max(TIMER_STEP_SECONDS.max),
+  timerLabel: text,
   styles: widgetStylesSchema,
 });
 
@@ -242,12 +286,117 @@ export type TopItem = { name: string; totalSatang: number };
 export type TopData = { period: TopPeriod; items: TopItem[]; style: TopStyle };
 export type RecentItem = { id: string; name: string; amountSatang: number };
 export type RecentData = { items: RecentItem[]; style: RecentStyle };
+/** สถานะที่ผู้ชมเห็น: ended = กำลังนับแต่เวลาเหลือ 0 */
+export type TimerStatus = "idle" | "running" | "paused" | "ended";
+export type TimerData = {
+  status: TimerStatus;
+  /** วินาทีคงเหลือ ณ ตอนที่ server ตอบ */
+  remainingSec: number;
+  /** เวลาจบตอนกำลังนับ — ใช้คำนวณเวลาที่เพิ่มแบบแม่นยำ (ไม่พึ่งนาฬิกาเครื่อง) */
+  endsAt: string | null;
+  label: string;
+  style: TimerStyle;
+};
+
+export const TIMER_ACTIONS = [
+  "start",
+  "pause",
+  "resume",
+  "reset",
+  "adjust",
+] as const;
+export type TimerAction = (typeof TIMER_ACTIONS)[number];
+export const timerControlSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.enum(["start", "pause", "resume", "reset"]) }),
+  z.object({
+    action: z.literal("adjust"),
+    seconds: z.number().int().min(-86400).max(86400),
+  }),
+]);
+
+/** วินาทีที่เพิ่มจากโดเนท — ตามสัดส่วน "ทุก X บาท เพิ่ม Y วินาที" */
+export function subathonSecondsFor(
+  amountSatang: number,
+  stepSatang: number,
+  stepSeconds: number,
+): number {
+  if (stepSatang <= 0 || amountSatang <= 0) return 0;
+  return Math.round((amountSatang * stepSeconds) / stepSatang);
+}
+
+/** สถานะ + เวลาคงเหลือจากแถวใน DB ณ เวลา now */
+export function timerState(
+  row: {
+    status: "idle" | "running" | "paused";
+    endsAt: string | null;
+    remainingSec: number;
+    initialSec: number;
+  },
+  now: Date = new Date(),
+): { status: TimerStatus; remainingSec: number; endsAt: string | null } {
+  if (row.status === "idle") {
+    return { status: "idle", remainingSec: row.initialSec, endsAt: null };
+  }
+  if (row.status === "paused") {
+    return row.remainingSec > 0
+      ? { status: "paused", remainingSec: row.remainingSec, endsAt: null }
+      : { status: "ended", remainingSec: 0, endsAt: null };
+  }
+  const left = Math.max(
+    0,
+    Math.ceil((Date.parse(row.endsAt ?? "") - now.getTime()) / 1000),
+  );
+  return left > 0
+    ? { status: "running", remainingSec: left, endsAt: row.endsAt }
+    : { status: "ended", remainingSec: 0, endsAt: null };
+}
+
+/**
+ * เวลาที่เปลี่ยน (วินาที) ระหว่างข้อมูลเก่า → ใหม่ ในรอบเดียวกัน
+ * กำลังนับ: เทียบเวลาจบ (แม่นยำ) · พัก: เทียบเวลาคงเหลือ · อื่นๆ (เริ่ม/พัก/นับต่อ/รีเซ็ต) = 0
+ */
+export function timerDelta(
+  prev: Pick<TimerData, "status" | "remainingSec" | "endsAt">,
+  next: Pick<TimerData, "status" | "remainingSec" | "endsAt">,
+): number {
+  if (prev.status === "running" && next.status === "running") {
+    return Math.round(
+      (Date.parse(next.endsAt ?? "") - Date.parse(prev.endsAt ?? "")) / 1000,
+    );
+  }
+  if (prev.status === "paused" && next.status === "paused") {
+    return next.remainingSec - prev.remainingSec;
+  }
+  return 0;
+}
+
+/** "01:00:00" — ชั่วโมงเกิน 24 ได้ */
+export function formatDuration(totalSec: number): string {
+  const sec = Math.max(0, Math.floor(totalSec));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+}
+
+/** "+2:30", "+1:00:00", "-5:00" สำหรับเด้งตอนเวลาเปลี่ยน */
+export function formatDelta(deltaSec: number): string {
+  const sign = deltaSec < 0 ? "-" : "+";
+  const sec = Math.abs(Math.round(deltaSec));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = String(sec % 60).padStart(2, "0");
+  return h > 0
+    ? `${sign}${h}:${String(m).padStart(2, "0")}:${s}`
+    : `${sign}${m}:${s}`;
+}
 
 export type WidgetData = {
   goal: GoalData;
   qr: QrData;
   top: TopData;
   recent: RecentData;
+  timer: TimerData;
 };
 
 /** % ความคืบหน้า goal (0–100 ปัดลง ไม่ให้ขึ้น 100 ก่อนครบจริง) */

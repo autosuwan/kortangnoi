@@ -8,6 +8,10 @@ import {
   overlayWidgetInputSchema,
   rankDonors,
   resolveStyles,
+  subathonSecondsFor,
+  timerControlSchema,
+  timerState,
+  type TimerData,
   type GoalData,
   type OverlayWidgetSettings,
   type QrData,
@@ -24,9 +28,28 @@ import { notifyOverlaySettingsChanged } from "@/server/realtime/overlay";
 type Row = Database["public"]["Tables"]["overlay_widgets"]["Row"];
 
 const COLUMNS =
-  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count, styles";
+  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count, timer_initial_sec, timer_step_satang, timer_step_seconds, timer_label, styles";
 
-const toSettings = (r: Omit<Row, "user_id" | "updated_at">) =>
+const TIMER_COLUMNS =
+  "timer_status, timer_ends_at, timer_remaining_sec, timer_initial_sec, timer_label";
+
+type SettingsRow = Pick<
+  Row,
+  | "goal_title"
+  | "goal_target_satang"
+  | "goal_started_at"
+  | "qr_caption"
+  | "top_period"
+  | "top_count"
+  | "recent_count"
+  | "timer_initial_sec"
+  | "timer_step_satang"
+  | "timer_step_seconds"
+  | "timer_label"
+  | "styles"
+>;
+
+const toSettings = (r: SettingsRow) =>
   ({
     goalTitle: r.goal_title,
     goalTargetSatang: r.goal_target_satang,
@@ -35,6 +58,10 @@ const toSettings = (r: Omit<Row, "user_id" | "updated_at">) =>
     topPeriod: r.top_period as TopPeriod,
     topCount: r.top_count,
     recentCount: r.recent_count,
+    timerInitialSec: r.timer_initial_sec,
+    timerStepSatang: r.timer_step_satang,
+    timerStepSeconds: r.timer_step_seconds,
+    timerLabel: r.timer_label,
     styles: resolveStyles(r.styles),
   }) satisfies OverlayWidgetSettings;
 
@@ -68,6 +95,10 @@ export async function updateOverlayWidgetSettings(
       top_period: v.topPeriod,
       top_count: v.topCount,
       recent_count: v.recentCount,
+      timer_initial_sec: v.timerInitialSec,
+      timer_step_satang: v.timerStepSatang,
+      timer_step_seconds: v.timerStepSeconds,
+      timer_label: v.timerLabel,
       styles: v.styles,
     })
     .eq("user_id", userId)
@@ -91,6 +122,80 @@ export async function resetGoal(
   if (error) throw error;
   await notifyOverlaySettingsChanged(userId);
   return toSettings(data);
+}
+
+// ---- Subathon timer ----
+
+async function readTimer(userId: string): Promise<TimerData> {
+  const { data, error } = await createAdminClient()
+    .from("overlay_widgets")
+    .select(`${TIMER_COLUMNS}, styles`)
+    .eq("user_id", userId)
+    .single();
+  if (error) throw error;
+  return {
+    ...timerState({
+      status: data.timer_status as "idle" | "running" | "paused",
+      endsAt: data.timer_ends_at,
+      remainingSec: data.timer_remaining_sec,
+      initialSec: data.timer_initial_sec,
+    }),
+    label: data.timer_label,
+    style: resolveStyles(data.styles).timer,
+  };
+}
+
+/** สถานะ timer สำหรับ dashboard */
+export const getTimer = readTimer;
+
+/** ปุ่มควบคุม: start | pause | resume | reset | adjust */
+export async function controlTimer(
+  userId: string,
+  input: unknown,
+): Promise<TimerData> {
+  const parsed = timerControlSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new AppError(400, "TIMER_ACTION_INVALID", "คำสั่งไม่ถูกต้อง");
+  }
+  const { data, error } = await createAdminClient().rpc("subathon_control", {
+    p_user: userId,
+    p_action: parsed.data.action,
+    p_seconds: parsed.data.action === "adjust" ? parsed.data.seconds : 0,
+  });
+  if (error) throw error;
+  if (!data) {
+    throw new AppError(409, "TIMER_INVALID_STATE", "ทำไม่ได้ในสถานะตอนนี้");
+  }
+  await notifyOverlaySettingsChanged(userId);
+  return readTimer(userId);
+}
+
+/**
+ * โดเนทผ่านแล้ว → เพิ่มเวลา subathon ตามกฎ (เฉพาะตอนกำลังนับ/หยุดชั่วคราว)
+ * เรียกก่อนส่ง alert เพื่อให้ widget ที่ดึงใหม่ตอนได้ event donation เห็นเวลาใหม่
+ */
+export async function addDonationTime(donationId: string): Promise<number> {
+  const admin = createAdminClient();
+  const { data: d, error } = await admin
+    .from("donations")
+    .select("streamer_id, amount_satang, status")
+    .eq("id", donationId)
+    .single();
+  if (error) throw error;
+  if (d.status !== "approved") return 0;
+  const s = await getOverlayWidgetSettings(d.streamer_id);
+  const seconds = subathonSecondsFor(
+    d.amount_satang,
+    s.timerStepSatang,
+    s.timerStepSeconds,
+  );
+  if (seconds <= 0) return 0;
+  const { data: added, error: rpcError } = await admin.rpc(
+    "subathon_add_seconds",
+    { p_user: d.streamer_id, p_seconds: seconds },
+  );
+  if (rpcError) throw rpcError;
+  return added ? seconds : 0;
 }
 
 const invalidLink = () =>
@@ -170,6 +275,8 @@ export async function getWidgetData<K extends WidgetKind>(
         style: s.styles.top,
       } satisfies TopData as WidgetData[K];
     }
+    case "timer":
+      return (await readTimer(profile.id)) satisfies TimerData as WidgetData[K];
     case "recent": {
       const { data, error } = await approved()
         .order("created_at", { ascending: false })

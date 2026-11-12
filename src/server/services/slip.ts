@@ -16,6 +16,7 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { checkSlipWithSlipOk } from "@/server/integrations/slipok";
 import { readSlipQr } from "@/server/slip-qr";
 import { sendDonationAlert } from "@/server/services/overlay";
+import { addDonationTime } from "@/server/services/overlay-widgets";
 
 type DonationStatus = Database["public"]["Enums"]["donation_status"];
 
@@ -183,6 +184,10 @@ export async function verifySlip(
     }
     if (updateError) throw updateError;
     if (status === "approved") {
+      // subathon ก่อน alert: widget ดึงใหม่ตอนได้ event donation จะเห็นเวลาใหม่
+      await addDonationTime(donationId).catch((e) =>
+        console.error("add subathon time failed", e),
+      );
       await sendDonationAlert(donationId).catch((e) =>
         console.error("send donation alert failed", e),
       );

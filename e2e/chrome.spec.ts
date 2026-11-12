@@ -54,3 +54,26 @@ test("loading bar สีส้มขอบบน: ค้างเต็มตล
   await expect(overlay.getByTestId("overlay")).toBeVisible();
   await expect(overlay.getByTestId("top-progress")).toHaveCount(0);
 });
+
+test("dashboard: เมนูซ้ายและแถบหัวอยู่กับที่ตอนเลื่อน", async ({ page }) => {
+  await loginAsStreamer(page, "sticky");
+  await page.goto("/dashboard/alert");
+  await page.waitForLoadState("networkidle");
+  const header = page.getByTestId("page-header");
+  const nav = page.getByRole("navigation", { name: "เมนูหลัก" });
+  const before = {
+    header: (await header.boundingBox())!,
+    nav: (await nav.boundingBox())!,
+  };
+
+  await page
+    .getByTestId("dashboard-scroll")
+    .evaluate((el) => el.scrollTo(0, 2000));
+  await page.waitForTimeout(200);
+  const scrolled = await page
+    .getByTestId("dashboard-scroll")
+    .evaluate((el) => el.scrollTop);
+  expect(scrolled).toBeGreaterThan(100);
+  expect((await header.boundingBox())!.y).toBe(before.header.y);
+  expect((await nav.boundingBox())!.y).toBe(before.nav.y);
+});

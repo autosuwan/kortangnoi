@@ -19,8 +19,9 @@ export default function DashboardLayout({
   children,
 }: LayoutProps<"/dashboard">) {
   return (
-    <div className="flex min-h-dvh flex-1">
-      <aside className="sticky top-0 flex h-dvh w-14 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-3">
+    // เต็มจอพอดี: sidebar อยู่กับที่ เลื่อนเฉพาะพื้นที่เนื้อหา (header ติดบนในนั้น)
+    <div className="flex h-dvh min-h-0 shrink-0 overflow-hidden">
+      <aside className="flex h-full w-14 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-3">
         <Link
           href="/dashboard"
           aria-label="KORTANGNOI"
@@ -48,7 +49,12 @@ export default function DashboardLayout({
           </Tooltip>
         </form>
       </aside>
-      <div className="app-bg flex min-w-0 flex-1 flex-col">{children}</div>
+      <div
+        data-testid="dashboard-scroll"
+        className="app-bg flex min-w-0 flex-1 flex-col overflow-y-auto"
+      >
+        {children}
+      </div>
       <Suspense fallback={null}>
         <Watcher />
       </Suspense>

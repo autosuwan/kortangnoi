@@ -491,7 +491,7 @@ function AlertPreview({
   }
 
   return (
-    <section className="min-w-0 rounded-2xl border bg-card p-4 lg:sticky lg:top-6">
+    <section className="min-w-0 rounded-2xl border bg-card p-4 lg:sticky lg:top-20">
       <div className="flex items-center justify-between px-2 pb-3">
         <h2 className="font-medium">พรีวิว</h2>
         <Button

@@ -165,7 +165,7 @@ export function ProfileForm({
         )}
       </div>
 
-      <div className="lg:sticky lg:top-6">
+      <div className="lg:sticky lg:top-20">
         <p className="mb-2 text-sm text-muted-foreground">พรีวิวบนหน้าโดเนท</p>
         <ProfileCard
           showFeatures={false}

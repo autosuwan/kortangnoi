@@ -77,6 +77,7 @@ erDiagram
     text top_period "today | month | all"
     smallint top_count "3-10, default 5"
     smallint recent_count "3-20, default 10"
+    jsonb styles "หน้าตาต่อ widget, default {}"
     timestamptz updated_at
   }
 

@@ -13,6 +13,7 @@ import {
   updateOverlayWidgetSettings,
 } from "./overlay-widgets";
 import { verifySlip } from "./slip";
+import { DEFAULT_STYLES } from "@/lib/overlay-widgets";
 
 const closers: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -59,7 +60,11 @@ const settings = {
   topPeriod: "all",
   topCount: 3,
   recentCount: 3,
-} as const;
+  styles: {
+    ...DEFAULT_STYLES,
+    goal: { ...DEFAULT_STYLES.goal, width: 420, barFrom: "#22C55E" },
+  },
+};
 
 describe("F14 overlay widgets", () => {
   it("ผู้ใช้ใหม่มีค่าเริ่มต้น + บันทึก/validate + แจ้ง overlay ให้โหลดใหม่", async () => {
@@ -70,6 +75,7 @@ describe("F14 overlay widgets", () => {
       topPeriod: "month",
       topCount: 5,
       recentCount: 10,
+      styles: DEFAULT_STYLES,
     });
 
     const overlay = await subscribeAsOverlay(
@@ -87,6 +93,15 @@ describe("F14 overlay widgets", () => {
 
     await expect(
       updateOverlayWidgetSettings(s.id, { ...settings, topCount: 99 }),
+    ).rejects.toMatchObject({ status: 400, code: "OVERLAY_WIDGETS_INVALID" });
+    await expect(
+      updateOverlayWidgetSettings(s.id, {
+        ...settings,
+        styles: {
+          ...settings.styles,
+          qr: { ...settings.styles.qr, borderColor: "url(x)" },
+        },
+      }),
     ).rejects.toMatchObject({ status: 400, code: "OVERLAY_WIDGETS_INVALID" });
   });
 
@@ -128,8 +143,9 @@ describe("F14 overlay widgets", () => {
       title: "ซื้อไมค์ใหม่",
       targetSatang: 100000,
       currentSatang: 68000,
+      style: settings.styles.goal,
     });
-    expect(await getWidgetData(token, "top")).toEqual({
+    expect(await getWidgetData(token, "top")).toMatchObject({
       period: "all",
       items: [
         { name: "แมวส้ม", totalSatang: 15000 },
@@ -143,7 +159,7 @@ describe("F14 overlay widgets", () => {
       ["หมี", 3000],
     ]);
     const qr = await getWidgetData(token, "qr");
-    expect(qr).toEqual({
+    expect(qr).toMatchObject({
       caption: "สแกนเลย",
       donateUrl: expect.stringMatching(new RegExp(`/${s.username}$`)),
     });

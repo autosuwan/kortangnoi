@@ -106,3 +106,53 @@ test("QR overlay ชี้ไปหน้าโดเนท และลิง�
   await page.goto(`/overlay/${token}/nope`);
   await expect(page.getByText("ไม่พบหน้านี้")).toBeVisible();
 });
+
+test("ปรับหน้าตา goal (ความกว้าง + สีหลอด) → พรีวิว + OBS เปลี่ยนทันที", async ({
+  page,
+  context,
+}) => {
+  const s = await createReadyStreamer("wstyle");
+  await loginWithPassword(page, s.email);
+  await page.waitForURL(/\/dashboard$/);
+  const token = await tokenOf(s.id);
+
+  const obs = await context.newPage();
+  // OBS Browser Source กว้างเท่าที่ตั้ง ไม่ใช่จอมือถือ
+  await obs.setViewportSize({ width: 1280, height: 720 });
+  await obs.goto(`/overlay/${token}/goal`);
+  const widget = obs.getByTestId("goal-widget");
+  await expect(widget).toBeVisible();
+  // ค่าเริ่มต้นกว้าง 600 (เดิม 768)
+  expect((await widget.boundingBox())!.width).toBeCloseTo(600, 0);
+  await obs.waitForTimeout(1500);
+
+  await page.goto("/dashboard/overlays");
+  await page.waitForLoadState("networkidle");
+  const width = page.getByRole("slider", { name: "ความกว้างหลอด" });
+  await width.focus();
+  await page.keyboard.press("Home"); // 300px
+  await page.getByLabel("สีหลอด (ซ้าย)", { exact: true }).fill("#22C55E");
+  await expect(
+    page.getByTestId("widget-preview-goal").getByTestId("goal-bar"),
+  ).toHaveCSS("background-image", /rgb\(34, 197, 94\)/);
+
+  const unsaved = page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" });
+  await unsaved.getByRole("button", { name: "บันทึก" }).click();
+  await expect(unsaved).toBeHidden();
+
+  // OBS ได้ event settings → โหลดหน้าตาใหม่โดยไม่ต้อง refresh
+  await expect(obs.getByTestId("goal-bar")).toHaveCSS(
+    "background-image",
+    /rgb\(34, 197, 94\)/,
+    { timeout: 8000 },
+  );
+  await expect
+    .poll(async () => (await widget.boundingBox())!.width)
+    .toBeCloseTo(300, 0);
+
+  // คืนค่าเริ่มต้น → สีกลับ
+  await page.getByRole("button", { name: "คืนค่าเริ่มต้น" }).click();
+  await expect(page.getByLabel("สีหลอด (ซ้าย)", { exact: true })).toHaveValue(
+    "#FBBF24",
+  );
+});

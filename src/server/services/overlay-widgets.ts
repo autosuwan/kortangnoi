@@ -7,6 +7,7 @@ import { OVERLAY_TOKEN_PATTERN } from "@/lib/overlay";
 import {
   overlayWidgetInputSchema,
   rankDonors,
+  resolveStyles,
   type GoalData,
   type OverlayWidgetSettings,
   type QrData,
@@ -23,7 +24,7 @@ import { notifyOverlaySettingsChanged } from "@/server/realtime/overlay";
 type Row = Database["public"]["Tables"]["overlay_widgets"]["Row"];
 
 const COLUMNS =
-  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count";
+  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count, styles";
 
 const toSettings = (r: Omit<Row, "user_id" | "updated_at">) =>
   ({
@@ -34,6 +35,7 @@ const toSettings = (r: Omit<Row, "user_id" | "updated_at">) =>
     topPeriod: r.top_period as TopPeriod,
     topCount: r.top_count,
     recentCount: r.recent_count,
+    styles: resolveStyles(r.styles),
   }) satisfies OverlayWidgetSettings;
 
 export async function getOverlayWidgetSettings(
@@ -66,6 +68,7 @@ export async function updateOverlayWidgetSettings(
       top_period: v.topPeriod,
       top_count: v.topCount,
       recent_count: v.recentCount,
+      styles: v.styles,
     })
     .eq("user_id", userId)
     .select(COLUMNS)
@@ -135,6 +138,7 @@ export async function getWidgetData<K extends WidgetKind>(
         title: s.goalTitle,
         targetSatang: s.goalTargetSatang,
         currentSatang,
+        style: s.styles.goal,
       } satisfies GoalData as WidgetData[K];
     }
     case "qr": {
@@ -142,6 +146,7 @@ export async function getWidgetData<K extends WidgetKind>(
       return {
         caption: s.qrCaption,
         donateUrl: `${site}/${profile.username ?? ""}`,
+        style: s.styles.qr,
       } satisfies QrData as WidgetData[K];
     }
     case "top": {
@@ -162,6 +167,7 @@ export async function getWidgetData<K extends WidgetKind>(
           })),
           s.topCount,
         ),
+        style: s.styles.top,
       } satisfies TopData as WidgetData[K];
     }
     case "recent": {
@@ -175,6 +181,7 @@ export async function getWidgetData<K extends WidgetKind>(
           name: d.donor_name,
           amountSatang: d.amount_satang,
         })),
+        style: s.styles.recent,
       } satisfies RecentData as WidgetData[K];
     }
   }

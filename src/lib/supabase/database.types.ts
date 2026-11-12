@@ -221,6 +221,7 @@ export type Database = {
           goal_title: string;
           qr_caption: string;
           recent_count: number;
+          styles: NonNullable<Json>;
           top_count: number;
           top_period: string;
           updated_at: string;
@@ -233,6 +234,7 @@ export type Database = {
           goal_title?: string;
           qr_caption?: string;
           recent_count?: number;
+          styles?: NonNullable<Json>;
           top_count?: number;
           top_period?: string;
           updated_at?: string;
@@ -244,6 +246,7 @@ export type Database = {
           goal_title?: string;
           qr_caption?: string;
           recent_count?: number;
+          styles?: NonNullable<Json>;
           top_count?: number;
           top_period?: string;
           updated_at?: string;

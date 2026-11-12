@@ -11,8 +11,10 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ColorField } from "@/components/dashboard/color-field";
 import { ObsUrlField } from "@/components/dashboard/obs-url-field";
 import { SectionCard } from "@/components/dashboard/section-card";
+import { SettingRow } from "@/components/dashboard/setting-row";
 import {
   SegmentedControl,
   type SegmentOption,
@@ -44,9 +46,16 @@ import {
   TOP_COUNT,
   TOP_PERIOD_LABELS,
   TOP_PERIODS,
-  WIDGET_SIZES,
+  DEFAULT_STYLES,
+  GOAL_WIDTH,
+  SIZE_LABELS,
+  SIZE_STEPS,
+  SPEED_LABELS,
+  SPEEDS,
   WIDGET_TEXT_MAX,
   rankDonors,
+  widgetSize,
+  type WidgetStyles,
   type OverlayWidgetInput,
   type OverlayWidgetSettings,
   type WidgetData,
@@ -62,6 +71,7 @@ const pick = (s: OverlayWidgetSettings): OverlayWidgetInput => ({
   topPeriod: s.topPeriod,
   topCount: s.topCount,
   recentCount: s.recentCount,
+  styles: s.styles,
 });
 
 const sliderValue = (v: number | readonly number[]) =>
@@ -75,6 +85,9 @@ const sampleTop = rankDonors(
   10,
 );
 const sampleRecent = SAMPLE_DONORS.map((d, i) => ({ id: `s${i}`, ...d }));
+
+/** ช่องเลือกสีเรียงตามความกว้างที่มี (คอลัมน์ "หน้าตา" แคบบนคอม) */
+const COLOR_GRID = "grid gap-4 grid-cols-[repeat(auto-fill,minmax(12rem,1fr))]";
 
 const TABS: SegmentOption<WidgetKind>[] = [
   { value: "goal", label: "Goal", icon: Target },
@@ -113,6 +126,24 @@ export function OverlaysForm({
   ) => {
     setDraft((d) => ({ ...d, [key]: value }));
     setError(null);
+  };
+  /** แก้หน้าตา widget ทีละช่อง */
+  const setStyle = <K extends WidgetKind, F extends keyof WidgetStyles[K]>(
+    kind: K,
+    field: F,
+    value: WidgetStyles[K][F],
+  ) => {
+    setDraft((d) => ({
+      ...d,
+      styles: { ...d.styles, [kind]: { ...d.styles[kind], [field]: value } },
+    }));
+    setError(null);
+  };
+  const resetStyle = (kind: WidgetKind) => {
+    setDraft((d) => ({
+      ...d,
+      styles: { ...d.styles, [kind]: DEFAULT_STYLES[kind] },
+    }));
   };
 
   async function save() {
@@ -156,6 +187,7 @@ export function OverlaysForm({
     }
   }
 
+  const st = draft.styles;
   // พรีวิว: ใช้ค่าที่กำลังแก้ + ข้อมูลจริง (ไม่มีโดเนทใช้ตัวอย่าง)
   const topItems = (data.top.items.length ? data.top.items : sampleTop).slice(
     0,
@@ -165,34 +197,23 @@ export function OverlaysForm({
     data.recent.items.length ? data.recent.items : sampleRecent
   ).slice(0, draft.recentCount);
 
-  return (
-    <div className="mt-6 grid gap-4 pb-24">
-      <SegmentedControl
-        role="tab"
-        label="เลือก overlay"
-        fullWidth
-        options={TABS}
-        value={active}
-        onChange={setActive}
-      />
-
-      {active === "goal" && (
-        <WidgetCard
-          kind="goal"
-          icon={Target}
-          title="Donate Goal"
-          description="หลอดเป้าหมาย นับยอดโดเนทที่ผ่านแล้วตั้งแต่เริ่มนับ"
-          url={`${baseUrl}/goal`}
-          preview={
-            <GoalWidget
-              data={{
-                title: draft.goalTitle.trim() || "เป้าหมายโดเนท",
-                targetSatang: draft.goalTargetSatang,
-                currentSatang: data.goal.currentSatang,
-              }}
-            />
-          }
-        >
+  const card = {
+    goal: {
+      icon: Target,
+      title: "Donate Goal",
+      description: "หลอดเป้าหมาย นับยอดโดเนทที่ผ่านแล้วตั้งแต่เริ่มนับ",
+      preview: (
+        <GoalWidget
+          data={{
+            title: draft.goalTitle.trim() || "เป้าหมายโดเนท",
+            targetSatang: draft.goalTargetSatang,
+            currentSatang: data.goal.currentSatang,
+            style: st.goal,
+          }}
+        />
+      ),
+      content: (
+        <>
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
               id="goalTitle"
@@ -240,86 +261,247 @@ export function OverlaysForm({
               เริ่มนับใหม่
             </Button>
           </div>
-        </WidgetCard>
-      )}
-
-      {active === "qr" && (
-        <WidgetCard
-          kind="qr"
-          icon={QrCode}
-          title="QR โดเนทบนจอ"
-          description="ผู้ชมสแกนจากจอไลฟ์แล้วไปหน้าโดเนทของคุณ"
-          url={`${baseUrl}/qr`}
-          preview={
-            <QrWidget
-              data={{
-                caption: draft.qrCaption.trim() || "สแกนเพื่อโดเนท",
-                donateUrl: data.qr.donateUrl,
-              }}
-            />
-          }
-        >
-          <TextField
-            id="qrCaption"
-            label="ข้อความบนการ์ด"
-            placeholder="สแกนเพื่อโดเนท"
-            value={draft.qrCaption}
-            onChange={(v) => set("qrCaption", v)}
+        </>
+      ),
+      appearance: (
+        <>
+          <RangeField
+            label="ความกว้างหลอด"
+            unit="px"
+            value={st.goal.width}
+            range={GOAL_WIDTH}
+            step={20}
+            onChange={(v) => setStyle("goal", "width", v)}
           />
-        </WidgetCard>
-      )}
-
-      {active === "top" && (
-        <WidgetCard
-          kind="top"
-          icon={ListOrdered}
-          title="อันดับผู้สนับสนุน"
-          description="รวมยอดตามชื่อที่ผู้บริจาคกรอก ไม่รวม Anonymous"
-          url={`${baseUrl}/top`}
-          preview={
-            <TopWidget data={{ period: draft.topPeriod, items: topItems }} />
-          }
-        >
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <span className="text-sm font-medium">ช่วงเวลา</span>
-              <SegmentedControl
-                label="ช่วงเวลาอันดับ"
-                options={TOP_PERIODS.map((p) => ({
-                  value: p,
-                  label: TOP_PERIOD_LABELS[p],
-                }))}
-                value={draft.topPeriod}
-                onChange={(v) => set("topPeriod", v)}
-              />
-            </div>
-            <CountSlider
-              label="จำนวนอันดับ"
-              value={draft.topCount}
-              range={TOP_COUNT}
-              onChange={(v) => set("topCount", v)}
+          <SizeField
+            label="ความหนาหลอด"
+            value={st.goal.barHeight}
+            onChange={(v) => setStyle("goal", "barHeight", v)}
+          />
+          <div className={COLOR_GRID}>
+            <ColorField
+              id="goalBarFrom"
+              label="สีหลอด (ซ้าย)"
+              value={st.goal.barFrom}
+              onChange={(v) => setStyle("goal", "barFrom", v)}
+            />
+            <ColorField
+              id="goalBarTo"
+              label="สีหลอด (ขวา)"
+              value={st.goal.barTo}
+              onChange={(v) => setStyle("goal", "barTo", v)}
+            />
+            <ColorField
+              id="goalTrack"
+              label="สีพื้นหลอด"
+              value={st.goal.trackColor}
+              onChange={(v) => setStyle("goal", "trackColor", v)}
             />
           </div>
-        </WidgetCard>
-      )}
-
-      {active === "recent" && (
-        <WidgetCard
-          kind="recent"
-          icon={TextCursorInput}
-          title="แถบโดเนทล่าสุด"
-          description="ตัวหนังสือวิ่ง ชื่อ + ยอด ของโดเนทที่ผ่านล่าสุด"
-          url={`${baseUrl}/recent`}
-          preview={<RecentWidget data={{ items: recentItems }} />}
-        >
-          <CountSlider
-            label="จำนวนรายการ"
-            value={draft.recentCount}
-            range={RECENT_COUNT}
-            onChange={(v) => set("recentCount", v)}
+          <CommonStyle kind="goal" styles={st} setStyle={setStyle} />
+          <div className="divide-y">
+            <SettingRow
+              id="goalShowAmount"
+              label="แสดงยอด"
+              hint="เช่น 700 / 1,000 บาท"
+              checked={st.goal.showAmount}
+              onChange={(v) => setStyle("goal", "showAmount", v)}
+            />
+            <SettingRow
+              id="goalShowPercent"
+              label="แสดงเปอร์เซ็นต์"
+              checked={st.goal.showPercent}
+              onChange={(v) => setStyle("goal", "showPercent", v)}
+            />
+          </div>
+        </>
+      ),
+    },
+    qr: {
+      icon: QrCode,
+      title: "QR โดเนทบนจอ",
+      description: "ผู้ชมสแกนจากจอไลฟ์แล้วไปหน้าโดเนทของคุณ",
+      preview: (
+        <QrWidget
+          data={{
+            caption: draft.qrCaption.trim() || "สแกนเพื่อโดเนท",
+            donateUrl: data.qr.donateUrl,
+            style: st.qr,
+          }}
+        />
+      ),
+      content: (
+        <TextField
+          id="qrCaption"
+          label="ข้อความบนการ์ด"
+          placeholder="สแกนเพื่อโดเนท"
+          value={draft.qrCaption}
+          onChange={(v) => set("qrCaption", v)}
+        />
+      ),
+      appearance: (
+        <>
+          <SizeField
+            label="ขนาด QR"
+            value={st.qr.size}
+            onChange={(v) => setStyle("qr", "size", v)}
           />
-        </WidgetCard>
-      )}
+          <div className={COLOR_GRID}>
+            <ColorField
+              id="qrBorder"
+              label="สีกรอบ"
+              value={st.qr.borderColor}
+              onChange={(v) => setStyle("qr", "borderColor", v)}
+            />
+            <ColorField
+              id="qrText"
+              label="สีข้อความ"
+              value={st.qr.textColor}
+              onChange={(v) => setStyle("qr", "textColor", v)}
+            />
+          </div>
+          <SizeField
+            label="ขนาดตัวอักษร"
+            value={st.qr.textSize}
+            onChange={(v) => setStyle("qr", "textSize", v)}
+          />
+        </>
+      ),
+    },
+    top: {
+      icon: ListOrdered,
+      title: "อันดับผู้สนับสนุน",
+      description: "รวมยอดตามชื่อที่ผู้บริจาคกรอก ไม่รวม Anonymous",
+      preview: (
+        <TopWidget
+          data={{ period: draft.topPeriod, items: topItems, style: st.top }}
+        />
+      ),
+      content: (
+        <div className="grid gap-4">
+          <TextField
+            id="topTitle"
+            label="หัวข้อ"
+            placeholder="Top ผู้สนับสนุน"
+            value={st.top.title}
+            onChange={(v) => setStyle("top", "title", v)}
+          />
+          <div className="grid gap-2">
+            <span className="text-sm font-medium">ช่วงเวลา</span>
+            <SegmentedControl
+              label="ช่วงเวลาอันดับ"
+              options={TOP_PERIODS.map((p) => ({
+                value: p,
+                label: TOP_PERIOD_LABELS[p],
+              }))}
+              value={draft.topPeriod}
+              onChange={(v) => set("topPeriod", v)}
+            />
+          </div>
+          <RangeField
+            label="จำนวนอันดับ"
+            value={draft.topCount}
+            range={TOP_COUNT}
+            onChange={(v) => set("topCount", v)}
+          />
+        </div>
+      ),
+      appearance: (
+        <>
+          <div className={COLOR_GRID}>
+            <ColorField
+              id="topName"
+              label="สีชื่อ"
+              value={st.top.nameColor}
+              onChange={(v) => setStyle("top", "nameColor", v)}
+            />
+            <ColorField
+              id="topTitleColor"
+              label="สีหัวข้อ"
+              value={st.top.textColor}
+              onChange={(v) => setStyle("top", "textColor", v)}
+            />
+          </div>
+          <CommonStyle kind="top" styles={st} setStyle={setStyle} noText />
+        </>
+      ),
+    },
+    recent: {
+      icon: TextCursorInput,
+      title: "แถบโดเนทล่าสุด",
+      description: "ตัวหนังสือวิ่ง ชื่อ + ยอด ของโดเนทที่ผ่านล่าสุด",
+      preview: <RecentWidget data={{ items: recentItems, style: st.recent }} />,
+      content: (
+        <RangeField
+          label="จำนวนรายการ"
+          value={draft.recentCount}
+          range={RECENT_COUNT}
+          onChange={(v) => set("recentCount", v)}
+        />
+      ),
+      appearance: (
+        <>
+          <div className="grid gap-2">
+            <span className="text-sm font-medium">ความเร็ว</span>
+            <SegmentedControl
+              label="ความเร็วแถบวิ่ง"
+              options={SPEEDS.map((v) => ({
+                value: v,
+                label: SPEED_LABELS[v],
+              }))}
+              value={st.recent.speed}
+              onChange={(v) => setStyle("recent", "speed", v)}
+            />
+          </div>
+          <div className={COLOR_GRID}>
+            <ColorField
+              id="recentName"
+              label="สีชื่อ"
+              value={st.recent.textColor}
+              onChange={(v) => setStyle("recent", "textColor", v)}
+            />
+            <ColorField
+              id="recentBg"
+              label="สีพื้นแถบ"
+              value={st.recent.backgroundColor}
+              onChange={(v) => setStyle("recent", "backgroundColor", v)}
+            />
+          </div>
+          <CommonStyle kind="recent" styles={st} setStyle={setStyle} noText />
+          <SettingRow
+            id="recentShowBg"
+            label="แสดงพื้นหลังแถบ"
+            hint="ปิดแล้วเหลือแค่ตัวหนังสือขอบดำ"
+            checked={st.recent.showBackground}
+            onChange={(v) => setStyle("recent", "showBackground", v)}
+          />
+        </>
+      ),
+    },
+  } satisfies Record<
+    WidgetKind,
+    Omit<CardProps, "kind" | "url" | "size" | "onResetStyle">
+  >;
+
+  return (
+    <div className="mt-6 grid gap-4 pb-24">
+      <SegmentedControl
+        role="tab"
+        label="เลือก overlay"
+        fullWidth
+        options={TABS}
+        value={active}
+        onChange={setActive}
+      />
+
+      <WidgetCard
+        key={active}
+        kind={active}
+        url={`${baseUrl}/${active}`}
+        size={widgetSize(active, st)}
+        onResetStyle={() => resetStyle(active)}
+        {...card[active]}
+      />
 
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -361,24 +543,78 @@ export function OverlaysForm({
   );
 }
 
+type SetStyle = <K extends WidgetKind, F extends keyof WidgetStyles[K]>(
+  kind: K,
+  field: F,
+  value: WidgetStyles[K][F],
+) => void;
+
+/** สียอดเงิน + สีตัวอักษร + ขนาดตัวอักษร (มีทุก widget) */
+function CommonStyle({
+  kind,
+  styles,
+  setStyle,
+  noText = false,
+}: {
+  kind: WidgetKind;
+  styles: WidgetStyles;
+  setStyle: SetStyle;
+  /** สีตัวอักษรตั้งที่อื่นแล้ว (เช่น "สีชื่อ") */
+  noText?: boolean;
+}) {
+  const s = styles[kind];
+  return (
+    <>
+      <div className={COLOR_GRID}>
+        <ColorField
+          id={`${kind}Amount`}
+          label="สียอดเงิน"
+          value={s.amountColor}
+          onChange={(v) => setStyle(kind, "amountColor", v)}
+        />
+        {!noText && (
+          <ColorField
+            id={`${kind}Text`}
+            label="สีตัวอักษร"
+            value={s.textColor}
+            onChange={(v) => setStyle(kind, "textColor", v)}
+          />
+        )}
+      </div>
+      <SizeField
+        label="ขนาดตัวอักษร"
+        value={s.textSize}
+        onChange={(v) => setStyle(kind, "textSize", v)}
+      />
+    </>
+  );
+}
+
+type CardProps = {
+  kind: WidgetKind;
+  icon: React.ComponentProps<typeof SectionCard>["icon"];
+  title: string;
+  description: string;
+  url: string;
+  size: { width: number; height: number };
+  preview: React.ReactNode;
+  content: React.ReactNode;
+  appearance: React.ReactNode;
+  onResetStyle: () => void;
+};
+
 function WidgetCard({
   kind,
   icon,
   title,
   description,
   url,
+  size,
   preview,
-  children,
-}: {
-  kind: WidgetKind;
-  icon: React.ComponentProps<typeof SectionCard>["icon"];
-  title: string;
-  description: string;
-  url: string;
-  preview: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const size = WIDGET_SIZES[kind];
+  content,
+  appearance,
+  onResetStyle,
+}: CardProps) {
   return (
     <SectionCard
       id={`widget-${kind}`}
@@ -405,7 +641,36 @@ function WidgetCard({
             </WidgetStage>
           </ScaledPreview>
         </div>
-        <div className="min-w-0">{children}</div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section aria-labelledby={`${kind}-content`} className="min-w-0">
+            <h3
+              id={`${kind}-content`}
+              className="mb-3 text-sm font-semibold text-muted-foreground"
+            >
+              เนื้อหา
+            </h3>
+            {content}
+          </section>
+          <section
+            aria-labelledby={`${kind}-look`}
+            className="grid min-w-0 content-start gap-4 lg:border-l lg:pl-6"
+          >
+            <div className="flex items-center justify-between">
+              <h3
+                id={`${kind}-look`}
+                className="text-sm font-semibold text-muted-foreground"
+              >
+                หน้าตา
+              </h3>
+              <Button variant="ghost" size="sm" onClick={onResetStyle}>
+                <RotateCcw />
+                คืนค่าเริ่มต้น
+              </Button>
+            </div>
+            {appearance}
+          </section>
+        </div>
       </div>
       <div className="grid gap-2 rounded-b-2xl border-t bg-muted/40 px-6 py-4">
         <span className="text-sm font-medium">ลิงก์ OBS</span>
@@ -417,6 +682,28 @@ function WidgetCard({
         />
       </div>
     </SectionCard>
+  );
+}
+
+function SizeField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: (typeof SIZE_STEPS)[number];
+  onChange: (v: (typeof SIZE_STEPS)[number]) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <span className="text-sm font-medium">{label}</span>
+      <SegmentedControl
+        label={label}
+        options={SIZE_STEPS.map((v) => ({ value: v, label: SIZE_LABELS[v] }))}
+        value={value}
+        onChange={onChange}
+      />
+    </div>
   );
 }
 
@@ -452,28 +739,35 @@ function TextField({
   );
 }
 
-function CountSlider({
+function RangeField({
   label,
   value,
   range,
+  step = 1,
+  unit,
   onChange,
 }: {
   label: string;
   value: number;
   range: { min: number; max: number };
+  step?: number;
+  unit?: string;
   onChange: (v: number) => void;
 }) {
   return (
     <div className="grid gap-3">
       <div className="flex items-baseline justify-between">
         <span className="text-sm font-medium">{label}</span>
-        <span className="font-mono text-sm">{value}</span>
+        <span className="font-mono text-sm">
+          {value}
+          {unit && ` ${unit}`}
+        </span>
       </div>
       <Slider
         thumbLabel={label}
         min={range.min}
         max={range.max}
-        step={1}
+        step={step}
         value={[value]}
         onValueChange={(v) => onChange(sliderValue(v))}
       />

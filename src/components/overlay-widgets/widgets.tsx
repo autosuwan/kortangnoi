@@ -6,7 +6,11 @@ import { useEffect, useState } from "react";
 
 import { formatSatangNumber } from "@/lib/money";
 import {
+  BAR_HEIGHT,
   goalPercent,
+  QR_SIZE,
+  SPEED_SECONDS,
+  TEXT_SCALE,
   TOP_PERIOD_LABELS,
   type GoalData,
   type QrData,
@@ -16,7 +20,9 @@ import {
 } from "@/lib/overlay-widgets";
 import { cn } from "@/lib/utils";
 
-const AMOUNT = "#F97316";
+/** ขนาดตัวอักษรฐานของ widget (ข้างในใช้หน่วย em จึงขยายตามทั้งชุด) */
+const baseFont = (size: keyof typeof TEXT_SCALE) =>
+  `${16 * TEXT_SCALE[size]}px`;
 
 /** หลอดเป้าหมายโดเนท */
 export function GoalWidget({
@@ -26,34 +32,67 @@ export function GoalWidget({
   data: GoalData;
   className?: string;
 }) {
+  const s = data.style;
   const pct = goalPercent(data.currentSatang, data.targetSatang);
   const done = data.currentSatang >= data.targetSatang;
+  const bar = BAR_HEIGHT[s.barHeight];
+  // หลอดบางเกินจะใส่ % ในหลอดไม่ได้ → ย้ายไปไว้บรรทัดหัว
+  const percentInside = s.showPercent && bar >= 24;
+  const percentText = done ? "ครบเป้าแล้ว! 🎉" : `${pct}%`;
+
   return (
     <div
       data-testid="goal-widget"
       data-percent={pct}
-      className={cn("w-full max-w-3xl text-white", className)}
+      className={cn("max-w-full", className)}
+      style={{
+        width: s.width,
+        fontSize: baseFont(s.textSize),
+        color: s.textColor,
+      }}
     >
-      <div className="flex items-end justify-between gap-4 text-2xl font-semibold alert-text">
-        <span className="min-w-0 truncate">{data.title}</span>
-        <span className="shrink-0 font-mono text-xl" data-testid="goal-amount">
-          <span style={{ color: AMOUNT }}>
-            {formatSatangNumber(data.currentSatang)}
-          </span>{" "}
-          / {formatSatangNumber(data.targetSatang)} บาท
-        </span>
+      <div className="flex items-end justify-between gap-4 font-semibold alert-text">
+        <span className="min-w-0 truncate text-[1.5em]">{data.title}</span>
+        {(s.showAmount || (s.showPercent && !percentInside)) && (
+          <span
+            className="shrink-0 font-mono text-[1.25em]"
+            data-testid="goal-amount"
+          >
+            {s.showAmount && (
+              <>
+                <span style={{ color: s.amountColor }}>
+                  {formatSatangNumber(data.currentSatang)}
+                </span>{" "}
+                / {formatSatangNumber(data.targetSatang)} บาท
+              </>
+            )}
+            {s.showPercent && !percentInside && (
+              <span className="ml-2">{percentText}</span>
+            )}
+          </span>
+        )}
       </div>
-      <div className="relative mt-2 h-8 overflow-hidden rounded-full border-2 border-black bg-black/50 shadow-lg">
+      <div
+        data-testid="goal-track"
+        className="relative mt-[0.4em] overflow-hidden rounded-full border-2 border-black shadow-lg"
+        style={{ height: bar, backgroundColor: `${s.trackColor}B3` }}
+      >
         <div
+          data-testid="goal-bar"
           className={cn(
-            "h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-[width] duration-1000 ease-out",
+            "h-full rounded-full transition-[width] duration-1000 ease-out",
             done && "animate-pulse",
           )}
-          style={{ width: `${pct}%` }}
+          style={{
+            width: `${pct}%`,
+            backgroundImage: `linear-gradient(to right, ${s.barFrom}, ${s.barTo})`,
+          }}
         />
-        <span className="absolute inset-0 flex items-center justify-center font-mono text-base font-semibold alert-text">
-          {done ? "ครบเป้าแล้ว! 🎉" : `${pct}%`}
-        </span>
+        {percentInside && (
+          <span className="absolute inset-0 flex items-center justify-center font-mono text-[1em] font-semibold alert-text">
+            {percentText}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -67,10 +106,12 @@ export function QrWidget({
   data: QrData;
   className?: string;
 }) {
+  const s = data.style;
+  const img = QR_SIZE[s.size];
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    QRCode.toDataURL(data.donateUrl, { margin: 1, width: 480 }).then((url) => {
+    QRCode.toDataURL(data.donateUrl, { margin: 1, width: 512 }).then((url) => {
       if (alive) setSrc(url);
     });
     return () => {
@@ -83,23 +124,29 @@ export function QrWidget({
       data-testid="qr-widget"
       data-url={data.donateUrl}
       className={cn(
-        "flex w-64 flex-col items-center gap-2 rounded-2xl border-4 border-orange-500 bg-white p-4 text-center text-neutral-900 shadow-xl",
+        "flex flex-col items-center gap-[0.5em] rounded-2xl border-4 bg-white p-[1em] text-center shadow-xl",
         className,
       )}
+      style={{
+        borderColor: s.borderColor,
+        fontSize: baseFont(s.textSize),
+        color: s.textColor,
+        width: img + 48,
+      }}
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- data URL
         <img
           src={src}
           alt={`QR ไปหน้าโดเนท ${data.donateUrl}`}
-          className="size-52"
+          style={{ width: img, height: img }}
         />
       ) : (
-        <div className="size-52" />
+        <div style={{ width: img, height: img }} />
       )}
-      <figcaption>
-        <p className="text-lg font-semibold">{data.caption}</p>
-        <p className="font-mono text-xs break-all text-neutral-500">
+      <figcaption className="w-full">
+        <p className="text-[1.125em] font-semibold">{data.caption}</p>
+        <p className="font-mono text-[0.75em] break-all opacity-60">
           {data.donateUrl.replace(/^https?:\/\//, "")}
         </p>
       </figcaption>
@@ -115,30 +162,32 @@ export function TopWidget({
   data: TopData;
   className?: string;
 }) {
+  const s = data.style;
   return (
     <section
       data-testid="top-widget"
-      className={cn("w-full max-w-sm text-white", className)}
+      className={cn("w-[25em] max-w-full", className)}
+      style={{ fontSize: baseFont(s.textSize), color: s.textColor }}
     >
-      <h2 className="flex items-center gap-2 text-2xl font-semibold alert-text">
-        <Trophy className="size-6 text-amber-400" aria-hidden />
-        Top ผู้สนับสนุน
-        <span className="text-base font-normal">
+      <h2 className="flex items-center gap-[0.4em] text-[1.5em] font-semibold alert-text">
+        <Trophy className="size-[1em] text-amber-400" aria-hidden />
+        <span className="min-w-0 truncate">{s.title}</span>
+        <span className="shrink-0 text-[0.65em] font-normal">
           ({TOP_PERIOD_LABELS[data.period]})
         </span>
       </h2>
       {data.items.length === 0 ? (
-        <p className="mt-2 text-lg alert-text">ยังไม่มีโดเนท</p>
+        <p className="mt-[0.5em] text-[1.125em] alert-text">ยังไม่มีโดเนท</p>
       ) : (
-        <ol className="mt-2 grid gap-1.5">
+        <ol className="mt-[0.5em] grid gap-[0.3em]">
           {data.items.map((item, i) => (
             <li
               key={item.name}
-              className="flex items-baseline gap-3 text-xl font-semibold alert-text"
+              className="flex items-baseline gap-[0.6em] text-[1.25em] font-semibold alert-text"
             >
               <span
                 className={cn(
-                  "w-7 shrink-0 text-right font-mono",
+                  "w-[1.4em] shrink-0 text-right font-mono",
                   i === 0 && "text-amber-400",
                   i === 1 && "text-neutral-200",
                   i === 2 && "text-orange-300",
@@ -146,8 +195,16 @@ export function TopWidget({
               >
                 {i + 1}
               </span>
-              <span className="min-w-0 flex-1 truncate">{item.name}</span>
-              <span className="shrink-0 font-mono" style={{ color: AMOUNT }}>
+              <span
+                className="min-w-0 flex-1 truncate"
+                style={{ color: s.nameColor }}
+              >
+                {item.name}
+              </span>
+              <span
+                className="shrink-0 font-mono"
+                style={{ color: s.amountColor }}
+              >
                 {formatSatangNumber(item.totalSatang)}
               </span>
             </li>
@@ -166,19 +223,23 @@ export function RecentWidget({
   data: RecentData;
   className?: string;
 }) {
+  const s = data.style;
   const items = data.items;
   const content = (hidden: boolean) => (
     <ul
       aria-hidden={hidden || undefined}
-      className="flex shrink-0 items-center gap-8 pr-8"
+      className="flex shrink-0 items-center gap-[1.6em] pr-[1.6em]"
     >
       {items.map((d) => (
-        <li key={d.id} className="flex items-baseline gap-2 whitespace-nowrap">
+        <li
+          key={d.id}
+          className="flex items-baseline gap-[0.4em] whitespace-nowrap"
+        >
           <span>{d.name}</span>
-          <span className="font-mono" style={{ color: AMOUNT }}>
+          <span className="font-mono" style={{ color: s.amountColor }}>
             {formatSatangNumber(d.amountSatang)} บาท
           </span>
-          <span className="text-orange-400" aria-hidden>
+          <span style={{ color: s.amountColor }} aria-hidden>
             ●
           </span>
         </li>
@@ -190,19 +251,25 @@ export function RecentWidget({
     <div
       data-testid="recent-widget"
       className={cn(
-        "w-full overflow-hidden rounded-full bg-black/40 py-2 text-xl font-semibold text-white alert-text",
+        "w-full overflow-hidden rounded-full py-[0.4em] font-semibold alert-text",
         className,
       )}
+      style={{
+        fontSize: `${20 * TEXT_SCALE[s.textSize]}px`,
+        color: s.textColor,
+        backgroundColor: s.showBackground
+          ? `${s.backgroundColor}66`
+          : undefined,
+      }}
     >
       {items.length === 0 ? (
-        <p className="px-6">ยังไม่มีโดเนท</p>
+        <p className="px-[1.2em]">ยังไม่มีโดเนท</p>
       ) : (
         <div
           className="flex w-max animate-marquee"
-          // ยิ่งรายการมากยิ่งช้า ให้ความเร็วอ่านได้พอๆ กัน
           style={
             {
-              "--marquee-duration": `${Math.max(12, items.length * 5)}s`,
+              "--marquee-duration": `${Math.max(10, items.length * SPEED_SECONDS[s.speed])}s`,
             } as React.CSSProperties
           }
         >

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_STYLES,
   goalPercent,
   overlayWidgetInputSchema,
   rankDonors,
+  resolveStyles,
+  widgetSize,
 } from "./overlay-widgets";
 
 describe("goalPercent", () => {
@@ -47,6 +50,7 @@ describe("overlayWidgetInputSchema", () => {
     topPeriod: "month",
     topCount: 5,
     recentCount: 10,
+    styles: DEFAULT_STYLES,
   };
 
   it("ผ่านและ trim", () => {
@@ -62,9 +66,70 @@ describe("overlayWidgetInputSchema", () => {
     { topPeriod: "year" },
     { topCount: 11 },
     { recentCount: 2 },
+    {
+      styles: {
+        ...DEFAULT_STYLES,
+        goal: { ...DEFAULT_STYLES.goal, barFrom: "red" },
+      },
+    },
+    {
+      styles: {
+        ...DEFAULT_STYLES,
+        goal: { ...DEFAULT_STYLES.goal, width: 5000 },
+      },
+    },
+    {
+      styles: { ...DEFAULT_STYLES, top: { ...DEFAULT_STYLES.top, title: " " } },
+    },
   ])("ปฏิเสธ %o", (patch) => {
     expect(
       overlayWidgetInputSchema.safeParse({ ...ok, ...patch }).success,
     ).toBe(false);
+  });
+});
+
+describe("resolveStyles", () => {
+  it("ค่าว่าง/ไม่ใช่ object → ค่าเริ่มต้นทั้งหมด", () => {
+    expect(resolveStyles({})).toEqual(DEFAULT_STYLES);
+    expect(resolveStyles(null)).toEqual(DEFAULT_STYLES);
+    expect(resolveStyles("x")).toEqual(DEFAULT_STYLES);
+  });
+
+  it("ช่องที่ถูกใช้ค่าที่เก็บ ช่องผิด/ขาดใช้ค่าเริ่มต้น สี normalize เป็นตัวใหญ่", () => {
+    const r = resolveStyles({
+      goal: { width: 400, barFrom: "#22c55e", barTo: "nope", extra: 1 },
+      recent: { speed: "warp" },
+    });
+    expect(r.goal).toEqual({
+      ...DEFAULT_STYLES.goal,
+      width: 400,
+      barFrom: "#22C55E",
+    });
+    expect(r.recent.speed).toBe("normal");
+    expect(r.goal).not.toHaveProperty("extra");
+  });
+});
+
+describe("widgetSize", () => {
+  it("goal กว้างตามที่ตั้ง + ขอบ, ใหญ่ขึ้นตามขนาดตัวอักษร/หลอด", () => {
+    const base = widgetSize("goal", DEFAULT_STYLES);
+    expect(base.width).toBe(640);
+    const big = widgetSize("goal", {
+      ...DEFAULT_STYLES,
+      goal: { ...DEFAULT_STYLES.goal, textSize: "lg", barHeight: "lg" },
+    });
+    expect(big.height).toBeGreaterThan(base.height);
+  });
+
+  it("QR ใหญ่ขึ้นตามขนาด", () => {
+    const sm = widgetSize("qr", {
+      ...DEFAULT_STYLES,
+      qr: { ...DEFAULT_STYLES.qr, size: "sm" },
+    });
+    const lg = widgetSize("qr", {
+      ...DEFAULT_STYLES,
+      qr: { ...DEFAULT_STYLES.qr, size: "lg" },
+    });
+    expect(lg.width).toBeGreaterThan(sm.width);
   });
 });

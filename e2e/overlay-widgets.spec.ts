@@ -178,6 +178,14 @@ test("Subathon: เริ่มที่ 01:00:00 → OBS นับถอยห�
   );
   await obs.waitForTimeout(1500);
 
+  // ป้ายข้อความอยู่หน้า Overlay พร้อมพรีวิว
+  await page.goto("/dashboard/overlays");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("tab", { name: "Subathon" }).click();
+  await page.getByLabel("ป้ายข้อความ").fill("Marathon");
+  await expect(page.getByText("Marathon", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "ยกเลิก" }).click();
+
   await page.goto("/dashboard/subathon");
   await page.waitForLoadState("networkidle");
   await expect(page.getByTestId("timer-clock")).toHaveText("01:00:00");

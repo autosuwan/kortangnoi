@@ -260,7 +260,7 @@ export function SubathonView({
         className="lg:col-start-1"
         icon={Settings2}
         title="ตั้งค่า"
-        description="กฎเวลา โหมด และเวลาเริ่มต้น — หน้าตาปรับที่เมนู Overlay"
+        description="กฎเวลา โหมด และเวลาเริ่มต้น — ป้ายข้อความ/สี/ขนาด ปรับที่เมนู Overlay (มีพรีวิว)"
       >
         <SubathonSettings initial={initialSettings} onSaved={load} />
       </SectionCard>

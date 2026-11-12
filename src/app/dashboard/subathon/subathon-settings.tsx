@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 
-import {
-  DurationField,
-  NumberInput,
-  TextField,
-} from "@/components/dashboard/form-fields";
+import { DurationField, NumberInput } from "@/components/dashboard/form-fields";
 import { SegmentedControl } from "@/components/dashboard/segmented-control";
 import { SettingRow } from "@/components/dashboard/setting-row";
 import {
@@ -24,7 +20,6 @@ type TimerFields = Pick<
   | "timerInitialSec"
   | "timerStepSatang"
   | "timerStepSeconds"
-  | "timerLabel"
   | "timerMode"
   | "timerAllowSubtract"
 >;
@@ -33,7 +28,6 @@ const pick = (s: OverlayWidgetSettings): TimerFields => ({
   timerInitialSec: s.timerInitialSec,
   timerStepSatang: s.timerStepSatang,
   timerStepSeconds: s.timerStepSeconds,
-  timerLabel: s.timerLabel,
   timerMode: s.timerMode,
   timerAllowSubtract: s.timerAllowSubtract,
 });
@@ -159,14 +153,6 @@ export function SubathonSettings({
         hint="ใช้ตอนกดเริ่มครั้งแรก/หลังรีเซ็ต"
         value={draft.timerInitialSec}
         onChange={(v) => set("timerInitialSec", v)}
-      />
-
-      <TextField
-        id="timerLabel"
-        label="ป้ายข้อความบนจอ"
-        placeholder="Subathon"
-        value={draft.timerLabel}
-        onChange={(v) => set("timerLabel", v)}
       />
 
       {error && (

@@ -509,17 +509,26 @@ export function OverlaysForm({
       description: "นับถอยหลังบนจอไลฟ์ โดเนทแล้วเวลาเพิ่ม/ลด",
       preview: <TimerWidget data={timerPreview} />,
       content: (
-        <div className="flex flex-col items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
-          <p className="text-muted-foreground">
-            เริ่ม/พักเวลา, ดูโดเนทที่บวก/ลด และตั้งกฎเวลา อยู่ที่เมนู Subathon
-          </p>
-          <Link
-            href="/dashboard/subathon"
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            <Timer />
-            ไปที่เมนู Subathon
-          </Link>
+        <div className="grid gap-5">
+          <TextField
+            id="timerLabel"
+            label="ป้ายข้อความ"
+            placeholder="Subathon"
+            value={draft.timerLabel}
+            onChange={(v) => set("timerLabel", v)}
+          />
+          <div className="flex flex-col items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
+            <p className="text-muted-foreground">
+              เริ่ม/พักเวลา, ดูโดเนทที่บวก/ลด, กฎเวลา และเวลาเริ่มต้น อยู่ที่เมนู Subathon
+            </p>
+            <Link
+              href="/dashboard/subathon"
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              <Timer />
+              ไปที่เมนู Subathon
+            </Link>
+          </div>
         </div>
       ),
       appearance: (

@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { SectionCard } from "@/components/dashboard/section-card";
+import { ImageCropDialog } from "@/components/image-crop-dialog";
 import { ProfileCard } from "@/components/profile-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,11 @@ import {
   DISPLAY_NAME_MAX,
   type ProfileImageKind,
 } from "@/lib/profile";
+import {
+  CROP_PRESETS,
+  CROP_SOURCE_MAX_BYTES,
+  shouldCrop,
+} from "@/lib/crop-image";
 import { checkUsername } from "@/lib/username";
 import type { ProfileSettings } from "@/server/services/profile";
 
@@ -216,6 +222,7 @@ function ImageCard({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<"upload" | "remove" | null>(null);
+  const [cropping, setCropping] = useState<File | null>(null);
 
   async function send(method: "POST" | "DELETE", file?: File) {
     setBusy(method === "POST" ? "upload" : "remove");
@@ -253,11 +260,37 @@ function ImageCard({
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (!file) return;
-          if (file.size > 4 * 1024 * 1024) {
-            onError("ไฟล์ต้องไม่เกิน 4 MB");
+          const tooBig = shouldCrop(file)
+            ? file.size > CROP_SOURCE_MAX_BYTES && "ไฟล์ต้องไม่เกิน 20 MB"
+            : file.size > 4 * 1024 * 1024 && "ไฟล์ต้องไม่เกิน 4 MB";
+          if (tooBig) {
+            onError(tooBig);
+            e.target.value = "";
             return;
           }
-          send("POST", file);
+          if (shouldCrop(file)) setCropping(file);
+          else send("POST", file);
+        }}
+      />
+      <ImageCropDialog
+        file={cropping}
+        preset={CROP_PRESETS[kind]}
+        title={`ครอป${title}`}
+        onCancel={() => {
+          setCropping(null);
+          if (input.current) input.current.value = "";
+        }}
+        onConfirm={(cropped) => {
+          setCropping(null);
+          if (cropped.size > 4 * 1024 * 1024) {
+            onError("รูปหลังครอปยังเกิน 4 MB");
+            return;
+          }
+          send("POST", cropped);
+        }}
+        onUnreadable={(original) => {
+          setCropping(null);
+          send("POST", original);
         }}
       />
       <div className="flex flex-wrap gap-2">

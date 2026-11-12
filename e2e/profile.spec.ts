@@ -18,6 +18,10 @@ test("ตั้งค่าโปรไฟล์: รูป แบนเนอ�
   await page
     .getByLabel("เลือกไฟล์รูปโปรไฟล์")
     .setInputFiles("public/logo-mark.png");
+  await page
+    .getByRole("dialog", { name: "ครอปรูปโปรไฟล์" })
+    .getByRole("button", { name: "ใช้รูปนี้" })
+    .click();
   await expect(page.getByTestId("streamer-avatar")).toHaveAttribute(
     "src",
     /profile-media/,
@@ -25,6 +29,10 @@ test("ตั้งค่าโปรไฟล์: รูป แบนเนอ�
   await page
     .getByLabel("เลือกไฟล์แบนเนอร์")
     .setInputFiles("public/alert-default.png");
+  const bannerCrop = page.getByRole("dialog", { name: "ครอปแบนเนอร์" });
+  // แบนเนอร์ล็อกสัดส่วน 3:1 ไม่มีตัวเลือกสัดส่วน
+  await expect(bannerCrop.getByRole("radiogroup")).toHaveCount(0);
+  await bannerCrop.getByRole("button", { name: "ใช้รูปนี้" }).click();
   await expect(page.getByTestId("streamer-banner")).toHaveAttribute(
     "src",
     /profile-media/,

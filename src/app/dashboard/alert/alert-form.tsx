@@ -27,6 +27,7 @@ import {
 } from "@/components/dashboard/segmented-control";
 import { SettingRow } from "@/components/dashboard/setting-row";
 import { GifPicker } from "@/components/gif-picker";
+import { ImageCropDialog } from "@/components/image-crop-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,11 @@ import {
   SUPPORT_TEXT_MAX,
   type AlertSettings,
 } from "@/lib/alert-settings";
+import {
+  CROP_PRESETS,
+  CROP_SOURCE_MAX_BYTES,
+  shouldCrop,
+} from "@/lib/crop-image";
 import { playSpeech } from "@/lib/speech-player";
 import {
   isCloudVoice,
@@ -139,6 +145,7 @@ export function AlertForm({
   );
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [cropping, setCropping] = useState<File | null>(null);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
 
@@ -266,7 +273,32 @@ export function AlertForm({
               aria-label="เลือกไฟล์รูป"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) upload(file);
+                if (!file) return;
+                if (shouldCrop(file)) {
+                  if (file.size > CROP_SOURCE_MAX_BYTES) {
+                    setError("ไฟล์ต้องไม่เกิน 20 MB");
+                    e.target.value = "";
+                    return;
+                  }
+                  setCropping(file);
+                } else upload(file);
+              }}
+            />
+            <ImageCropDialog
+              file={cropping}
+              preset={CROP_PRESETS.alert}
+              title="ครอปรูป alert"
+              onCancel={() => {
+                setCropping(null);
+                if (fileInput.current) fileInput.current.value = "";
+              }}
+              onConfirm={(cropped) => {
+                setCropping(null);
+                upload(cropped);
+              }}
+              onUnreadable={(original) => {
+                setCropping(null);
+                upload(original);
               }}
             />
             {tab === "upload" && (

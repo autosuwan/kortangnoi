@@ -15,8 +15,19 @@ test("อัปโหลดรูป → พรีวิวเปลี่ยน
   const image = page.getByTestId("alert-image");
   await expect(image).toHaveAttribute("src", "/alert-default.png");
 
+  // ยกเลิกครอป → ไม่อัปโหลด
   await page.getByLabel("เลือกไฟล์รูป").setInputFiles("public/logo-mark.png");
-  await expect(image).toHaveAttribute("src", /\/alert-media\/.+\.png$/);
+  const crop = page.getByRole("dialog", { name: "ครอปรูป alert" });
+  await expect(crop.getByTestId("crop-area").locator("img")).toBeVisible();
+  await crop.getByRole("button", { name: "ยกเลิก" }).click();
+  await expect(crop).toBeHidden();
+  await expect(image).toHaveAttribute("src", "/alert-default.png");
+
+  // ครอป 1:1 → ใช้รูปนี้ → อัปโหลดเป็น WebP
+  await page.getByLabel("เลือกไฟล์รูป").setInputFiles("public/logo-mark.png");
+  await crop.getByRole("radio", { name: "1:1" }).click();
+  await crop.getByRole("button", { name: "ใช้รูปนี้" }).click();
+  await expect(image).toHaveAttribute("src", /\/alert-media\/.+\.webp$/);
   // อัปโหลดบันทึกทันที ไม่มีแถบยังไม่บันทึก
   await expect(
     page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" }),
@@ -24,13 +35,32 @@ test("อัปโหลดรูป → พรีวิวเปลี่ยน
 
   await page.reload();
   await page.waitForLoadState("networkidle");
-  await expect(image).toHaveAttribute("src", /\/alert-media\/.+\.png$/);
+  await expect(image).toHaveAttribute("src", /\/alert-media\/.+\.webp$/);
 
   await page.getByRole("button", { name: "ใช้ค่าเริ่มต้น" }).click();
   await expect(image).toHaveAttribute("src", "/alert-default.png");
   await page.reload();
   await page.waitForLoadState("networkidle");
   await expect(image).toHaveAttribute("src", "/alert-default.png");
+});
+
+test("GIF อัปโหลดตรงไม่ต้องครอป", async ({ page }) => {
+  await loginAsStreamer(page, "alert-gif-up");
+  await openAlertPage(page);
+  // GIF 1x1 ที่ถูกต้อง
+  await page.getByLabel("เลือกไฟล์รูป").setInputFiles({
+    name: "dot.gif",
+    mimeType: "image/gif",
+    buffer: Buffer.from(
+      "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==",
+      "base64",
+    ),
+  });
+  await expect(page.getByTestId("alert-image")).toHaveAttribute(
+    "src",
+    /\/alert-media\/.+\.gif$/,
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("ไฟล์ที่ไม่ใช่รูปแสดง error", async ({ page }) => {

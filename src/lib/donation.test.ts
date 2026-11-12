@@ -47,6 +47,29 @@ describe("validateDonationInput", () => {
   });
 });
 
+describe("ไม่เปิดเผยชื่อ", () => {
+  it("สตรีมเมอร์เปิดไว้ → ชื่อเป็น Anonymous ไม่ต้องกรอกชื่อ", () => {
+    const r = validateDonationInput(
+      { donorName: "", amount: "50", anonymous: true },
+      2000,
+      { allowAnonymous: true },
+    );
+    expect(r.ok && r.value.donorName).toBe("Anonymous");
+  });
+  it("สตรีมเมอร์ไม่ได้เปิด → ยังต้องกรอกชื่อ", () => {
+    const r = validateDonationInput(
+      { donorName: "", amount: "50", anonymous: true },
+      2000,
+    );
+    expect(!r.ok && r.code).toBe("DONOR_NAME_INVALID");
+    const named = validateDonationInput(
+      { donorName: "สมชาย", amount: "50", anonymous: true },
+      2000,
+    );
+    expect(named.ok && named.value.donorName).toBe("สมชาย");
+  });
+});
+
 it("cleanDonorText ตัดอักขระควบคุมและตัวกลับทิศ", () => {
   expect(cleanDonorText("a‮b​c\td")).toBe("a b c d");
 });

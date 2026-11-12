@@ -35,6 +35,7 @@ export type PublicStreamer = {
   bannerUrl: string | null;
   bio: string | null;
   enabled: boolean;
+  allowAnonymous: boolean;
   minAmountSatang: number;
   accountName: string | null;
   alertOptions: {
@@ -90,6 +91,7 @@ export async function getPublicStreamer(
     bannerUrl: streamer.bannerUrl,
     bio: streamer.bio,
     enabled: payment.enabled,
+    allowAnonymous: payment.allowAnonymous,
     minAmountSatang: payment.minAmountSatang,
     accountName: payment.showAccountName ? payment.accountNameTh : null,
     alertOptions: {
@@ -129,7 +131,9 @@ export async function createDonation(
     throw new AppError(409, "DONATIONS_DISABLED", "ตอนนี้ปิดรับโดเนท");
   }
 
-  const result = validateDonationInput(input, payment.minAmountSatang);
+  const result = validateDonationInput(input, payment.minAmountSatang, {
+    allowAnonymous: payment.allowAnonymous,
+  });
   if (!result.ok) throw new AppError(400, result.code, result.message);
   const donation = result.value;
 

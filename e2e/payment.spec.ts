@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { adminClient } from "../test/supabase";
+
 import { loginAsStreamer } from "./helpers";
 
 test("ตั้งค่าพร้อมเพย์ → บันทึก → reload ค่ายังอยู่", async ({ page }) => {
@@ -56,15 +58,49 @@ test("เลขผิดและข้อมูลไม่ครบแสด�
   await expect(page.getByLabel("เบอร์พร้อมเพย์")).toHaveValue("");
 });
 
-test("ดูตัวอย่าง QR จากค่าที่ยังไม่บันทึก", async ({ page }) => {
+test("พรีวิว QR สดจากค่าที่พิมพ์ + ชื่อที่ผู้โดเนทเห็นสลับตามสวิตช์", async ({ page }) => {
   await loginAsStreamer(page, "pay-qr");
   await page.goto("/dashboard/payment");
 
-  await page.getByRole("button", { name: "ดูตัวอย่าง QR" }).click();
-  await expect(page.getByRole("dialog")).toContainText("ให้ถูกต้องก่อน");
-  await page.getByRole("button", { name: "ปิด" }).click();
-
+  await expect(page.getByTestId("qr-placeholder")).toBeVisible();
+  await page.getByLabel("เบอร์พร้อมเพย์").fill("081234567");
+  await expect(page.getByTestId("qr-placeholder")).toBeVisible();
   await page.getByLabel("เบอร์พร้อมเพย์").fill("0812345678");
-  await page.getByRole("button", { name: "ดูตัวอย่าง QR" }).click();
   await expect(page.getByTestId("qr-preview")).toBeVisible();
+
+  await page.getByLabel("ชื่อบัญชี (ภาษาไทย)").fill("สมชาย ใจดี");
+  await expect(page.getByTestId("qr-recipient")).toHaveText("สมชาย ใจดี");
+  await page.getByRole("switch", { name: "แสดงชื่อบัญชีให้ผู้โดเนทเห็น" }).click();
+  await expect(page.getByTestId("qr-recipient")).toHaveText("pay-qr");
+});
+
+test("เปิดบริจาคไม่เปิดเผยชื่อ → ผู้บริจาคติ๊กแล้วรายการเป็น Anonymous; ปิดแสดงชื่อบัญชี → ขึ้นชื่อสตรีมเมอร์", async ({
+  page,
+  browser,
+}) => {
+  const s = await loginAsStreamer(page, "pay-anon");
+  await page.goto("/dashboard/payment");
+  await page.getByLabel("เบอร์พร้อมเพย์").fill("0812345678");
+  await page.getByLabel("ชื่อบัญชี (ภาษาไทย)").fill("สมชาย ใจดี");
+  await page.getByRole("switch", { name: "เปิดรับโดเนท" }).click();
+  await page.getByRole("switch", { name: "แสดงชื่อบัญชีให้ผู้โดเนทเห็น" }).click();
+  await page.getByRole("switch", { name: "บริจาคโดยไม่เปิดเผยชื่อ" }).click();
+  const unsaved = page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" });
+  await unsaved.getByRole("button", { name: "บันทึก" }).click();
+  await expect(unsaved).toBeHidden();
+
+  const donor = await (await browser.newContext()).newPage();
+  await donor.goto(`/${s.username}`);
+  await donor.getByLabel("ไม่เปิดเผยชื่อ").check();
+  await expect(donor.getByLabel("ชื่อที่แสดง")).toBeDisabled();
+  await donor.getByRole("button", { name: "ไปหน้าจ่ายเงิน" }).click();
+  await expect(donor.getByTestId("donation-qr")).toBeVisible();
+  await expect(donor.getByTestId("pay-recipient")).toHaveText("ผู้รับ: pay-anon");
+
+  const { data } = await adminClient()
+    .from("donations")
+    .select("donor_name")
+    .eq("streamer_id", s.id)
+    .single();
+  expect(data?.donor_name).toBe("Anonymous");
 });

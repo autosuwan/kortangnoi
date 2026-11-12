@@ -33,6 +33,7 @@ erDiagram
     text account_name_en "nullable, ตัวพิมพ์ใหญ่"
     boolean show_account_name "default true"
     int min_amount_satang "default 2000"
+    boolean allow_anonymous "default false"
     timestamptz updated_at
   }
 

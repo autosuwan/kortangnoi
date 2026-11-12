@@ -16,11 +16,7 @@ export default function PaymentPage() {
   return (
     <>
       <PageHeader title="ช่องทางรับเงิน" />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        <h1 className="text-2xl font-medium">ช่องทางรับเงิน</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          เงินโดเนทโอนตรงเข้าพร้อมเพย์ของคุณ ระบบไม่ได้ถือเงินไว้
-        </p>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
         <Suspense fallback={<PaymentFormSkeleton />}>
           <LoadedForm />
         </Suspense>
@@ -34,5 +30,10 @@ async function LoadedForm() {
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
 
-  return <PaymentForm initial={await getPaymentSettings(user.id)} />;
+  return (
+    <PaymentForm
+      initial={await getPaymentSettings(user.id)}
+      streamerName={me.displayName || me.username}
+    />
+  );
 }

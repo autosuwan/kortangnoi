@@ -14,6 +14,8 @@ export type PaymentSettings = {
   accountNameEn: string | null;
   showAccountName: boolean;
   minAmountSatang: number;
+  /** ผู้บริจาคเลือกไม่เปิดเผยชื่อได้ (ขึ้นเป็น "Anonymous") */
+  allowAnonymous: boolean;
 };
 
 export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
@@ -24,6 +26,7 @@ export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   accountNameEn: null,
   showAccountName: true,
   minAmountSatang: 2000,
+  allowAnonymous: false,
 };
 
 export const MIN_AMOUNT_SATANG = { min: 100, max: 1_000_000 } as const;
@@ -37,6 +40,7 @@ const bodySchema = z.object({
   accountNameEn: z.string().max(200).nullable(),
   showAccountName: z.boolean(),
   minAmountSatang: z.number(),
+  allowAnonymous: z.boolean(),
 });
 
 export type PaymentSettingsErrorCode =
@@ -149,6 +153,7 @@ export function validatePaymentSettings(input: unknown): PaymentSettingsResult {
       accountNameEn,
       showAccountName: body.showAccountName,
       minAmountSatang,
+      allowAnonymous: body.allowAnonymous,
     },
   };
 }

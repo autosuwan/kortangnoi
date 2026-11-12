@@ -11,7 +11,7 @@ import type { Database } from "@/lib/supabase/database.types";
 type Row = Database["public"]["Tables"]["payment_settings"]["Row"];
 
 const COLUMNS =
-  "enabled, promptpay_type, promptpay_id, account_name_th, account_name_en, show_account_name, min_amount_satang";
+  "enabled, promptpay_type, promptpay_id, account_name_th, account_name_en, show_account_name, min_amount_satang, allow_anonymous";
 
 function toSettings(
   row: Pick<
@@ -23,6 +23,7 @@ function toSettings(
     | "account_name_en"
     | "show_account_name"
     | "min_amount_satang"
+    | "allow_anonymous"
   >,
 ): PaymentSettings {
   return {
@@ -33,6 +34,7 @@ function toSettings(
     accountNameEn: row.account_name_en,
     showAccountName: row.show_account_name,
     minAmountSatang: row.min_amount_satang,
+    allowAnonymous: row.allow_anonymous,
   };
 }
 
@@ -67,6 +69,7 @@ export async function updatePaymentSettings(
       account_name_en: s.accountNameEn,
       show_account_name: s.showAccountName,
       min_amount_satang: s.minAmountSatang,
+      allow_anonymous: s.allowAnonymous,
     })
     .eq("user_id", userId)
     .select(COLUMNS)

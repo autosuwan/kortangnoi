@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SUPPORT_TEXT_MAX } from "@/lib/alert-settings";
 import {
+  ANONYMOUS_NAME,
   DONOR_NAME_MAX,
   MESSAGE_MAX,
   QUICK_AMOUNTS_BAHT,
@@ -51,6 +52,8 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
   );
 
   const [donorName, setDonorName] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
+  const isAnonymous = streamer.allowAnonymous && anonymous;
   const [amount, setAmount] = useState(
     String(quickAmounts[0] ?? streamer.minAmountSatang / 100),
   );
@@ -67,7 +70,8 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const body = {
-      donorName,
+      donorName: isAnonymous ? "" : donorName,
+      anonymous: isAnonymous,
       amount,
       message,
       alertStyle: canCustomize
@@ -78,7 +82,9 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
           }
         : null,
     };
-    const local = validateDonationInput(body, streamer.minAmountSatang);
+    const local = validateDonationInput(body, streamer.minAmountSatang, {
+      allowAnonymous: streamer.allowAnonymous,
+    });
     if (!local.ok) {
       setError(local.message);
       return;
@@ -122,10 +128,22 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
           id="donorName"
           maxLength={DONOR_NAME_MAX}
           autoComplete="nickname"
-          placeholder="ชื่อที่จะขึ้นบนจอ"
-          value={donorName}
+          placeholder={isAnonymous ? ANONYMOUS_NAME : "ชื่อที่จะขึ้นบนจอ"}
+          disabled={isAnonymous}
+          value={isAnonymous ? "" : donorName}
           onChange={(e) => setDonorName(e.target.value)}
         />
+        {streamer.allowAnonymous && (
+          <label className="mt-1 flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              className="size-4 accent-primary"
+              checked={anonymous}
+              onChange={(e) => setAnonymous(e.target.checked)}
+            />
+            ไม่เปิดเผยชื่อ (ขึ้นเป็น {ANONYMOUS_NAME})
+          </label>
+        )}
       </div>
 
       <div className="grid gap-2">
@@ -233,7 +251,9 @@ export function DonateForm({ streamer }: { streamer: PublicStreamer }) {
           >
             <AlertCard
               imageUrl={gifUrl ?? opts.defaults.imageUrl}
-              donorName={donorName.trim() || "ชื่อของคุณ"}
+              donorName={
+                isAnonymous ? ANONYMOUS_NAME : donorName.trim() || "ชื่อของคุณ"
+              }
               supportText={supportText.trim() || opts.defaults.supportText}
               amountSatang={amountSatang}
               message={message.trim() || null}

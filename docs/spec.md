@@ -128,12 +128,11 @@ stateDiagram-v2
 
 ### หน้าจอ `/dashboard/payment`
 
-การ์ดแบบเดียวกับ reference:
-
-- **ยอดขั้นต่ำ** (บาท, ปุ่ม − / +)
-- **พร้อมเพย์:** สวิตช์เปิด/ปิดรับโดเนท, ประเภท (เบอร์โทร / เลขบัตรประชาชน), เลข PromptPay, ชื่อบัญชีไทย, ชื่อบัญชีอังกฤษ (ไม่บังคับ + คำอธิบายว่าช่วยให้ตรวจสลิปบางธนาคารได้), สวิตช์ "แสดงชื่อบัญชีให้ผู้โดเนทเห็น"
+- แถวหัว: ชื่อหน้า + คำอธิบาย ซ้าย, **สวิตช์เปิด/ปิดรับโดเนท** ขวา
+- การ์ดซ้าย **ข้อมูลพร้อมเพย์**: ยอดขั้นต่ำ (บาท, ปุ่ม − / +), ประเภท (เบอร์โทร / เลขบัตรประชาชน), เลข PromptPay, ชื่อบัญชีไทย, ชื่อบัญชีอังกฤษ (ไม่บังคับ + คำอธิบาย)
+  - **ตั้งค่าขั้นสูง:** สวิตช์ "แสดงชื่อบัญชีให้ผู้โดเนทเห็น", สวิตช์ "บริจาคโดยไม่เปิดเผยชื่อ" (ผู้บริจาคติ๊กแล้วขึ้นเป็น Anonymous)
+- การ์ดขวา **พรีวิว QR พร้อมเพย์** (ติดหน้าจอบนคอม): สร้าง QR สดจากค่าที่กำลังพิมพ์ทันทีที่เลขถูกต้อง (QR ไม่ล็อกยอด — สแกนในแอปธนาคารเห็นชื่อผู้รับ ไม่ต้องโอน) ใต้ QR แสดงชื่อที่ผู้โดเนทจะเห็น: ชื่อบัญชี หรือชื่อสตรีมเมอร์ถ้าปิดแสดงชื่อบัญชี + "ทดลองสแกน QR Code เพื่อตรวจสอบความถูกต้อง"
 - **แถบ "ยังไม่บันทึก"** ติดล่างจอเมื่อมีการแก้ + ปุ่มยกเลิก / บันทึก
-- ปุ่ม "ดูตัวอย่าง QR" สร้าง QR 1 บาทจาก**ค่าที่กรอกอยู่ (ยังไม่ต้องบันทึก)** ฝั่ง client ให้สแกนเช็กกับแอปธนาคารว่าชื่อถูกต้อง (ไม่ต้องโอนจริง)
 - หน้าหลัก dashboard: ถ้ายังไม่เปิดรับโดเนท แสดงลิงก์ไปหน้านี้
 
 ### API
@@ -152,6 +151,7 @@ type PaymentSettings = {
   accountNameEn: string | null;
   showAccountName: boolean;
   minAmountSatang: number;
+  allowAnonymous: boolean; // ผู้บริจาคเลือกไม่เปิดเผยชื่อได้ (ขึ้นเป็น "Anonymous")
 };
 ```
 
@@ -405,13 +405,14 @@ type OverlayAlert = {
 **ขั้น 1 กรอกข้อมูล**
 
 - ชื่อที่แสดง, ยอด (ปุ่มยอดด่วน เช่น 20 / 50 / 100 / 500 + ช่องกรอกเอง), ข้อความ (นับตัวอักษร)
+- ถ้าสตรีมเมอร์เปิด `allowAnonymous`: ช่องติ๊ก "ไม่เปิดเผยชื่อ (ขึ้นเป็น Anonymous)" ปิดช่องชื่อ → ส่ง `anonymous: true` → server ตั้งชื่อเป็น `Anonymous` (ไม่เปิดก็ยังต้องกรอกชื่อ)
 - ส่วน "ปรับแต่ง alert" (แสดงเฉพาะที่สตรีมเมอร์เปิดให้เลือก, ไม่บังคับ): ค้นหา GIF จาก KLIPY, สีชื่อ (วงล้อสี), คำสนับสนุน + พรีวิว alert
 - แสดงยอดขั้นต่ำ
 - ปุ่ม "ไปหน้าจ่ายเงิน"
 
 **ขั้น 2 สแกนจ่าย**
 
-- QR PromptPay + ยอด + ชื่อบัญชี (ถ้าเปิดให้แสดง) + เวลานับถอยหลัง 30 นาที
+- QR PromptPay + ยอด + ชื่อผู้รับ ("ชื่อบัญชี: …" ถ้าเปิดให้แสดง ไม่งั้น "ผู้รับ: {ชื่อที่แสดงของสตรีมเมอร์}") + เวลานับถอยหลัง 30 นาที
 - ปุ่ม "บันทึก QR" (ดาวน์โหลด PNG) สำหรับคนที่ใช้มือถือเครื่องเดียวกันโอน
 - ข้อความ "โอนยอดให้ตรงทุกสตางค์" + ปุ่ม "โอนแล้ว แนบสลิป"
 
@@ -421,11 +422,11 @@ type OverlayAlert = {
 
 ### API
 
-| Method | Path                               | Request                                       | Response                                                                                                                        |
-| ------ | ---------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/public/{username}`           | –                                             | `{ displayName, username, minAmountSatang, enabled, accountName: string \| null, alertOptions }`                                |
-| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message, alertStyle? }` | `{ donationId, accessToken, amountSatang, qrPayload, expiresAt }`                                                               |
-| GET    | `/api/public/donations/{id}?t=`    | –                                             | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage, qrPayload, accountName, streamer: { displayName, username } }` |
+| Method | Path                               | Request                                                   | Response                                                                                                                        |
+| ------ | ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/public/{username}`           | –                                                         | `{ displayName, username, minAmountSatang, enabled, accountName: string \| null, alertOptions }`                                |
+| POST   | `/api/public/{username}/donations` | `{ donorName, amount, message, anonymous?, alertStyle? }` | `{ donationId, accessToken, amountSatang, qrPayload, expiresAt }`                                                               |
+| GET    | `/api/public/donations/{id}?t=`    | –                                                         | `{ status, amountSatang, expiresAt, attemptsLeft, resultMessage, qrPayload, accountName, streamer: { displayName, username } }` |
 
 - `alertStyle?: { mediaUrl?, nameColor?, supportText? }` — server เก็บเฉพาะส่วนที่สตรีมเมอร์เปิดให้เลือก **ณ ตอนสร้าง** ส่วนที่ไม่ได้เปิดหรือไม่ผ่าน validation ทิ้งไป (ใช้ `resolveAlertStyle` ใน `src/lib/alert-settings.ts`); `mediaUrl` ต้องเป็น KLIPY ตามกฎเดียวกับ F3, `supportText` 1–40 ตัว, `nameColor` `#RRGGBB`
 - QR วาดฝั่ง client จาก `qrPayload` (ไลบรารี `qrcode`) ปุ่ม "บันทึก QR" ดาวน์โหลด PNG จาก canvas — API ไม่ส่งรูป

@@ -143,6 +143,34 @@ describe("หน้าโดเนท", () => {
   });
 });
 
+it("บริจาคไม่เปิดเผยชื่อได้เฉพาะเมื่อสตรีมเมอร์เปิด", async () => {
+  const s = await createReadyStreamer("anon");
+  await expect(
+    createDonation(
+      s.username,
+      { donorName: "", amount: "50", anonymous: true },
+      ip(),
+    ),
+  ).rejects.toMatchObject({ code: "DONOR_NAME_INVALID" });
+
+  await adminClient()
+    .from("payment_settings")
+    .update({ allow_anonymous: true })
+    .eq("user_id", s.id);
+  expect((await getPublicStreamer(s.username))?.allowAnonymous).toBe(true);
+  const c = await createDonation(
+    s.username,
+    { donorName: "ชื่อจริงที่ไม่อยากโชว์", amount: "50", anonymous: true },
+    ip(),
+  );
+  const { data } = await adminClient()
+    .from("donations")
+    .select("donor_name")
+    .eq("id", c.donationId)
+    .single();
+  expect(data?.donor_name).toBe("Anonymous");
+});
+
 describe("ผู้บริจาคเปิดรายการ", () => {
   it("token ถูก → เห็นรายการ, token ผิด/id มั่ว → 404", async () => {
     const s = await createReadyStreamer("view");

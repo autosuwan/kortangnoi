@@ -21,6 +21,7 @@ const bodySchema = z.object({
   donorName: z.string().max(200),
   amount: z.string().max(20),
   message: z.string().max(1000).nullable().optional(),
+  anonymous: z.boolean().optional(),
   alertStyle: z
     .object({
       mediaUrl: z.unknown().optional(),
@@ -57,9 +58,12 @@ const formatBaht = (satang: number) =>
   (satang / 100).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 /** ตรวจ body ของการสร้างโดเนท — ใช้ทั้งฟอร์มฝั่ง client และ server (server เป็นตัวตัดสิน) */
+export const ANONYMOUS_NAME = "Anonymous";
+
 export function validateDonationInput(
   input: unknown,
   minAmountSatang: number,
+  { allowAnonymous = false }: { allowAnonymous?: boolean } = {},
 ): DonationInputResult {
   const parsed = bodySchema.safeParse(input);
   if (!parsed.success) {
@@ -67,7 +71,11 @@ export function validateDonationInput(
   }
   const body = parsed.data;
 
-  const donorName = cleanDonorText(body.donorName);
+  // ไม่เปิดเผยชื่อ: ใช้ได้เฉพาะเมื่อสตรีมเมอร์เปิดไว้
+  const donorName =
+    body.anonymous && allowAnonymous
+      ? ANONYMOUS_NAME
+      : cleanDonorText(body.donorName);
   if (donorName.length < 1 || donorName.length > DONOR_NAME_MAX) {
     return {
       ok: false,

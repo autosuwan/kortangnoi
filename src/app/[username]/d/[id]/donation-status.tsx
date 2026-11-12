@@ -432,11 +432,14 @@ function PayStep({
           {formatSatangNumber(view.amountSatang)}
           <span className="ml-1.5 text-lg text-foreground">บาท</span>
         </p>
-        {view.accountName && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            ชื่อบัญชี: {view.accountName}
-          </p>
-        )}
+        <p
+          data-testid="pay-recipient"
+          className="mt-1 text-sm text-muted-foreground"
+        >
+          {view.accountName
+            ? `ชื่อบัญชี: ${view.accountName}`
+            : `ผู้รับ: ${view.streamer.displayName}`}
+        </p>
       </div>
       <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm">
         โอนยอดให้ตรงทุกสตางค์ ภายใน{" "}

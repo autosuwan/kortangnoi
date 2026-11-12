@@ -218,6 +218,7 @@ export type Database = {
         Row: {
           account_name_en: string | null;
           account_name_th: string;
+          allow_anonymous: boolean;
           enabled: boolean;
           min_amount_satang: number;
           promptpay_id: string;
@@ -230,6 +231,7 @@ export type Database = {
         Insert: {
           account_name_en?: string | null;
           account_name_th?: string;
+          allow_anonymous?: boolean;
           enabled?: boolean;
           min_amount_satang?: number;
           promptpay_id?: string;
@@ -241,6 +243,7 @@ export type Database = {
         Update: {
           account_name_en?: string | null;
           account_name_th?: string;
+          allow_anonymous?: boolean;
           enabled?: boolean;
           min_amount_satang?: number;
           promptpay_id?: string;

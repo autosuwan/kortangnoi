@@ -84,9 +84,11 @@ export async function regenerateOverlayToken(
   return { overlayUrl: overlayUrl(token) };
 }
 
-/** ส่ง alert ตัวอย่างไป overlay จริง ใช้ค่าที่บันทึกแล้ว — จำกัด 1 ครั้ง/3 วินาที */
-export async function sendTestAlert(userId: string): Promise<{ ok: true }> {
-  // conditional update เป็นตัวตัดสิน rate limit (serverless ไม่มี memory ร่วม)
+/**
+ * กันกดรัว: ปุ่มทดสอบ alert และแสดง alert ซ้ำ ใช้ได้ 1 ครั้ง/3 วินาที (ร่วมกัน)
+ * conditional update เป็นตัวตัดสิน (serverless ไม่มี memory ร่วม)
+ */
+async function claimAlertCooldown(userId: string) {
   const cutoff = new Date(Date.now() - TEST_COOLDOWN_MS).toISOString();
   const { data, error } = await createAdminClient()
     .from("alert_settings")
@@ -98,6 +100,11 @@ export async function sendTestAlert(userId: string): Promise<{ ok: true }> {
   if (!data?.length) {
     throw new AppError(429, "RATE_LIMITED", "รอสักครู่แล้วลองใหม่");
   }
+}
+
+/** ส่ง alert ตัวอย่างไป overlay จริง ใช้ค่าที่บันทึกแล้ว — จำกัด 1 ครั้ง/3 วินาที */
+export async function sendTestAlert(userId: string): Promise<{ ok: true }> {
+  await claimAlertCooldown(userId);
 
   const [settings, token] = await Promise.all([
     getAlertSettings(userId),
@@ -129,7 +136,10 @@ export async function sendTestAlert(userId: string): Promise<{ ok: true }> {
  * ส่ง alert ของโดเนทที่ผ่านแล้วไป overlay — ใช้ทั้งตรวจสลิปอัตโนมัติ (F10) และกดอนุมัติ (F6)
  * payload มีเฉพาะสิ่งที่ผู้บริจาคกรอก/เลือก ห้ามมีชื่อจริงหรือข้อมูลบัญชีจากสลิป
  */
-export async function sendDonationAlert(donationId: string): Promise<void> {
+export async function sendDonationAlert(
+  donationId: string,
+  { replay = false }: { replay?: boolean } = {},
+): Promise<void> {
   const { data, error } = await createAdminClient()
     .from("donations")
     .select(
@@ -157,7 +167,10 @@ export async function sendDonationAlert(donationId: string): Promise<void> {
     message: data.message,
   };
   const alert: OverlayAlert = {
-    donationId: data.id,
+    // overlay กันซ้ำด้วย donationId — แสดงซ้ำต้องใช้ id ใหม่
+    donationId: replay
+      ? `${data.id}:replay:${randomBytes(4).toString("hex")}`
+      : data.id,
     ...content,
     isTest: false,
     ...style,
@@ -167,4 +180,29 @@ export async function sendDonationAlert(donationId: string): Promise<void> {
     })),
   };
   await broadcastToOverlay(token, OVERLAY_EVENTS.donation, alert);
+}
+
+/** แสดง alert ของโดเนทที่ผ่านแล้วอีกครั้ง (กดจากหน้าประวัติ) */
+export async function replayDonationAlert(
+  userId: string,
+  donationId: string,
+): Promise<{ ok: true }> {
+  const { data, error } = await createAdminClient()
+    .from("donations")
+    .select("status")
+    .eq("id", donationId)
+    .eq("streamer_id", userId)
+    .maybeSingle();
+  if (error && error.code !== "22P02") throw error;
+  if (!data) throw new AppError(404, "NOT_FOUND", "ไม่พบรายการนี้");
+  if (data.status !== "approved") {
+    throw new AppError(
+      409,
+      "INVALID_STATUS",
+      "แสดง alert ได้เฉพาะรายการที่ผ่านแล้ว",
+    );
+  }
+  await claimAlertCooldown(userId);
+  await sendDonationAlert(donationId, { replay: true });
+  return { ok: true };
 }

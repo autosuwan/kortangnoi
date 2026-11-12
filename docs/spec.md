@@ -305,6 +305,7 @@ type OverlayAlert = {
 - รายการ `pending_review` ใหม่ → แจ้งเตือนใน dashboard แบบ realtime (badge + toast)
 - ตัวกรอง: ทั้งหมด (ไม่รวมยังไม่จ่าย) / รอตรวจ / ผ่าน / ไม่ผ่าน / ยังไม่จ่าย (`awaiting_slip` + `expired`); `?open={id}` เปิด drawer ตรงๆ (ลิงก์จากหน้าหลัก)
 - realtime ใช้ `postgres_changes` บน `donations` (เพิ่มเข้า publication `supabase_realtime`, RLS ให้เห็นแถวตัวเอง)
+- **แสดง alert ซ้ำ:** รายการ `approved` มีปุ่ม "แสดง alert อีกครั้ง" ใน drawer → ส่ง alert เดิม (หน้าตา + เสียงอ่าน) ไป overlay ด้วย `donationId` ใหม่ `<id>:replay:<สุ่ม>` (overlay กันซ้ำด้วย id) จำกัด 1 ครั้ง/3 วินาที ร่วมกับปุ่มทดสอบ (`last_test_at`); สถานะอื่น → 409
 - อนุมัติ → `approved_via = manual` + ผู้บริจาคเห็น "สตรีมเมอร์อนุมัติแล้ว ขอบคุณ!"; ปฏิเสธ → ผู้บริจาคเห็น "สตรีมเมอร์ไม่อนุมัติ: <เหตุผล>"
 
 ### API
@@ -316,6 +317,7 @@ type OverlayAlert = {
 | GET    | `/api/donations/{id}`          | –             | `DonationDetail` (รวม `slipUrl` อายุ 10 นาที)  |
 | POST   | `/api/donations/{id}/approve`  | –             | `DonationDetail`                             |
 | POST   | `/api/donations/{id}/reject`   | `{ reason? }` | `DonationDetail`                             |
+| POST   | `/api/donations/{id}/replay`   | –             | `{ ok: true }`                               |
 
 ### Validation
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, Loader2 } from "lucide-react";
+import { CircleAlert, Loader2, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -203,6 +203,8 @@ export function DonationDrawer({
                 </a>
               )}
 
+              {detail.status === "approved" && <ReplayButton id={detail.id} />}
+
               {detail.reviewNote && (
                 <p className="text-muted-foreground">
                   เหตุผลที่ปฏิเสธ: {detail.reviewNote}
@@ -271,5 +273,44 @@ export function DonationDrawer({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** แสดง alert ของรายการที่ผ่านแล้วบน OBS อีกครั้ง */
+function ReplayButton({ id }: { id: string }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function replay() {
+    setState("sending");
+    setMessage(null);
+    const res = await fetch(`/api/donations/${id}/replay`, { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      setMessage(body?.error?.message ?? "ส่งไม่สำเร็จ");
+      setState("idle");
+      return;
+    }
+    setState("sent");
+    setTimeout(() => setState("idle"), 3000);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="outline" onClick={replay} disabled={state === "sending"}>
+        {state === "sending" ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <RotateCcw />
+        )}
+        แสดง alert อีกครั้ง
+      </Button>
+      <span
+        role="status"
+        className={message ? "text-destructive" : "text-muted-foreground"}
+      >
+        {message ?? (state === "sent" ? "ส่งไป OBS แล้ว" : "")}
+      </span>
+    </div>
   );
 }

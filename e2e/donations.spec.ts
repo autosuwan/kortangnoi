@@ -100,6 +100,17 @@ test("หน้าหลักแสดงยอด/รอตรวจ → ป�
   // ชื่อจริงจากสลิปไม่ขึ้นจอไลฟ์
   await expect(overlay.getByText("ผู้โอน")).toHaveCount(0);
   await expect(page.getByTestId("pending-badge")).toHaveCount(0);
+
+  // แสดง alert ซ้ำ (รอให้ alert แรกหายก่อน)
+  await expect(overlay.getByTestId("alert-headline")).toBeHidden({
+    timeout: 15000,
+  });
+  await drawer.getByRole("button", { name: "แสดง alert อีกครั้ง" }).click();
+  await expect(drawer.getByText("ส่งไป OBS แล้ว")).toBeVisible();
+  await expect(overlay.getByTestId("alert-headline")).toHaveText(
+    "รอตรวจนะ โดเนท 50 บาท",
+    { timeout: 5000 },
+  );
 });
 
 test("ปฏิเสธพร้อมเหตุผล → ผู้บริจาคเห็นเหตุผล", async ({ page, request }) => {
@@ -141,8 +152,11 @@ test("โดเนทรอตรวจเข้ามาระหว่าง�
   request,
 }) => {
   const s = await loginStreamer(page, "realtime");
-  await page.waitForLoadState("networkidle");
-  await page.waitForTimeout(1500); // รอ subscribe
+  await expect(page.getByTestId("realtime-status")).toHaveAttribute(
+    "data-status",
+    "SUBSCRIBED",
+    { timeout: 10000 },
+  );
   await donateViaApi(request, s.username, "มาใหม่", 50, 4000);
   await expect(page.getByText("มีโดเนทรอตรวจ")).toBeVisible({ timeout: 8000 });
   await expect(page.getByTestId("pending-badge")).toContainText("1");

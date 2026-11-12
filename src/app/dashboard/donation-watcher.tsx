@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -29,6 +29,7 @@ async function publishPendingCount() {
  */
 export function DonationWatcher({ userId }: { userId: string }) {
   const router = useRouter();
+  const [status, setStatus] = useState("connecting");
 
   useEffect(() => {
     publishPendingCount();
@@ -73,7 +74,7 @@ export function DonationWatcher({ userId }: { userId: string }) {
             router.refresh();
           },
         )
-        .subscribe();
+        .subscribe((s) => setStatus(s));
     })();
 
     return () => {
@@ -82,5 +83,6 @@ export function DonationWatcher({ userId }: { userId: string }) {
     };
   }, [userId, router]);
 
-  return null;
+  // ให้ e2e รู้ว่า subscribe เสร็จแล้ว (ไม่แสดงผล)
+  return <span hidden data-testid="realtime-status" data-status={status} />;
 }

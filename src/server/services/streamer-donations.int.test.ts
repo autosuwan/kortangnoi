@@ -5,6 +5,7 @@ import { fakeSlipPayload, goodSlip, slipFile } from "../../../test/slip";
 import { createReadyStreamer } from "../../../test/streamer";
 import { adminClient } from "../../../test/supabase";
 import { overlayChannelName } from "../realtime/overlay";
+import { replayDonationAlert } from "./overlay";
 
 import { createDonation } from "./donation";
 import { verifySlip } from "./slip";
@@ -181,5 +182,45 @@ describe("อนุมัติ/ปฏิเสธ (F6)", () => {
       status: 404,
     });
     expect((await getDonationDetail(s.id, id)).status).toBe("pending_review");
+  });
+});
+
+describe("แสดง alert ซ้ำ", () => {
+  it("รายการที่ผ่านแล้ว → overlay ได้ alert ใหม่ (id ไม่ซ้ำ); กดรัว → 429; ยังไม่ผ่าน → 409; คนอื่น → 404", async () => {
+    const s = await createReadyStreamer("replay");
+    const other = await createReadyStreamer("replay-other");
+    const approved = await approvedDonation(s.username, "100");
+    const pending = await pendingDonation(s.username);
+    const { data } = await adminClient()
+      .from("profiles")
+      .select("overlay_token")
+      .eq("id", s.id)
+      .single();
+    const overlay = await subscribeAsOverlay(
+      overlayChannelName(data!.overlay_token),
+      ["donation"],
+    );
+    closers.push(overlay.close);
+
+    await replayDonationAlert(s.id, approved);
+    await expect.poll(() => overlay.received.length, { timeout: 5000 }).toBe(1);
+    const alert = overlay.received[0].payload as {
+      donationId: string;
+      donorName: string;
+    };
+    expect(alert.donationId).toMatch(
+      new RegExp(`^${approved}:replay:[0-9a-f]{8}$`),
+    );
+    expect(alert.donorName).toBe("ผู้ชม");
+
+    await expect(replayDonationAlert(s.id, approved)).rejects.toMatchObject({
+      status: 429,
+    });
+    await expect(replayDonationAlert(s.id, pending)).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(replayDonationAlert(other.id, approved)).rejects.toMatchObject(
+      { status: 404 },
+    );
   });
 });

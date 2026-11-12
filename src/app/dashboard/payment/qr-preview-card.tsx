@@ -5,6 +5,7 @@ import Image from "next/image";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 
+import { SectionCard } from "@/components/dashboard/section-card";
 import {
   buildPromptpayPayload,
   isValidPromptpayId,
@@ -47,9 +48,14 @@ export function QrPreviewCard({
   }, [valid, promptpayType, id, key]);
 
   return (
-    <section className="flex flex-col items-center rounded-2xl border bg-card p-6 text-center lg:sticky lg:top-20">
-      <h2 className="font-medium">พรีวิว QR พร้อมเพย์</h2>
-      <div className="mt-3 flex items-center gap-2">
+    <SectionCard
+      icon={QrCode}
+      title="พรีวิว QR พร้อมเพย์"
+      description="อัปเดตทันทีที่พิมพ์"
+      className="lg:sticky lg:top-20"
+      bodyClassName="flex flex-col items-center text-center"
+    >
+      <div className="flex items-center gap-2">
         <Image
           src="/brands/thai-qr.png"
           alt="Thai QR Payment"
@@ -102,6 +108,6 @@ export function QrPreviewCard({
       <p className="mt-3 text-xs text-muted-foreground">
         ทดลองสแกน QR Code ด้วยแอปธนาคารเพื่อตรวจสอบว่าชื่อผู้รับถูกต้อง (ไม่ต้องกดโอน)
       </p>
-    </section>
+    </SectionCard>
   );
 }

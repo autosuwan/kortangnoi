@@ -1,6 +1,8 @@
-import { ArrowRight, Hourglass } from "lucide-react";
+import { ArrowRight, Hourglass, Inbox, ReceiptText } from "lucide-react";
 import Link from "next/link";
 
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { SectionCard } from "@/components/dashboard/section-card";
 import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { formatSatangNumber } from "@/lib/money";
 import { requireUser } from "@/server/auth";
@@ -15,7 +17,10 @@ import { StatusBadge } from "./donations/status-badge";
 function Money({ satang, testId }: { satang: number; testId: string }) {
   const [baht, st] = formatSatangNumber(satang).split(".");
   return (
-    <p data-testid={testId} className="mt-1 font-mono text-3xl font-semibold">
+    <p
+      data-testid={testId}
+      className="mt-1 font-mono text-2xl font-semibold sm:text-3xl"
+    >
       {baht}
       <span className="text-muted-foreground">.{st ?? "00"}</span>
       <span className="ml-1.5 font-sans text-sm font-normal text-muted-foreground">
@@ -24,6 +29,8 @@ function Money({ satang, testId }: { satang: number; testId: string }) {
     </p>
   );
 }
+
+const statCard = "rounded-2xl border bg-card p-4 sm:p-5";
 
 /** หน้าหลัก dashboard (F5): ยอดวันนี้/เดือนนี้, รอตรวจ, โดเนทล่าสุด */
 export async function DashboardSummary() {
@@ -34,60 +41,65 @@ export async function DashboardSummary() {
   ]);
 
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <section className="rounded-2xl border bg-card p-5">
+    <>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+        <section className={statCard}>
           <h2 className="text-sm text-muted-foreground">ยอดวันนี้</h2>
           <Money satang={summary.todaySatang} testId="today-total" />
         </section>
-        <section className="rounded-2xl border bg-card p-5">
+        <section className={statCard}>
           <h2 className="text-sm text-muted-foreground">ยอดเดือนนี้</h2>
           <Money satang={summary.monthSatang} testId="month-total" />
         </section>
         <Link
           href="/dashboard/donations?status=pending_review"
-          className="group rounded-2xl border bg-card p-5 transition-colors hover:border-primary/50"
+          className={`${statCard} group col-span-2 flex items-center justify-between transition-colors hover:border-primary/50 lg:col-span-1 lg:block`}
         >
-          <h2 className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Hourglass className="size-3.5" aria-hidden />
-            รอตรวจ
-          </h2>
-          <p className="mt-1 flex items-baseline justify-between">
+          <span>
+            <h2 className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Hourglass className="size-3.5" aria-hidden />
+              รอตรวจ
+            </h2>
             <span
               data-testid="pending-count"
-              className="font-mono text-3xl font-semibold"
+              className="mt-1 block font-mono text-2xl font-semibold sm:text-3xl"
             >
               {summary.pendingCount}
             </span>
-            <ArrowRight
-              className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-              aria-hidden
-            />
-          </p>
+          </span>
+          <ArrowRight
+            className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 lg:float-right lg:-mt-6"
+            aria-hidden
+          />
         </Link>
       </div>
 
-      <section className="rounded-2xl border bg-card">
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <h2 className="font-medium">โดเนทล่าสุด</h2>
+      <SectionCard
+        icon={ReceiptText}
+        title="โดเนทล่าสุด"
+        action={
           <Link
             href="/dashboard/donations"
             className="text-sm text-muted-foreground hover:text-foreground"
           >
             ดูทั้งหมด
           </Link>
-        </div>
+        }
+        bodyClassName="px-0 pb-2"
+      >
         {latest.items.length === 0 ? (
-          <p className="px-5 pb-5 text-sm text-muted-foreground">
-            ยังไม่มีโดเนท — แชร์ลิงก์โดเนทด้านล่างให้ผู้ชมได้เลย
-          </p>
+          <EmptyState
+            icon={Inbox}
+            title="ยังไม่มีโดเนท"
+            description="แชร์ลิงก์โดเนทด้านล่างให้ผู้ชมได้เลย"
+          />
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y border-t">
             {latest.items.slice(0, 5).map((d) => (
               <li key={d.id}>
                 <Link
                   href={`/dashboard/donations?open=${d.id}`}
-                  className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-muted/50"
+                  className="flex items-center justify-between gap-3 px-6 py-3 text-sm hover:bg-muted/50"
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
@@ -98,21 +110,18 @@ export async function DashboardSummary() {
                       {d.message ? ` · ${d.message}` : ""}
                     </span>
                   </span>
-                  <span className="flex shrink-0 items-center gap-3">
+                  <span className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
                     <span className="font-mono">
                       {formatSatangNumber(d.amountSatang)}
                     </span>
-                    <StatusBadge
-                      status={d.status}
-                      className="hidden text-xs sm:inline-flex"
-                    />
+                    <StatusBadge status={d.status} className="text-xs" />
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
         )}
-      </section>
-    </div>
+      </SectionCard>
+    </>
   );
 }

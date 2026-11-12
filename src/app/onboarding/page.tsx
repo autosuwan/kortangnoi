@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { Logo } from "@/components/logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicEnv } from "@/lib/env";
 import { requireUser } from "@/server/auth";
@@ -15,7 +16,10 @@ export default function OnboardingPage() {
   return (
     <main className="app-bg flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-md rounded-2xl border bg-card p-8">
-        <p className="font-mono text-xs text-muted-foreground">เริ่มต้นใช้งาน</p>
+        <Logo className="h-10" />
+        <p className="mt-8 font-mono text-xs text-muted-foreground">
+          เริ่มต้นใช้งาน
+        </p>
         <h1 className="mt-2 text-2xl font-medium">ตั้งชื่อลิงก์โดเนทของคุณ</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           ผู้ชมจะเข้าหน้าโดเนทผ่านลิงก์นี้ เปลี่ยนทีหลังได้

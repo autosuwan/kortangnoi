@@ -4,6 +4,7 @@ import { Check, Copy, Loader2, MonitorPlay, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { SectionCard } from "@/components/dashboard/section-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,32 +56,27 @@ export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
   }
 
   return (
-    <section className="rounded-2xl border bg-card p-6">
-      <h2 className="flex items-center gap-2 font-medium">
-        <MonitorPlay className="size-4 text-muted-foreground" aria-hidden />
-        ลิงก์ OBS
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        ใส่ใน OBS เพื่อให้ alert ขึ้นจอไลฟ์ — ห้ามเปิดลิงก์นี้ให้ผู้ชมเห็น
+    <SectionCard
+      id="obs"
+      icon={MonitorPlay}
+      title="ลิงก์ OBS"
+      description="ใส่ใน OBS เพื่อให้ alert ขึ้นจอไลฟ์ — ห้ามเปิดลิงก์นี้ให้ผู้ชมเห็น"
+    >
+      <p
+        data-testid="overlay-url"
+        className="truncate rounded-lg border bg-background px-3 py-2 font-mono text-sm"
+      >
+        {maskOverlayUrl(url)}
       </p>
-
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <p
-          data-testid="overlay-url"
-          className="min-w-0 flex-1 truncate rounded-lg border bg-background px-3 py-2 font-mono text-sm"
-        >
-          {maskOverlayUrl(url)}
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={copy}>
-            {copied ? <Check /> : <Copy />}
-            {copied ? "คัดลอกแล้ว" : "คัดลอก"}
-          </Button>
-          <Button variant="ghost" onClick={() => setConfirmOpen(true)}>
-            <RefreshCw />
-            สร้างลิงก์ใหม่
-          </Button>
-        </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button variant="outline" onClick={copy}>
+          {copied ? <Check /> : <Copy />}
+          {copied ? "คัดลอกแล้ว" : "คัดลอก"}
+        </Button>
+        <Button variant="ghost" onClick={() => setConfirmOpen(true)}>
+          <RefreshCw />
+          สร้างลิงก์ใหม่
+        </Button>
       </div>
       {error && (
         <p role="alert" className="mt-2 text-sm text-destructive">
@@ -88,7 +84,7 @@ export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
         </p>
       )}
 
-      <ol className="mt-5 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+      <ol className="mt-4 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
         <li>ใน OBS กด + ที่ Sources แล้วเลือก Browser</li>
         <li>วางลิงก์ในช่อง URL ตั้งความกว้าง 800 สูง 600</li>
         <li>
@@ -127,6 +123,6 @@ export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </SectionCard>
   );
 }

@@ -18,7 +18,7 @@ export function UnsavedBar({
     <div
       role="region"
       aria-label="การแก้ไขที่ยังไม่บันทึก"
-      className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-[calc(100%-2rem)] max-w-xl items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3"
+      className="fixed inset-x-0 bottom-20 z-40 mx-auto flex w-[calc(100%-2rem)] max-w-xl items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 md:bottom-4"
     >
       <span className="text-sm">ยังไม่บันทึก</span>
       <div className="flex gap-2">

@@ -12,7 +12,7 @@ import {
 import { getCurrentUser, isAdmin } from "@/server/auth";
 
 import { DonationWatcher } from "./donation-watcher";
-import { SidebarNav } from "./sidebar-nav";
+import { MobileNav, SidebarNav } from "./sidebar-nav";
 
 /** โครง dashboard แบบ Studio: sidebar ไอคอนแคบ + พื้นที่เนื้อหา */
 export default function DashboardLayout({
@@ -21,7 +21,7 @@ export default function DashboardLayout({
   return (
     // เต็มจอพอดี: sidebar อยู่กับที่ เลื่อนเฉพาะพื้นที่เนื้อหา (header ติดบนในนั้น)
     <div className="flex h-dvh min-h-0 shrink-0 overflow-hidden">
-      <aside className="flex h-full w-14 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-3">
+      <aside className="hidden h-full w-14 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-3 md:flex">
         <Link
           href="/dashboard"
           aria-label="KORTANGNOI"
@@ -51,14 +51,17 @@ export default function DashboardLayout({
       </aside>
       <div
         data-testid="dashboard-scroll"
-        className="app-bg flex min-w-0 flex-1 flex-col overflow-y-auto"
+        className="app-bg flex min-w-0 flex-1 flex-col overflow-y-auto pb-16 md:pb-0"
       >
         {children}
       </div>
+      <Suspense fallback={<MobileNav />}>
+        <MobileNavWithRole />
+      </Suspense>
       <Suspense fallback={null}>
         <Watcher />
       </Suspense>
-      <Toaster position="bottom-right" richColors closeButton />
+      <Toaster position="top-center" richColors closeButton />
     </div>
   );
 }
@@ -71,4 +74,9 @@ async function Watcher() {
 async function NavWithRole() {
   const user = await getCurrentUser();
   return <SidebarNav isAdmin={user ? isAdmin(user.id) : false} />;
+}
+
+async function MobileNavWithRole() {
+  const user = await getCurrentUser();
+  return <MobileNav isAdmin={user ? isAdmin(user.id) : false} />;
 }

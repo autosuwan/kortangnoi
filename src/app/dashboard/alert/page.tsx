@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { PageTitle } from "@/components/dashboard/page-title";
 import { requireUser } from "@/server/auth";
 import { getAlertSettings } from "@/server/services/alert";
 import { getMe } from "@/server/services/profile";
@@ -18,11 +19,11 @@ export default function AlertPage() {
       {/* ปุ่มฟังเสียงอ่าน (Google แปลภาษา) ไม่ส่ง referrer ของเว็บเรา */}
       <meta name="referrer" content="no-referrer" />
       <PageHeader title="ตั้งค่า alert" />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <h1 className="text-2xl font-medium">ตั้งค่า alert</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          หน้าตา alert ที่เด้งบนจอไลฟ์เมื่อมีคนโดเนท
-        </p>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:px-6">
+        <PageTitle
+          title="ตั้งค่า alert"
+          description="หน้าตา alert ที่เด้งบนจอไลฟ์เมื่อมีคนโดเนท"
+        />
         <Suspense fallback={<AlertFormSkeleton />}>
           <LoadedForm />
         </Suspense>

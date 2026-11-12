@@ -63,7 +63,9 @@ test("หน้าหลักแสดงยอด/รอตรวจ → ป�
   await page.reload();
   await expect(page.getByTestId("today-total")).toHaveText(/^100\.00/);
   await expect(page.getByTestId("pending-count")).toHaveText("1");
-  await expect(page.getByTestId("pending-badge")).toContainText("1");
+  await expect(
+    page.getByTestId("pending-badge").filter({ visible: true }),
+  ).toContainText("1");
 
   const { data } = await adminClient()
     .from("profiles")
@@ -159,5 +161,7 @@ test("โดเนทรอตรวจเข้ามาระหว่าง�
   );
   await donateViaApi(request, s.username, "มาใหม่", 50, 4000);
   await expect(page.getByText("มีโดเนทรอตรวจ")).toBeVisible({ timeout: 8000 });
-  await expect(page.getByTestId("pending-badge")).toContainText("1");
+  await expect(
+    page.getByTestId("pending-badge").filter({ visible: true }),
+  ).toContainText("1");
 });

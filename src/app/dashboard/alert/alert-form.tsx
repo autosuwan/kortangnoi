@@ -1,18 +1,31 @@
 "use client";
 
 import {
+  BellRing,
+  Eye,
+  ImageIcon,
   ImageUp,
   Loader2,
+  MessageSquareText,
   Play,
   RotateCcw,
   Search,
   Send,
+  Timer,
+  Type,
+  UsersRound,
   Volume2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { AlertCard } from "@/components/alert-card";
 import { ColorWheel } from "@/components/color-wheel";
+import { SectionCard } from "@/components/dashboard/section-card";
+import {
+  SegmentedControl,
+  type SegmentOption,
+} from "@/components/dashboard/segmented-control";
+import { SettingRow } from "@/components/dashboard/setting-row";
 import { GifPicker } from "@/components/gif-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +68,11 @@ type Editable = Pick<
   | "ttsVoice"
   | "ttsVolume"
 >;
+
+const MEDIA_TABS: SegmentOption<"upload" | "gif">[] = [
+  { value: "upload", label: "อัปโหลด", icon: ImageUp },
+  { value: "gif", label: "ค้นหา GIF", icon: Search },
+];
 
 const DONOR_PICKS = [
   {
@@ -213,41 +231,18 @@ export function AlertForm({
   return (
     <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 pb-24 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
       <div className="flex flex-col gap-4">
-        <section className="rounded-2xl border bg-card p-6">
-          <h2 className="font-medium">รูป / GIF</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            แสดงด้านบนของ alert · PNG, JPG, GIF หรือ WebP ไม่เกิน 4 MB
-          </p>
-
-          <div
-            role="tablist"
-            aria-label="แหล่งรูป"
-            className="mt-4 inline-flex rounded-lg border p-0.5 text-sm"
-          >
-            {(
-              [
-                ["upload", "อัปโหลด", ImageUp],
-                ["gif", "ค้นหา GIF", Search],
-              ] as const
-            ).map(([value, label, Icon]) => (
-              <button
-                key={value}
-                type="button"
-                role="tab"
-                aria-selected={tab === value}
-                onClick={() => setTab(value)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors",
-                  tab === value
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="size-3.5" aria-hidden />
-                {label}
-              </button>
-            ))}
-          </div>
+        <SectionCard
+          icon={ImageIcon}
+          title="รูป / GIF"
+          description="แสดงด้านบนของ alert · PNG, JPG, GIF หรือ WebP ไม่เกิน 4 MB"
+        >
+          <SegmentedControl
+            role="tab"
+            label="แหล่งรูป"
+            options={MEDIA_TABS}
+            value={tab}
+            onChange={setTab}
+          />
 
           {tab === "gif" && (
             <div className="mt-4">
@@ -303,14 +298,16 @@ export function AlertForm({
               </Button>
             )}
           </div>
-        </section>
+        </SectionCard>
 
-        <section className="rounded-2xl border bg-card p-6">
-          <h2 className="font-medium">ข้อความ</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            แสดงเป็น &ldquo;ชื่อผู้บริจาค คำสนับสนุน จำนวนเงิน บาท&rdquo;
-          </p>
-          <div className="mt-4 grid gap-1.5">
+        <SectionCard
+          icon={Type}
+          title="ข้อความ"
+          description={
+            <>แสดงเป็น &ldquo;ชื่อผู้บริจาค คำสนับสนุน จำนวนเงิน บาท&rdquo;</>
+          }
+        >
+          <div className="grid gap-1.5">
             <div className="flex items-baseline justify-between">
               <Label htmlFor="supportText">คำสนับสนุน</Label>
               <span className="font-mono text-xs text-muted-foreground">
@@ -333,41 +330,38 @@ export function AlertForm({
               onChange={(hex) => set("nameColor", hex)}
             />
           </div>
-        </section>
-        <section className="rounded-2xl border bg-card p-6">
-          <h2 className="font-medium">ให้ผู้บริจาคเลือกเอง</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            เปิดแล้วผู้บริจาคปรับส่วนนี้ได้ในหน้าโดเนท ถ้าไม่เลือกจะใช้ค่าที่คุณตั้งไว้
-          </p>
-          <ul className="mt-4 divide-y">
-            {DONOR_PICKS.map(({ key, label, hint }) => (
-              <li
-                key={key}
-                className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
-              >
-                <div>
-                  <p className="text-sm font-medium">{label}</p>
-                  <p className="text-xs text-muted-foreground">{hint}</p>
-                </div>
-                <Switch
-                  aria-label={`ให้ผู้บริจาคเลือก${label}`}
-                  checked={draft[key]}
-                  onCheckedChange={(checked) => set(key, checked)}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+        </SectionCard>
 
-        <section className="rounded-2xl border bg-card p-6">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-medium">ระยะเวลาแสดง</h2>
+        <SectionCard
+          icon={UsersRound}
+          title="ให้ผู้บริจาคเลือกเอง"
+          description="เปิดแล้วผู้บริจาคปรับส่วนนี้ได้ในหน้าโดเนท ถ้าไม่เลือกจะใช้ค่าที่คุณตั้งไว้"
+        >
+          <div className="divide-y">
+            {DONOR_PICKS.map(({ key, label, hint }) => (
+              <SettingRow
+                key={key}
+                id={`donorPick-${key}`}
+                label={label}
+                hint={hint}
+                ariaLabel={`ให้ผู้บริจาคเลือก${label}`}
+                checked={draft[key]}
+                onChange={(checked) => set(key, checked)}
+              />
+            ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          icon={Timer}
+          title="ระยะเวลาแสดง"
+          action={
             <span className="font-mono text-sm" data-testid="duration-value">
               {draft.durationSec} วินาที
             </span>
-          </div>
+          }
+        >
           <Slider
-            className="mt-5"
             thumbLabel="ระยะเวลาแสดง (วินาที)"
             min={DURATION_RANGE.min}
             max={DURATION_RANGE.max}
@@ -375,25 +369,23 @@ export function AlertForm({
             value={[draft.durationSec]}
             onValueChange={(v) => set("durationSec", sliderValue(v))}
           />
-        </section>
+        </SectionCard>
 
-        <section className="rounded-2xl border bg-card p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="font-medium">เสียง</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                เล่นเสียงสั้นๆ ตอน alert เด้ง
-              </p>
-            </div>
+        <SectionCard
+          icon={BellRing}
+          title="เสียง"
+          description="เล่นเสียงสั้นๆ ตอน alert เด้ง"
+          action={
             <Switch
               aria-label="เปิดเสียง"
               checked={draft.soundEnabled}
               onCheckedChange={(checked) => set("soundEnabled", checked)}
             />
-          </div>
+          }
+        >
           <div
             className={cn(
-              "mt-5 flex items-center gap-4",
+              "flex items-center gap-4",
               !draft.soundEnabled && "opacity-50",
             )}
           >
@@ -423,7 +415,7 @@ export function AlertForm({
               ฟัง
             </Button>
           </div>
-        </section>
+        </SectionCard>
 
         <TtsCard draft={draft} set={set} onError={setError} />
 
@@ -491,9 +483,11 @@ function AlertPreview({
   }
 
   return (
-    <section className="min-w-0 rounded-2xl border bg-card p-4 lg:sticky lg:top-20">
-      <div className="flex items-center justify-between px-2 pb-3">
-        <h2 className="font-medium">พรีวิว</h2>
+    <SectionCard
+      icon={Eye}
+      title="พรีวิว"
+      className="min-w-0 lg:sticky lg:top-20"
+      action={
         <Button
           variant="outline"
           size="sm"
@@ -503,7 +497,8 @@ function AlertPreview({
           <Play />
           เล่นพรีวิว
         </Button>
-      </div>
+      }
+    >
       {/* พื้นลายตารางแทนพื้นโปร่งใสของ OBS */}
       <div
         className="flex min-h-[420px] items-center justify-center overflow-hidden rounded-xl border p-4"
@@ -530,7 +525,7 @@ function AlertPreview({
         )}
       </div>
       <TestAlertButton />
-    </section>
+    </SectionCard>
   );
 }
 
@@ -646,46 +641,26 @@ function TtsCard({
   }
 
   return (
-    <section className="rounded-2xl border bg-card p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-medium">เสียงอ่านข้อความ</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            อ่านข้อความของผู้บริจาคออกเสียงบนไลฟ์ หลังเสียงแจ้งเตือน
-          </p>
-        </div>
+    <SectionCard
+      icon={MessageSquareText}
+      title="เสียงอ่านข้อความ"
+      description="อ่านข้อความของผู้บริจาคออกเสียงบนไลฟ์ หลังเสียงแจ้งเตือน"
+      action={
         <Switch
           aria-label="เปิดเสียงอ่านข้อความ"
           checked={draft.ttsEnabled}
           onCheckedChange={(checked) => set("ttsEnabled", checked)}
         />
-      </div>
-
-      <div className={cn("mt-5 grid gap-5", off && "opacity-50")}>
-        <div
-          role="radiogroup"
-          aria-label="อ่านอะไร"
-          className="grid w-full grid-cols-2 rounded-lg border p-0.5 text-sm sm:inline-flex sm:w-fit"
-        >
-          {TTS_MODES.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              role="radio"
-              aria-checked={draft.ttsMode === m.value}
-              disabled={off}
-              onClick={() => set("ttsMode", m.value)}
-              className={cn(
-                "rounded-md px-3 py-1.5 transition-colors",
-                draft.ttsMode === m.value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
+      }
+    >
+      <div className={cn("grid gap-5", off && "opacity-50")}>
+        <SegmentedControl
+          label="อ่านอะไร"
+          fullWidth
+          options={TTS_MODES.map((m) => ({ ...m, disabled: off }))}
+          value={draft.ttsMode}
+          onChange={(v) => set("ttsMode", v)}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
@@ -757,6 +732,6 @@ function TtsCard({
           </Button>
         </div>
       </div>
-    </section>
+    </SectionCard>
   );
 }

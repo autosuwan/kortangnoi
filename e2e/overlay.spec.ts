@@ -82,7 +82,7 @@ test("ลิงก์ OBS: คัดลอกได้ ซ่อน token แล
   );
   await overlay.waitForTimeout(1500);
 
-  await page.getByRole("button", { name: "คัดลอก" }).click();
+  await page.getByRole("button", { name: "คัดลอก", exact: true }).click();
   await expect(page.getByRole("button", { name: "คัดลอกแล้ว" })).toBeVisible();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toBe(`http://localhost:3100${oldPath}`);

@@ -27,96 +27,169 @@ import { cn } from "@/lib/utils";
 type NavItem = {
   href: string;
   label: string;
+  /** ชื่อสั้นสำหรับแถบเมนูล่างจอบนมือถือ */
+  shortLabel: string;
   icon: LucideIcon;
-  soon?: boolean;
   /** แสดงจำนวนรายการรอตรวจ (realtime จาก DonationWatcher) */
   badge?: boolean;
 };
 
-// เมนูที่ยังไม่ทำแสดงไว้แบบ "เร็วๆ นี้" — เปิดใช้ตอนทำ feature นั้น
-const items: NavItem[] = [
-  { href: "/dashboard", label: "หน้าหลัก", icon: House },
+const ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "หน้าหลัก", shortLabel: "หน้าหลัก", icon: House },
   {
     href: "/dashboard/donations",
     label: "ประวัติโดเนท",
+    shortLabel: "ประวัติ",
     icon: ReceiptText,
     badge: true,
   },
   {
     href: "/dashboard/payment",
     label: "ช่องทางรับเงิน",
+    shortLabel: "รับเงิน",
     icon: Wallet,
   },
-  { href: "/dashboard/alert", label: "ตั้งค่า alert", icon: Bell },
-  { href: "/dashboard/profile", label: "โปรไฟล์", icon: UserRound },
+  {
+    href: "/dashboard/alert",
+    label: "ตั้งค่า alert",
+    shortLabel: "Alert",
+    icon: Bell,
+  },
+  {
+    href: "/dashboard/profile",
+    label: "โปรไฟล์",
+    shortLabel: "โปรไฟล์",
+    icon: UserRound,
+  },
 ];
 
 const ADMIN_ITEM: NavItem = {
   href: "/dashboard/admin",
   label: "แอดมิน",
+  shortLabel: "แอดมิน",
   icon: ShieldCheck,
 };
 
-const itemClass =
-  "relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors";
+function useNavItems(isAdmin: boolean) {
+  return isAdmin ? [...ITEMS, ADMIN_ITEM] : ITEMS;
+}
 
-export function SidebarNav({ isAdmin = false }: { isAdmin?: boolean }) {
-  const pathname = usePathname();
+/** จำนวนรอตรวจ (DonationWatcher ประกาศผ่าน window event) */
+function usePendingCount() {
   const [pending, setPending] = useState(0);
-
   useEffect(() => {
     const onCount = (e: Event) =>
       setPending((e as CustomEvent<PendingCountDetail>).detail.count);
     window.addEventListener(PENDING_COUNT_EVENT, onCount);
     return () => window.removeEventListener(PENDING_COUNT_EVENT, onCount);
   }, []);
+  return pending;
+}
+
+function PendingBadge({
+  count,
+  className,
+}: {
+  count: number;
+  className?: string;
+}) {
+  if (count <= 0) return null;
+  return (
+    <span
+      data-testid="pending-badge"
+      className={cn(
+        "absolute flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] leading-none text-primary-foreground",
+        className,
+      )}
+    >
+      {count > 99 ? "99+" : count}
+      <span className="sr-only"> รายการรอตรวจ</span>
+    </span>
+  );
+}
+
+const isActive = (pathname: string, href: string) =>
+  href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+
+/** คอม: แถบไอคอนแคบด้านซ้าย + tooltip */
+export function SidebarNav({ isAdmin = false }: { isAdmin?: boolean }) {
+  const pathname = usePathname();
+  const pending = usePendingCount();
+  const items = useNavItems(isAdmin);
 
   return (
     <nav aria-label="เมนูหลัก" className="flex flex-col gap-1">
-      {[...items, ...(isAdmin ? [ADMIN_ITEM] : [])].map(
-        ({ href, label, icon: Icon, soon, badge }) => {
-          const active = pathname === href;
+      {items.map(({ href, label, icon: Icon, badge }) => {
+        const active = isActive(pathname, href);
+        return (
+          <Tooltip key={href}>
+            <TooltipTrigger
+              render={
+                <Link
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
+                    active &&
+                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+                  )}
+                />
+              }
+            >
+              <Icon className="size-4" aria-hidden />
+              <span className="sr-only">{label}</span>
+              {badge && (
+                <PendingBadge count={pending} className="-top-0.5 -right-0.5" />
+              )}
+            </TooltipTrigger>
+            <TooltipContent side="right">{label}</TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** มือถือ: แถบเมนูล่างจอแบบแอป (ไอคอน + ชื่อ) */
+export function MobileNav({ isAdmin = false }: { isAdmin?: boolean }) {
+  const pathname = usePathname();
+  const pending = usePendingCount();
+  const items = useNavItems(isAdmin);
+
+  return (
+    <nav
+      aria-label="เมนูหลัก"
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+    >
+      <ul className="flex">
+        {items.map(({ href, label, shortLabel, icon: Icon, badge }) => {
+          const active = isActive(pathname, href);
           return (
-            <Tooltip key={href}>
-              <TooltipTrigger
-                render={
-                  soon ? (
-                    <span
-                      aria-disabled
-                      className={cn(itemClass, "cursor-not-allowed opacity-40")}
-                    />
-                  ) : (
-                    <Link
-                      href={href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        itemClass,
-                        "hover:bg-sidebar-accent hover:text-foreground",
-                        active && "bg-sidebar-accent text-foreground",
-                      )}
-                    />
-                  )
-                }
-              >
-                <Icon className="size-4" aria-hidden />
-                <span className="sr-only">{label}</span>
-                {badge && pending > 0 && (
-                  <span
-                    data-testid="pending-badge"
-                    className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] leading-none text-primary-foreground"
-                  >
-                    {pending > 99 ? "99+" : pending}
-                    <span className="sr-only"> รายการรอตรวจ</span>
-                  </span>
+            <li key={href} className="flex-1">
+              <Link
+                href={href}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "relative flex flex-col items-center gap-0.5 py-2 text-[11px] text-muted-foreground",
+                  active && "text-primary",
                 )}
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {soon ? `${label} · เร็วๆ นี้` : label}
-              </TooltipContent>
-            </Tooltip>
+              >
+                <span className="relative">
+                  <Icon className="size-5" aria-hidden />
+                  {badge && (
+                    <PendingBadge
+                      count={pending}
+                      className="-top-1.5 -right-2.5"
+                    />
+                  )}
+                </span>
+                <span aria-hidden>{shortLabel}</span>
+              </Link>
+            </li>
           );
-        },
-      )}
+        })}
+      </ul>
     </nav>
   );
 }

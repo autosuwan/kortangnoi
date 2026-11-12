@@ -1,9 +1,13 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { PageTitle } from "@/components/dashboard/page-title";
+import { SectionCard } from "@/components/dashboard/section-card";
+import { SegmentedControl } from "@/components/dashboard/segmented-control";
+import { SettingRow } from "@/components/dashboard/setting-row";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,38 +35,6 @@ const TYPE_OPTIONS: { value: PromptpayType; label: string }[] = [
   { value: "phone", label: "เบอร์โทร" },
   { value: "national_id", label: "เลขบัตรประชาชน" },
 ];
-
-/** สวิตช์ + คำอธิบาย ในส่วนตั้งค่าขั้นสูง */
-function SettingRow({
-  id,
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  hint: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-3">
-      <div>
-        <Label htmlFor={id} className="font-normal">
-          {label}
-        </Label>
-        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
-      </div>
-      <Switch
-        id={id}
-        aria-label={label}
-        checked={checked}
-        onCheckedChange={onChange}
-      />
-    </div>
-  );
-}
 
 export function PaymentForm({
   initial,
@@ -130,46 +102,42 @@ export function PaymentForm({
 
   return (
     <div className="pb-24">
-      {/* แถวหัว: ชื่อหน้า + สวิตช์เปิดรับโดเนท */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-medium">ช่องทางรับเงิน</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            เงินโดเนทโอนตรงเข้าพร้อมเพย์ของคุณ ระบบไม่ได้ถือเงินไว้
-          </p>
-        </div>
-        <label
-          htmlFor="enabled"
-          className={cn(
-            "flex w-fit cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-2.5",
-            draft.enabled && "border-primary/40 bg-primary/5",
-          )}
-        >
-          <span className="text-sm">
-            <span className="block font-medium">
-              {draft.enabled ? "เปิดรับโดเนทอยู่" : "ปิดรับโดเนท"}
+      <PageTitle
+        title="ช่องทางรับเงิน"
+        description="เงินโดเนทโอนตรงเข้าพร้อมเพย์ของคุณ ระบบไม่ได้ถือเงินไว้"
+        actions={
+          <label
+            htmlFor="enabled"
+            className={cn(
+              "flex w-fit cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-2.5",
+              draft.enabled && "border-primary/40 bg-primary/5",
+            )}
+          >
+            <span className="text-sm">
+              <span className="block font-medium">
+                {draft.enabled ? "เปิดรับโดเนทอยู่" : "ปิดรับโดเนท"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {draft.enabled ? "ผู้ชมโอนผ่านลิงก์ได้" : "หน้าโดเนทจะขึ้นว่าปิดรับ"}
+              </span>
             </span>
-            <span className="text-xs text-muted-foreground">
-              {draft.enabled ? "ผู้ชมโอนผ่านลิงก์ได้" : "หน้าโดเนทจะขึ้นว่าปิดรับ"}
-            </span>
-          </span>
-          <Switch
-            id="enabled"
-            aria-label="เปิดรับโดเนท"
-            checked={draft.enabled}
-            onCheckedChange={(checked) => set("enabled", checked)}
-          />
-        </label>
-      </div>
+            <Switch
+              id="enabled"
+              aria-label="เปิดรับโดเนท"
+              checked={draft.enabled}
+              onCheckedChange={(checked) => set("enabled", checked)}
+            />
+          </label>
+        }
+      />
 
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <section className="rounded-2xl border bg-card p-6">
-          <h2 className="font-medium">ข้อมูลพร้อมเพย์</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            บัญชีที่รับเงินโดเนท ระบบใช้ข้อมูลนี้สร้าง QR และตรวจว่าสลิปโอนเข้าบัญชีคุณจริง
-          </p>
-
-          <div className="mt-6 grid gap-5">
+        <SectionCard
+          icon={Wallet}
+          title="ข้อมูลพร้อมเพย์"
+          description="บัญชีที่รับเงินโดเนท ระบบใช้สร้าง QR และตรวจว่าสลิปโอนเข้าบัญชีคุณจริง"
+        >
+          <div className="grid gap-5">
             <div className="grid gap-2">
               <span className="text-sm font-medium">ยอดขั้นต่ำ</span>
               <div className="flex items-center gap-2">
@@ -213,32 +181,13 @@ export function PaymentForm({
             </div>
 
             <div className="grid gap-2">
-              <span className="text-sm font-medium" id="promptpayType-label">
-                ประเภท
-              </span>
-              <div
-                role="radiogroup"
-                aria-labelledby="promptpayType-label"
-                className="inline-flex w-fit rounded-lg border p-0.5"
-              >
-                {TYPE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={draft.promptpayType === option.value}
-                    onClick={() => set("promptpayType", option.value)}
-                    className={cn(
-                      "rounded-md px-3 py-1.5 text-sm transition-colors",
-                      draft.promptpayType === option.value
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <span className="text-sm font-medium">ประเภท</span>
+              <SegmentedControl
+                label="ประเภท"
+                options={TYPE_OPTIONS}
+                value={draft.promptpayType}
+                onChange={(v) => set("promptpayType", v)}
+              />
             </div>
 
             <div className="grid gap-1.5">
@@ -299,7 +248,7 @@ export function PaymentForm({
 
             <div className="border-t pt-4">
               <h3 className="font-medium">ตั้งค่าขั้นสูง</h3>
-              <div className="mt-1 divide-y">
+              <div className="mt-3 divide-y">
                 <SettingRow
                   id="showAccountName"
                   label="แสดงชื่อบัญชีให้ผู้โดเนทเห็น"
@@ -323,7 +272,7 @@ export function PaymentForm({
               <FieldMessage message={error.message} />
             </div>
           )}
-        </section>
+        </SectionCard>
 
         <QrPreviewCard
           promptpayType={draft.promptpayType}

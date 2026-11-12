@@ -4,12 +4,13 @@ import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { SegmentedControl } from "@/components/dashboard/segmented-control";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { DONATIONS_CHANGED_EVENT } from "@/lib/dashboard-events";
 import { formatSatangNumber } from "@/lib/money";
-import { cn } from "@/lib/utils";
 import type { DonationRow } from "@/server/services/streamer-donations";
 
 import { DonationDrawer } from "./donation-drawer";
@@ -76,29 +77,13 @@ export function DonationsView() {
 
   return (
     <div className="mt-6 flex flex-col gap-4">
-      <div
-        role="tablist"
-        aria-label="กรองสถานะ"
-        className="flex w-full gap-1 overflow-x-auto rounded-lg border bg-card p-0.5 text-sm sm:w-fit"
-      >
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            role="tab"
-            aria-selected={status === f.value}
-            onClick={() => setQuery({ status: f.value, page: null })}
-            className={cn(
-              "shrink-0 rounded-md px-3 py-1.5 transition-colors",
-              status === f.value
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        role="tab"
+        label="กรองสถานะ"
+        options={[...FILTERS]}
+        value={status as (typeof FILTERS)[number]["value"]}
+        onChange={(v) => setQuery({ status: v, page: null })}
+      />
 
       <section className="overflow-hidden rounded-2xl border bg-card">
         {error ? (
@@ -116,10 +101,11 @@ export function DonationsView() {
             ))}
           </div>
         ) : list.items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-6 py-16 text-center text-muted-foreground">
-            <Inbox className="size-8" aria-hidden />
-            <p>ยังไม่มีรายการ</p>
-          </div>
+          <EmptyState
+            icon={Inbox}
+            title="ยังไม่มีรายการ"
+            description="โดเนทที่ตรงกับตัวกรองนี้จะแสดงที่นี่"
+          />
         ) : (
           <>
             {/* desktop: ตาราง */}

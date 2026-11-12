@@ -27,6 +27,7 @@ test("loading bar สีส้มขอบบน: ค้างเต็มตล
   });
   await page
     .getByRole("navigation", { name: "เมนูหลัก" })
+    .filter({ visible: true })
     .getByRole("link", { name: "ช่องทางรับเงิน" })
     .click();
   await expect(page).toHaveURL(/\/dashboard\/payment$/);
@@ -60,7 +61,9 @@ test("dashboard: เมนูซ้ายและแถบหัวอยู่
   await page.goto("/dashboard/alert");
   await page.waitForLoadState("networkidle");
   const header = page.getByTestId("page-header");
-  const nav = page.getByRole("navigation", { name: "เมนูหลัก" });
+  const nav = page
+    .getByRole("navigation", { name: "เมนูหลัก" })
+    .filter({ visible: true });
   const before = {
     header: (await header.boundingBox())!,
     nav: (await nav.boundingBox())!,

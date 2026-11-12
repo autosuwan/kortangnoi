@@ -2,9 +2,14 @@
 
 import {
   Check,
+  CircleUserRound,
+  Eye,
+  IdCard,
   ImageUp,
+  Link2,
   Loader2,
   Lock,
+  GalleryHorizontal,
   Trash2,
   TriangleAlert,
   X,
@@ -12,6 +17,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { SectionCard } from "@/components/dashboard/section-card";
 import { ProfileCard } from "@/components/profile-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,12 +99,12 @@ export function ProfileForm({
           onError={setError}
         />
 
-        <section className="rounded-2xl border bg-card p-6">
-          <h2 className="font-medium">ชื่อและแนะนำตัว</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            แสดงบนหน้าโดเนทให้ผู้ชมเห็น
-          </p>
-          <div className="mt-4 grid gap-1.5">
+        <SectionCard
+          icon={IdCard}
+          title="ชื่อและแนะนำตัว"
+          description="แสดงบนหน้าโดเนทให้ผู้ชมเห็น"
+        >
+          <div className="grid gap-1.5">
             <div className="flex items-baseline justify-between">
               <Label htmlFor="displayName">ชื่อที่แสดง</Label>
               <span className="font-mono text-xs text-muted-foreground">
@@ -129,21 +135,18 @@ export function ProfileForm({
               onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))}
             />
           </div>
-        </section>
+        </SectionCard>
 
         <UsernameCard current={profile.username ?? ""} siteUrl={siteUrl} />
 
-        <section className="rounded-2xl border bg-card p-6">
-          <h2 className="flex items-center gap-1.5 font-medium">
-            <Lock className="size-4 text-muted-foreground" aria-hidden />
-            ชื่อจริง
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            ได้มาจากบัญชี Google/Discord ที่ใช้ล็อกอิน — ไม่แสดงบนหน้าโดเนท
-          </p>
+        <SectionCard
+          icon={Lock}
+          title="ชื่อจริง"
+          description="ได้มาจากบัญชี Google/Discord ที่ใช้ล็อกอิน — ไม่แสดงบนหน้าโดเนท"
+        >
           <p
             data-testid="real-name"
-            className="mt-3 rounded-lg border bg-muted/50 px-3 py-2 text-sm"
+            className="rounded-lg border bg-muted/50 px-3 py-2 text-sm"
           >
             {profile.realName || "–"}
           </p>
@@ -156,7 +159,7 @@ export function ProfileForm({
               {profile.id}
             </code>
           </p>
-        </section>
+        </SectionCard>
 
         {error && (
           <p role="alert" className="text-sm text-destructive">
@@ -166,7 +169,10 @@ export function ProfileForm({
       </div>
 
       <div className="lg:sticky lg:top-20">
-        <p className="mb-2 text-sm text-muted-foreground">พรีวิวบนหน้าโดเนท</p>
+        <p className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Eye className="size-4" aria-hidden />
+          พรีวิวบนหน้าโดเนท
+        </p>
         <ProfileCard
           showFeatures={false}
           profile={{
@@ -233,9 +239,11 @@ function ImageCard({
   }
 
   return (
-    <section className="rounded-2xl border bg-card p-6">
-      <h2 className="font-medium">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
+    <SectionCard
+      icon={kind === "avatar" ? CircleUserRound : GalleryHorizontal}
+      title={title}
+      description={hint}
+    >
       <input
         ref={input}
         type="file"
@@ -252,7 +260,7 @@ function ImageCard({
           send("POST", file);
         }}
       />
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           disabled={busy !== null}
@@ -280,7 +288,7 @@ function ImageCard({
           </Button>
         )}
       </div>
-    </section>
+    </SectionCard>
   );
 }
 
@@ -350,9 +358,12 @@ function UsernameCard({
   }
 
   return (
-    <section className="rounded-2xl border bg-card p-6">
-      <h2 className="font-medium">ลิงก์โดเนท</h2>
-      <div className="mt-4 grid gap-1.5">
+    <SectionCard
+      icon={Link2}
+      title="ลิงก์โดเนท"
+      description="เปลี่ยนชื่อในลิงก์ที่แชร์ให้ผู้ชม"
+    >
+      <div className="grid gap-1.5">
         <Label htmlFor="username">ชื่อในลิงก์</Label>
         <div className="flex items-center rounded-lg border bg-background pl-3 text-sm focus-within:ring-3 focus-within:ring-ring/50">
           <span className="shrink-0 text-muted-foreground">{host}/</span>
@@ -419,6 +430,6 @@ function UsernameCard({
           {message.text}
         </p>
       )}
-    </section>
+    </SectionCard>
   );
 }

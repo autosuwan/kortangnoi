@@ -52,6 +52,7 @@ test("แอดมินเห็นโควตา SlipOK สถิติ แ�
   await page.waitForURL(/\/dashboard$/);
   await page
     .getByRole("navigation", { name: "เมนูหลัก" })
+    .filter({ visible: true })
     .getByRole("link", { name: "แอดมิน" })
     .click();
   await expect(page.getByTestId("quota-remaining")).toHaveText("87");

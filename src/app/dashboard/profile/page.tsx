@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { PageTitle } from "@/components/dashboard/page-title";
 import { publicEnv } from "@/lib/env";
 import { requireUser } from "@/server/auth";
 import { getProfileSettings } from "@/server/services/profile";
@@ -16,11 +17,11 @@ export default function ProfilePage() {
   return (
     <>
       <PageHeader title="โปรไฟล์" />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <h1 className="text-2xl font-medium">โปรไฟล์</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          รูป แบนเนอร์ และชื่อที่ผู้ชมเห็นบนหน้าโดเนท
-        </p>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:px-6">
+        <PageTitle
+          title="โปรไฟล์"
+          description="รูป แบนเนอร์ และชื่อที่ผู้ชมเห็นบนหน้าโดเนท"
+        />
         <Suspense fallback={<AlertFormSkeleton />}>
           <LoadedProfile />
         </Suspense>

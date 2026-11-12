@@ -1,8 +1,17 @@
-import { CircleAlert, ScanLine, TriangleAlert } from "lucide-react";
+import {
+  ChartColumn,
+  CircleAlert,
+  CircleCheck,
+  ScanLine,
+  TriangleAlert,
+} from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { PageTitle } from "@/components/dashboard/page-title";
+import { SectionCard } from "@/components/dashboard/section-card";
 import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { FREE_MONTHLY_QUOTA, quotaLevel } from "@/lib/slipok-quota";
 import { cn } from "@/lib/utils";
@@ -22,7 +31,7 @@ export default function AdminPage() {
   return (
     <>
       <PageHeader title="แอดมิน" />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:px-6">
         <Suspense fallback={<SummarySkeleton />}>
           <AdminContent />
         </Suspense>
@@ -48,20 +57,24 @@ async function AdminContent() {
 
   return (
     <div className="grid gap-4">
-      <h1 className="text-2xl font-medium">แอดมิน</h1>
+      <PageTitle
+        title="แอดมิน"
+        description="สถานะระบบ ตรวจสลิป และ error ล่าสุด"
+        className="mb-2"
+      />
 
-      <section className="rounded-2xl border bg-card p-6">
-        <h2 className="flex items-center gap-1.5 font-medium">
-          <ScanLine className="size-4 text-muted-foreground" aria-hidden />
-          โควตา SlipOK
-        </h2>
+      <SectionCard
+        icon={ScanLine}
+        title="โควตา SlipOK"
+        description="รีเฟรชทุก 60 วินาที"
+      >
         {!quota ? (
-          <p role="alert" className="mt-3 text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive">
             ดึงข้อมูลโควตาไม่ได้ — เช็ก SLIPOK_API_KEY / SLIPOK_BRANCH_ID
           </p>
         ) : (
           <>
-            <div className="mt-3 flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2">
               <span
                 data-testid="quota-remaining"
                 className="font-mono text-4xl font-semibold"
@@ -117,11 +130,14 @@ async function AdminContent() {
             </dl>
           </>
         )}
-      </section>
+      </SectionCard>
 
-      <section className="rounded-2xl border bg-card p-6">
-        <h2 className="font-medium">สลิปที่ตรวจเดือนนี้ (ทุกสตรีมเมอร์)</h2>
-        <div className="mt-4 grid grid-cols-3 gap-3">
+      <SectionCard
+        icon={ChartColumn}
+        title="สลิปที่ตรวจเดือนนี้"
+        description="ทุกสตรีมเมอร์ นับเฉพาะรายการที่แนบสลิปแล้ว"
+      >
+        <div className="grid grid-cols-3 gap-3">
           {[
             [
               "ผ่าน",
@@ -159,15 +175,15 @@ async function AdminContent() {
             </div>
           ))}
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="rounded-2xl border bg-card">
-        <h2 className="flex items-center gap-1.5 px-6 pt-5 pb-3 font-medium">
-          <CircleAlert className="size-4 text-muted-foreground" aria-hidden />
-          error ล่าสุด
-        </h2>
+      <SectionCard
+        icon={CircleAlert}
+        title="error ล่าสุด"
+        bodyClassName="px-0 pb-0"
+      >
         {stats.recentErrors.length === 0 ? (
-          <p className="px-6 pb-6 text-sm text-muted-foreground">ยังไม่มี error</p>
+          <EmptyState icon={CircleCheck} title="ยังไม่มี error" />
         ) : (
           <ul data-testid="recent-errors" className="divide-y border-t text-sm">
             {stats.recentErrors.map((e) => (
@@ -186,7 +202,7 @@ async function AdminContent() {
             ))}
           </ul>
         )}
-      </section>
+      </SectionCard>
     </div>
   );
 }

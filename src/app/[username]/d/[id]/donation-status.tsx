@@ -11,6 +11,7 @@ import {
   Send,
   TimerOff,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
@@ -66,7 +67,7 @@ export function DonationStatus({ id }: { id: string }) {
 
   if (error) {
     return (
-      <DonateShell streamerName="" step={2}>
+      <DonateShell streamer={null} step={2}>
         <p role="alert" className="py-6 text-center text-muted-foreground">
           {error}
         </p>
@@ -75,7 +76,7 @@ export function DonationStatus({ id }: { id: string }) {
   }
   if (!view) {
     return (
-      <DonateShell streamerName="" step={2}>
+      <DonateShell streamer={null} step={2}>
         <div
           className="flex justify-center py-16"
           role="status"
@@ -97,7 +98,7 @@ export function DonationStatus({ id }: { id: string }) {
         : 3;
 
   return (
-    <DonateShell streamerName={view.streamer.displayName} step={step}>
+    <DonateShell streamer={view.streamer} step={step}>
       {(view.status === "awaiting_slip" || view.status === "expired") &&
       attachingNow ? (
         <SlipStep
@@ -393,8 +394,27 @@ function PayStep({
 
   return (
     <div className="flex flex-col items-center gap-4 text-center">
+      <div
+        className="flex items-center gap-3"
+        aria-label="ชำระด้วยพร้อมเพย์ / Thai QR Payment"
+      >
+        <Image
+          src="/brands/thai-qr.png"
+          alt="Thai QR Payment"
+          width={243}
+          height={96}
+          className="h-8 w-auto"
+        />
+        <Image
+          src="/brands/promptpay.png"
+          alt="พร้อมเพย์"
+          width={286}
+          height={96}
+          className="h-8 w-auto"
+        />
+      </div>
       <p className="text-sm text-muted-foreground">
-        สแกนด้วยแอปธนาคาร ยอดถูกล็อกไว้แล้ว
+        สแกนด้วยแอปธนาคารไหนก็ได้ ยอดถูกล็อกไว้แล้ว
       </p>
       {qrSrc ? (
         // eslint-disable-next-line @next/next/no-img-element -- data URL ที่สร้างฝั่ง client

@@ -18,10 +18,15 @@ describe("สร้างผู้ใช้ใหม่", () => {
 
     const { data: profile } = await admin
       .from("profiles")
-      .select("username, display_name, overlay_token")
+      .select("username, display_name, real_name, overlay_token")
       .eq("id", user.id)
       .single();
-    expect(profile).toMatchObject({ username: null, display_name: "newbie" });
+    // ชื่อจาก auth เป็นชื่อจริง (ส่วนตัว) — ชื่อที่แสดงตั้งตอนเลือก username
+    expect(profile).toMatchObject({
+      username: null,
+      display_name: "",
+      real_name: "newbie",
+    });
     expect(profile?.overlay_token).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
     for (const table of [

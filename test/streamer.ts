@@ -8,7 +8,10 @@ export async function createReadyStreamer(
   const user = await createTestUser(name);
   const username = uniqueUsername("s");
   const admin = adminClient();
-  await admin.from("profiles").update({ username }).eq("id", user.id);
+  await admin
+    .from("profiles")
+    .update({ username, display_name: name })
+    .eq("id", user.id);
   const { error } = await admin
     .from("payment_settings")
     .update({

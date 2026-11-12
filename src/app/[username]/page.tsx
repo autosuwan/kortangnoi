@@ -28,7 +28,7 @@ async function LoadedDonatePage({
   if (!streamer) notFound();
 
   return (
-    <DonateShell streamerName={streamer.displayName} step={1}>
+    <DonateShell streamer={streamer} step={1}>
       {streamer.enabled ? (
         <DonateForm streamer={streamer} />
       ) : (

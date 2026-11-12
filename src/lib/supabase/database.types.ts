@@ -261,30 +261,48 @@ export type Database = {
       };
       profiles: {
         Row: {
+          avatar_path: string | null;
+          avatar_url: string | null;
+          banner_path: string | null;
+          banner_url: string | null;
+          bio: string | null;
           created_at: string;
           discord_id: string | null;
           display_name: string;
           id: string;
           overlay_token: string;
+          real_name: string;
           updated_at: string;
           username: string | null;
         };
         ComputedFields: never;
         Insert: {
+          avatar_path?: string | null;
+          avatar_url?: string | null;
+          banner_path?: string | null;
+          banner_url?: string | null;
+          bio?: string | null;
           created_at?: string;
           discord_id?: string | null;
           display_name?: string;
           id: string;
           overlay_token?: string;
+          real_name?: string;
           updated_at?: string;
           username?: string | null;
         };
         Update: {
+          avatar_path?: string | null;
+          avatar_url?: string | null;
+          banner_path?: string | null;
+          banner_url?: string | null;
+          bio?: string | null;
           created_at?: string;
           discord_id?: string | null;
           display_name?: string;
           id?: string;
           overlay_token?: string;
+          real_name?: string;
           updated_at?: string;
           username?: string | null;
         };

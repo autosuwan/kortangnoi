@@ -20,7 +20,7 @@ export async function loginAsStreamer(page: Page, name = "streamer") {
   const username = uniqueUsername("st");
   const { error } = await adminClient()
     .from("profiles")
-    .update({ username })
+    .update({ username, display_name: name })
     .eq("id", user.id);
   if (error) throw error;
 

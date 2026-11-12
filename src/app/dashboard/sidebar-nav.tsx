@@ -4,6 +4,7 @@ import {
   Bell,
   House,
   ReceiptText,
+  UserRound,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const items: NavItem[] = [
     icon: Wallet,
   },
   { href: "/dashboard/alert", label: "ตั้งค่า alert", icon: Bell },
+  { href: "/dashboard/profile", label: "โปรไฟล์", icon: UserRound },
 ];
 
 const itemClass =

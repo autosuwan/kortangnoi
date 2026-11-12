@@ -31,6 +31,9 @@ const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 export type PublicStreamer = {
   displayName: string;
   username: string;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  bio: string | null;
   enabled: boolean;
   minAmountSatang: number;
   accountName: string | null;
@@ -55,7 +58,7 @@ function hashIp(ip: string): string {
 async function findStreamer(username: string) {
   const { data, error } = await createAdminClient()
     .from("profiles")
-    .select("id, username, display_name")
+    .select("id, username, display_name, avatar_url, banner_url, bio")
     .eq("username", username.toLowerCase())
     .maybeSingle();
   if (error) throw error;
@@ -64,6 +67,9 @@ async function findStreamer(username: string) {
     id: data.id,
     username: data.username,
     displayName: data.display_name,
+    avatarUrl: data.avatar_url,
+    bannerUrl: data.banner_url,
+    bio: data.bio,
   };
 }
 
@@ -80,6 +86,9 @@ export async function getPublicStreamer(
   return {
     displayName: streamer.displayName || streamer.username,
     username: streamer.username,
+    avatarUrl: streamer.avatarUrl,
+    bannerUrl: streamer.bannerUrl,
+    bio: streamer.bio,
     enabled: payment.enabled,
     minAmountSatang: payment.minAmountSatang,
     accountName: payment.showAccountName ? payment.accountNameTh : null,
@@ -192,7 +201,13 @@ export type DonorDonationView = {
   resultMessage: string | null;
   qrPayload: string;
   accountName: string | null;
-  streamer: { displayName: string; username: string };
+  streamer: {
+    displayName: string;
+    username: string;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
+    bio: string | null;
+  };
 };
 
 function tokenMatches(token: string, hash: string): boolean {
@@ -212,7 +227,7 @@ export async function getDonationForDonor(
   const { data, error } = await admin
     .from("donations")
     .select(
-      "id, status, amount_satang, expires_at, updated_at, slip_attempts, result_message, qr_payload, receiver_snapshot, access_token_hash, profiles!inner(username, display_name)",
+      "id, status, amount_satang, expires_at, updated_at, slip_attempts, result_message, qr_payload, receiver_snapshot, access_token_hash, profiles!inner(username, display_name, avatar_url, banner_url, bio)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -261,6 +276,9 @@ export async function getDonationForDonor(
     streamer: {
       displayName: profile.display_name || profile.username || "",
       username: profile.username ?? "",
+      avatarUrl: profile.avatar_url,
+      bannerUrl: profile.banner_url,
+      bio: profile.bio,
     },
   };
 }

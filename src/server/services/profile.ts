@@ -1,7 +1,11 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { AppError } from "@/lib/api-error";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { detectImageType } from "@/lib/image-type";
+import { validateProfileUpdate, type ProfileImageKind } from "@/lib/profile";
 import { checkUsername } from "@/lib/username";
 import { isAdmin } from "@/server/auth";
 
@@ -57,11 +61,12 @@ export async function setUsername(
   const check = checkUsername(input);
   if (!check.ok) throw new AppError(400, "USERNAME_INVALID", check.message);
 
-  const { data, error } = await createAdminClient()
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("profiles")
     .update({ username: check.username })
     .eq("id", userId)
-    .select("username")
+    .select("username, display_name")
     .single();
 
   // unique index ใน DB เป็นตัวตัดสินกรณีจองพร้อมกัน
@@ -71,5 +76,164 @@ export async function setUsername(
   if (error || !data?.username)
     throw error ?? new Error("update username failed");
 
+  // ตั้ง username ครั้งแรก: ชื่อที่แสดงบนหน้าโดเนทเริ่มต้นเป็น username (แก้ทีหลังได้)
+  if (!data.display_name) {
+    await admin
+      .from("profiles")
+      .update({ display_name: data.username })
+      .eq("id", userId);
+  }
+
   return { username: data.username };
+}
+
+// ---------------------------------------------------------------------------
+// ตั้งค่าโปรไฟล์ (ชื่อที่แสดง, แนะนำตัว, รูปโปรไฟล์, แบนเนอร์)
+// ---------------------------------------------------------------------------
+
+const MEDIA_BUCKET = "profile-media";
+const PROFILE_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
+const PROFILE_COLUMNS =
+  "username, display_name, real_name, bio, avatar_url, avatar_path, banner_url, banner_path";
+
+export type ProfileSettings = {
+  username: string | null;
+  displayName: string;
+  /** ชื่อจาก Google/Discord — ส่วนตัว ไม่แสดงต่อผู้ชม */
+  realName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+};
+
+type ProfileRow = {
+  username: string | null;
+  display_name: string;
+  real_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  avatar_path: string | null;
+  banner_url: string | null;
+  banner_path: string | null;
+};
+
+const toProfileSettings = (r: ProfileRow): ProfileSettings => ({
+  username: r.username,
+  displayName: r.display_name || r.username || "",
+  realName: r.real_name,
+  bio: r.bio,
+  avatarUrl: r.avatar_url,
+  bannerUrl: r.banner_url,
+});
+
+async function profileRow(userId: string): Promise<ProfileRow> {
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("id", userId)
+    .single();
+  if (error || !data)
+    throw new AppError(404, "PROFILE_NOT_FOUND", "ไม่พบบัญชีผู้ใช้");
+  return data;
+}
+
+export async function getProfileSettings(
+  userId: string,
+): Promise<ProfileSettings> {
+  return toProfileSettings(await profileRow(userId));
+}
+
+export async function updateProfile(
+  userId: string,
+  input: unknown,
+): Promise<ProfileSettings> {
+  const result = validateProfileUpdate(input);
+  if (!result.ok) throw new AppError(400, result.code, result.message);
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .update({ display_name: result.value.displayName, bio: result.value.bio })
+    .eq("id", userId)
+    .select(PROFILE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toProfileSettings(data);
+}
+
+async function removeMediaFile(path: string | null) {
+  if (!path) return;
+  const { error } = await createAdminClient()
+    .storage.from(MEDIA_BUCKET)
+    .remove([path]);
+  if (error) console.error("remove profile media failed", path, error);
+}
+
+/** อัปโหลดรูปโปรไฟล์/แบนเนอร์ (บันทึกทันที แล้วลบไฟล์เก่า) */
+export async function uploadProfileImage(
+  userId: string,
+  kind: ProfileImageKind,
+  file: File,
+): Promise<ProfileSettings> {
+  if (file.size === 0 || file.size > PROFILE_MEDIA_MAX_BYTES) {
+    throw new AppError(400, "MEDIA_INVALID", "ไฟล์ต้องไม่เกิน 4 MB");
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const type = detectImageType(bytes);
+  if (!type) {
+    throw new AppError(
+      400,
+      "MEDIA_INVALID",
+      "รองรับเฉพาะรูป PNG, JPG, GIF หรือ WebP",
+    );
+  }
+
+  const before = await profileRow(userId);
+  const admin = createAdminClient();
+  const path = `${userId}/${kind}-${randomUUID()}.${type.ext}`;
+  const upload = await admin.storage
+    .from(MEDIA_BUCKET)
+    .upload(path, bytes, { contentType: type.mime, cacheControl: "31536000" });
+  if (upload.error) throw upload.error;
+  const url = admin.storage.from(MEDIA_BUCKET).getPublicUrl(path)
+    .data.publicUrl;
+
+  const { data, error } = await admin
+    .from("profiles")
+    .update(
+      kind === "avatar"
+        ? { avatar_url: url, avatar_path: path }
+        : { banner_url: url, banner_path: path },
+    )
+    .eq("id", userId)
+    .select(PROFILE_COLUMNS)
+    .single();
+  if (error) {
+    await removeMediaFile(path);
+    throw error;
+  }
+  await removeMediaFile(
+    kind === "avatar" ? before.avatar_path : before.banner_path,
+  );
+  return toProfileSettings(data);
+}
+
+export async function removeProfileImage(
+  userId: string,
+  kind: ProfileImageKind,
+): Promise<ProfileSettings> {
+  const before = await profileRow(userId);
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .update(
+      kind === "avatar"
+        ? { avatar_url: null, avatar_path: null }
+        : { banner_url: null, banner_path: null },
+    )
+    .eq("id", userId)
+    .select(PROFILE_COLUMNS)
+    .single();
+  if (error) throw error;
+  await removeMediaFile(
+    kind === "avatar" ? before.avatar_path : before.banner_path,
+  );
+  return toProfileSettings(data);
 }

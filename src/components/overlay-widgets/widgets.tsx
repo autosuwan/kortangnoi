@@ -15,6 +15,8 @@ import {
   SPEED_SECONDS,
   TEXT_SCALE,
   TOP_PERIOD_LABELS,
+  AVATAR_HOP,
+  type AvatarData,
   type GoalData,
   type QrData,
   type RecentData,
@@ -415,6 +417,102 @@ export function TimerWidget({
   );
 }
 
+/**
+ * Avatar พูดได้: เงียบ = รูป idle มืดลง, พูด = รูป speak + เด้งตอนเริ่มพูด
+ * วางรูปซ้อนกันทั้ง 2 รูป (โหลดไว้ก่อน ไม่กระพริบตอนสลับครั้งแรก)
+ */
+export function AvatarWidget({
+  data,
+  speaking,
+  notice,
+  placeholder,
+  level,
+  micStatus,
+  className,
+}: {
+  data: AvatarData;
+  speaking: boolean;
+  /** ระดับเสียงล่าสุด (debug/test) */
+  level?: number;
+  micStatus?: string;
+  /** ข้อความเล็กใต้รูป เช่น ไมค์ใช้ไม่ได้ */
+  notice?: string | null;
+  /** แสดงกรอบบอกให้อัปโหลด เมื่อยังไม่มีรูป (เฉพาะพรีวิว) */
+  placeholder?: boolean;
+  className?: string;
+}) {
+  const s = data.style;
+  const [prev, setPrev] = useState(speaking);
+  const [hop, setHop] = useState(0);
+  if (prev !== speaking) {
+    setPrev(speaking);
+    if (speaking) setHop((h) => h + 1);
+  }
+  const speakSrc = data.speakUrl ?? data.idleUrl;
+  const img =
+    "absolute inset-0 m-auto h-full w-full object-contain object-bottom";
+
+  return (
+    <div
+      data-testid="avatar-widget"
+      data-speaking={speaking}
+      data-level={level}
+      data-mic={micStatus}
+      className={cn("flex flex-col items-center gap-2", className)}
+    >
+      <div
+        key={hop}
+        className={cn("relative", s.bounce && hop > 0 && "animate-avatar-hop")}
+        style={
+          {
+            width: s.height,
+            height: s.height,
+            "--hop": `${(s.height * AVATAR_HOP[s.bounceSize]) / 100}px`,
+          } as React.CSSProperties
+        }
+      >
+        {data.idleUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- รูปจาก storage ของผู้ใช้ */}
+            <img
+              src={data.idleUrl}
+              alt=""
+              data-testid="avatar-idle"
+              className={img}
+              style={{
+                opacity: speaking ? 0 : 1,
+                filter: `brightness(${1 - s.dim / 100})`,
+              }}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element -- รูปจาก storage ของผู้ใช้ */}
+            <img
+              src={speakSrc!}
+              alt=""
+              data-testid="avatar-speak"
+              className={img}
+              style={{ opacity: speaking ? 1 : 0 }}
+            />
+          </>
+        ) : (
+          placeholder && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-2xl border-2 border-dashed border-neutral-400 bg-white/60 p-4 text-center text-sm text-neutral-600">
+              อัปโหลดรูปตอนเงียบเพื่อเริ่มใช้งาน
+            </div>
+          )
+        )}
+      </div>
+      {notice && (
+        <p
+          role="status"
+          className="w-fit rounded-md bg-black/70 px-2 py-1 text-xs text-white"
+        >
+          {notice}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** วาง widget ในกรอบ Browser Source แบบเดียวกันทั้งใน OBS และพรีวิว */
 export function WidgetStage({
   kind,
@@ -431,7 +529,9 @@ export function WidgetStage({
         "flex p-4",
         kind === "top"
           ? "items-start justify-start"
-          : "items-center justify-center",
+          : kind === "avatar"
+            ? "items-end justify-center"
+            : "items-center justify-center",
         className,
       )}
     >

@@ -9,7 +9,9 @@ import {
   goalPercent,
   overlayWidgetInputSchema,
   rankDonors,
+  isSpeakingLevel,
   resolveStyles,
+  rmsToLevel,
   subathonSecondsFor,
   timerControlSchema,
   timerDelta,
@@ -274,5 +276,30 @@ describe("formatDurationWords / subathonDeltaFor", () => {
   it("ลดเวลาเป็นค่าลบ", () => {
     expect(subathonDeltaFor(1000, "add", 1000, 300)).toBe(300);
     expect(subathonDeltaFor(10000, "subtract", 1000, 300)).toBe(-3000);
+  });
+});
+
+describe("avatar", () => {
+  it("RMS → ระดับ 0–100 แบบ log", () => {
+    expect(rmsToLevel(0)).toBe(0);
+    expect(rmsToLevel(0.001)).toBe(0); // -60dB
+    expect(rmsToLevel(1)).toBe(100);
+    expect(rmsToLevel(0.05)).toBeGreaterThan(40);
+    expect(rmsToLevel(0.05)).toBeLessThan(70);
+    expect(isSpeakingLevel(15, 15)).toBe(true);
+    expect(isSpeakingLevel(14, 15)).toBe(false);
+  });
+  it("style ค่าเริ่มต้น + ขนาดเผื่อที่เด้ง", () => {
+    expect(resolveStyles({}).avatar).toEqual({
+      height: 400,
+      threshold: 15,
+      dim: 25,
+      bounce: true,
+      bounceSize: "md",
+    });
+    expect(resolveStyles({ avatar: { height: 5000 } }).avatar.height).toBe(400);
+    const size = widgetSize("avatar", DEFAULT_STYLES);
+    expect(size.width).toBe(440);
+    expect(size.height).toBeGreaterThan(400);
   });
 });

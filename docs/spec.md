@@ -659,6 +659,17 @@ type OverlayAlert = {
 - API: `GET /api/settings/overlays/timer/donations?filter=pending|all` → `{ timer, mode, items: DonationRow[], pendingCount, pendingTotalSec }`; `POST /api/settings/overlays/timer/apply-all` → `{ applied, totalSec, timer }`
 - แท็บ Subathon ในหน้า Overlay = ทุกอย่างที่มองเห็นบนจอ (ป้ายข้อความ + หน้าตา) พร้อมพรีวิว + ลิงก์ OBS และลิงก์ไปเมนูนี้ — หลัก: Overlay = หน้าตาบนจอ, Subathon = การควบคุม/กติกา
 
+### Avatar พูดได้ (`/overlay/{token}/avatar`, แท็บ "Avatar")
+
+- อัปโหลด 2 รูป: **ตอนเงียบ** (idle) / **ตอนพูด** (speak, ไม่บังคับ — ไม่มีใช้รูปเงียบ) png/jpg/gif/webp ≤ 4 MB (magic bytes), ไม่ครอป, เก็บใน bucket `alert-media` ที่ `{userId}/avatar-{slot}-{uuid}.{ext}` เปลี่ยน/ลบแล้วลบไฟล์เก่า
+- overlay ฟังไมค์เอง (`getUserMedia` ปิด echo cancel/noise suppression/auto gain) → Web Audio วัดความดัง (RMS → ระดับ 0–100) ทุกเฟรม; ≥ เกณฑ์ = พูด, เงียบลงค้างรูปพูดอีก 200ms กันกระพริบ
+  - เงียบ: รูป idle มืดลงตาม "ความมืดตอนเงียบ"; พูด: รูป speak สว่างปกติ + เด้งทุกครั้งที่เริ่มพูด
+- **เสียงไมค์ไม่ออกจากเครื่อง** วิเคราะห์ในเบราว์เซอร์เท่านั้น
+- หน้าตา: ความสูง 200–1000px (400), ความไว/เกณฑ์ 1–100 (15), ความมืดตอนเงียบ 0–60% (25), เด้งตอนพูด เปิด/ปิด + ความสูงการเด้ง เล็ก/กลาง/ใหญ่
+- dashboard: ปุ่ม "ทดสอบไมค์" + แถบระดับเสียงสดพร้อมเส้นเกณฑ์ (พรีวิวขยับตามเสียงจริง)
+- **OBS ต้องอนุญาตไมค์:** เปิด OBS ด้วย `--use-fake-ui-for-media-stream` (Windows: shortcut → Properties → Target ต่อท้าย; Mac: `open -a OBS --args --use-fake-ui-for-media-stream`) ใช้ไมค์ค่าเริ่มต้นของเครื่อง; ไมค์ใช้ไม่ได้ → แสดงรูปเงียบ + ข้อความเล็ก "ไมค์ใช้ไม่ได้"
+- API: `POST/DELETE /api/settings/overlays/avatar/{idle|speak}` (multipart `file`) → `OverlayWidgetSettings` + broadcast `settings`; รูปผิด → 400 `MEDIA_INVALID`; widget `GET /api/overlay/{token}/widgets/avatar` → `{ idleUrl, speakUrl, style }`
+
 ### หน้าตา (แต่ละแท็บมีส่วน "หน้าตา" + ปุ่มคืนค่าเริ่มต้น)
 
 | Widget | ปรับได้                                                                                                                                       |

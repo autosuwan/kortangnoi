@@ -225,6 +225,10 @@ export type Database = {
       };
       overlay_widgets: {
         Row: {
+          avatar_idle_path: string | null;
+          avatar_idle_url: string | null;
+          avatar_speak_path: string | null;
+          avatar_speak_url: string | null;
           goal_started_at: string;
           goal_target_satang: number;
           goal_title: string;
@@ -248,6 +252,10 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          avatar_idle_path?: string | null;
+          avatar_idle_url?: string | null;
+          avatar_speak_path?: string | null;
+          avatar_speak_url?: string | null;
           goal_started_at?: string;
           goal_target_satang?: number;
           goal_title?: string;
@@ -270,6 +278,10 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          avatar_idle_path?: string | null;
+          avatar_idle_url?: string | null;
+          avatar_speak_path?: string | null;
+          avatar_speak_url?: string | null;
           goal_started_at?: string;
           goal_target_satang?: number;
           goal_title?: string;

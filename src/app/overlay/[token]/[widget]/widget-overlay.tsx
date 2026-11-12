@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  AvatarWidget,
   GoalWidget,
   QrWidget,
   RecentWidget,
@@ -16,6 +17,7 @@ import {
   type OverlayConfig,
 } from "@/lib/overlay";
 import type { WidgetData, WidgetKind } from "@/lib/overlay-widgets";
+import { useMicLevel, useSpeaking } from "@/lib/mic-level";
 import { createClient } from "@/lib/supabase/client";
 
 /** ดึงซ้ำกันพลาดตอน realtime หลุด */
@@ -113,7 +115,29 @@ export function WidgetOverlay({
         {data && kind === "recent" && (
           <RecentWidget data={data as WidgetData["recent"]} />
         )}
+        {data && kind === "avatar" && (
+          <MicAvatar data={data as WidgetData["avatar"]} />
+        )}
       </WidgetStage>
     </main>
+  );
+}
+
+/** Avatar บน OBS: ฟังไมค์เอง (OBS ต้องเปิดด้วย --use-fake-ui-for-media-stream) */
+function MicAvatar({ data }: { data: WidgetData["avatar"] }) {
+  const { level, status } = useMicLevel(true);
+  const speaking = useSpeaking(level, data.style.threshold);
+  return (
+    <AvatarWidget
+      data={data}
+      level={level}
+      micStatus={status}
+      speaking={speaking}
+      notice={
+        status === "error"
+          ? "ไมค์ใช้ไม่ได้ — ดูวิธีตั้งค่า OBS ในหน้า Overlay > Avatar"
+          : null
+      }
+    />
   );
 }

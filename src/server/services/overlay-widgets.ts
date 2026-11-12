@@ -1,6 +1,9 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { AppError } from "@/lib/api-error";
+import { detectImageType } from "@/lib/image-type";
 import { bangkokPeriodStarts } from "@/lib/bangkok-time";
 import { publicEnv } from "@/lib/env";
 import { OVERLAY_TOKEN_PATTERN } from "@/lib/overlay";
@@ -12,6 +15,8 @@ import {
   timerControlSchema,
   timerState,
   type TimerData,
+  type AvatarData,
+  type AvatarSlot,
   type TimerDirection,
   type TimerMode,
   type GoalData,
@@ -30,7 +35,7 @@ import { notifyOverlaySettingsChanged } from "@/server/realtime/overlay";
 type Row = Database["public"]["Tables"]["overlay_widgets"]["Row"];
 
 const COLUMNS =
-  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count, timer_initial_sec, timer_step_satang, timer_step_seconds, timer_label, timer_mode, timer_allow_subtract, styles";
+  "goal_title, goal_target_satang, goal_started_at, qr_caption, top_period, top_count, recent_count, timer_initial_sec, timer_step_satang, timer_step_seconds, timer_label, timer_mode, timer_allow_subtract, avatar_idle_url, avatar_speak_url, styles";
 
 const TIMER_COLUMNS =
   "timer_status, timer_ends_at, timer_remaining_sec, timer_initial_sec, timer_label";
@@ -50,6 +55,8 @@ type SettingsRow = Pick<
   | "timer_label"
   | "timer_mode"
   | "timer_allow_subtract"
+  | "avatar_idle_url"
+  | "avatar_speak_url"
   | "styles"
 >;
 
@@ -68,6 +75,8 @@ const toSettings = (r: SettingsRow) =>
     timerLabel: r.timer_label,
     timerMode: r.timer_mode as TimerMode,
     timerAllowSubtract: r.timer_allow_subtract,
+    avatarIdleUrl: r.avatar_idle_url,
+    avatarSpeakUrl: r.avatar_speak_url,
     styles: resolveStyles(r.styles),
   }) satisfies OverlayWidgetSettings;
 
@@ -310,6 +319,101 @@ export async function getPublicTimerInfo(userId: string) {
   };
 }
 
+// ---- Avatar (รูปตอนเงียบ/ตอนพูด) ----
+
+const AVATAR_BUCKET = "alert-media";
+const AVATAR_MAX_BYTES = 4 * 1024 * 1024;
+const avatarColumns = (slot: AvatarSlot) =>
+  slot === "idle"
+    ? ({ url: "avatar_idle_url", path: "avatar_idle_path" } as const)
+    : ({ url: "avatar_speak_url", path: "avatar_speak_path" } as const);
+const avatarUpdate = (
+  slot: AvatarSlot,
+  url: string | null,
+  path: string | null,
+) =>
+  slot === "idle"
+    ? { avatar_idle_url: url, avatar_idle_path: path }
+    : { avatar_speak_url: url, avatar_speak_path: path };
+
+async function removeAvatarFile(path: string | null) {
+  if (!path) return;
+  const { error } = await createAdminClient()
+    .storage.from(AVATAR_BUCKET)
+    .remove([path]);
+  if (error) console.error("remove avatar file failed", path, error);
+}
+
+async function avatarPath(userId: string, slot: AvatarSlot) {
+  const col = avatarColumns(slot).path;
+  const { data, error } = await createAdminClient()
+    .from("overlay_widgets")
+    .select("avatar_idle_path, avatar_speak_path")
+    .eq("user_id", userId)
+    .single();
+  if (error) throw error;
+  return data[col];
+}
+
+/** อัปโหลดรูป avatar (บันทึกทันที แล้วลบไฟล์เก่า) */
+export async function uploadAvatarImage(
+  userId: string,
+  slot: AvatarSlot,
+  file: File,
+): Promise<OverlayWidgetSettings> {
+  if (file.size === 0 || file.size > AVATAR_MAX_BYTES) {
+    throw new AppError(400, "MEDIA_INVALID", "ไฟล์ต้องไม่เกิน 4 MB");
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const type = detectImageType(bytes);
+  if (!type) {
+    throw new AppError(
+      400,
+      "MEDIA_INVALID",
+      "รองรับเฉพาะรูป PNG, JPG, GIF หรือ WebP",
+    );
+  }
+  const before = await avatarPath(userId, slot);
+  const admin = createAdminClient();
+  const path = `${userId}/avatar-${slot}-${randomUUID()}.${type.ext}`;
+  const upload = await admin.storage
+    .from(AVATAR_BUCKET)
+    .upload(path, bytes, { contentType: type.mime, cacheControl: "31536000" });
+  if (upload.error) throw upload.error;
+  const url = admin.storage.from(AVATAR_BUCKET).getPublicUrl(path)
+    .data.publicUrl;
+  const { data, error } = await admin
+    .from("overlay_widgets")
+    .update(avatarUpdate(slot, url, path))
+    .eq("user_id", userId)
+    .select(COLUMNS)
+    .single();
+  if (error) {
+    await removeAvatarFile(path);
+    throw error;
+  }
+  await removeAvatarFile(before);
+  await notifyOverlaySettingsChanged(userId);
+  return toSettings(data);
+}
+
+export async function removeAvatarImage(
+  userId: string,
+  slot: AvatarSlot,
+): Promise<OverlayWidgetSettings> {
+  const before = await avatarPath(userId, slot);
+  const { data, error } = await createAdminClient()
+    .from("overlay_widgets")
+    .update(avatarUpdate(slot, null, null))
+    .eq("user_id", userId)
+    .select(COLUMNS)
+    .single();
+  if (error) throw error;
+  await removeAvatarFile(before);
+  await notifyOverlaySettingsChanged(userId);
+  return toSettings(data);
+}
+
 const invalidLink = () =>
   new AppError(404, "OVERLAY_NOT_FOUND", "ลิงก์ overlay ไม่ถูกต้อง");
 
@@ -389,6 +493,19 @@ export async function getWidgetData<K extends WidgetKind>(
     }
     case "timer":
       return (await readTimer(profile.id)) satisfies TimerData as WidgetData[K];
+    case "avatar": {
+      const { data, error } = await admin
+        .from("overlay_widgets")
+        .select("avatar_idle_url, avatar_speak_url, styles")
+        .eq("user_id", profile.id)
+        .single();
+      if (error) throw error;
+      return {
+        idleUrl: data.avatar_idle_url,
+        speakUrl: data.avatar_speak_url,
+        style: resolveStyles(data.styles).avatar,
+      } satisfies AvatarData as WidgetData[K];
+    }
     case "recent": {
       const { data, error } = await approved()
         .order("created_at", { ascending: false })

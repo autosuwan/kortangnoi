@@ -203,6 +203,22 @@
   animation: marquee var(--marquee-duration, 30s) linear infinite;
 }
 
+/* F14 Avatar: เด้งทุกครั้งที่เริ่มพูด (--hop = ความสูงการเด้ง) */
+@keyframes avatar-hop {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(calc(var(--hop, 6%) * -1));
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@utility animate-avatar-hop {
+  animation: avatar-hop 220ms ease-out;
+}
+
 /* พื้นลายตารางแทนพื้นโปร่งใสของ OBS (พรีวิว alert/overlay) */
 @utility bg-obs-checker {
   background-color: #e5e5e5;

@@ -7,7 +7,14 @@ import {
 } from "@/lib/donation";
 
 /** F14 widget บน OBS นอกจาก alert */
-export const WIDGET_KINDS = ["goal", "qr", "top", "recent", "timer"] as const;
+export const WIDGET_KINDS = [
+  "goal",
+  "qr",
+  "top",
+  "recent",
+  "timer",
+  "avatar",
+] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
 export const TOP_PERIODS = ["today", "month", "all"] as const;
@@ -61,6 +68,14 @@ export const SPEED_SECONDS: Record<Speed, number> = {
 };
 
 export const GOAL_WIDTH = { min: 300, max: 1200 };
+/** Avatar: ความสูงรูป (px), ความไว/เกณฑ์ระดับเสียง (1–100), ความมืดตอนเงียบ (%) */
+export const AVATAR_HEIGHT = { min: 200, max: 1000 };
+export const AVATAR_THRESHOLD = { min: 1, max: 100 };
+export const AVATAR_DIM = { min: 0, max: 60 };
+/** ความสูงการเด้ง (% ของความสูงรูป) */
+export const AVATAR_HOP: Record<SizeStep, number> = { sm: 3, md: 6, lg: 10 };
+/** เงียบลงแล้วค้างรูปพูดไว้อีกนิด กันปากกระพริบระหว่างคำ */
+export const AVATAR_HOLD_MS = 200;
 /** ความสูงหลอด goal (px) */
 export const BAR_HEIGHT: Record<SizeStep, number> = { sm: 14, md: 26, lg: 40 };
 /** ขนาดรูป QR (px) */
@@ -105,6 +120,17 @@ export const widgetStyleSchemas = {
     showBackground: z.boolean(),
     backgroundColor: hex,
   }),
+  avatar: z.object({
+    height: z.number().int().min(AVATAR_HEIGHT.min).max(AVATAR_HEIGHT.max),
+    threshold: z
+      .number()
+      .int()
+      .min(AVATAR_THRESHOLD.min)
+      .max(AVATAR_THRESHOLD.max),
+    dim: z.number().int().min(AVATAR_DIM.min).max(AVATAR_DIM.max),
+    bounce: z.boolean(),
+    bounceSize: size,
+  }),
   // textColor = สีเวลา, amountColor = สี "+เวลา"
   timer: z.object({
     ...common,
@@ -122,6 +148,7 @@ export type QrStyle = WidgetStyles["qr"];
 export type TopStyle = WidgetStyles["top"];
 export type RecentStyle = WidgetStyles["recent"];
 export type TimerStyle = WidgetStyles["timer"];
+export type AvatarStyle = WidgetStyles["avatar"];
 
 const AMOUNT_ORANGE = "#F97316";
 
@@ -170,6 +197,13 @@ export const DEFAULT_STYLES: WidgetStyles = {
     labelColor: AMOUNT_ORANGE,
     showBackground: true,
     backgroundColor: "#000000",
+  },
+  avatar: {
+    height: 400,
+    threshold: 15,
+    dim: 25,
+    bounce: true,
+    bounceSize: "md",
   },
 };
 
@@ -238,6 +272,12 @@ export function widgetSize(
       const text = TEXT_SCALE[styles.timer.textSize];
       return { width: Math.round(480 * text), height: Math.round(200 * text) };
     }
+    case "avatar": {
+      const s = styles.avatar;
+      // เผื่อที่ด้านบนให้เด้งไม่โดนตัด
+      const room = Math.ceil((s.height * AVATAR_HOP.lg) / 100) + 20;
+      return { width: s.height + 40, height: s.height + room };
+    }
   }
 }
 
@@ -255,10 +295,19 @@ export type OverlayWidgetSettings = {
   timerLabel: string;
   timerMode: TimerMode;
   timerAllowSubtract: boolean;
+  /** รูป avatar (อัปโหลดผ่าน API แยก ไม่ได้มาจาก PUT) */
+  avatarIdleUrl: string | null;
+  avatarSpeakUrl: string | null;
   styles: WidgetStyles;
 };
 
-export type OverlayWidgetInput = Omit<OverlayWidgetSettings, "goalStartedAt">;
+export type OverlayWidgetInput = Omit<
+  OverlayWidgetSettings,
+  "goalStartedAt" | "avatarIdleUrl" | "avatarSpeakUrl"
+>;
+
+export const AVATAR_SLOTS = ["idle", "speak"] as const;
+export type AvatarSlot = (typeof AVATAR_SLOTS)[number];
 
 const text = z
   .string()
@@ -438,12 +487,31 @@ export function formatDelta(deltaSec: number): string {
     : `${sign}${m}:${s}`;
 }
 
+export type AvatarData = {
+  idleUrl: string | null;
+  speakUrl: string | null;
+  style: AvatarStyle;
+};
+
+/** ระดับเสียง 0–100 ถึงเกณฑ์ไหม */
+export function isSpeakingLevel(level: number, threshold: number): boolean {
+  return level >= threshold;
+}
+
+/** RMS ของสัญญาณ (−1..1) → ระดับ 0–100 แบบ log ให้เสียงพูดปกติอยู่กลางแถบ */
+export function rmsToLevel(rms: number): number {
+  if (rms <= 0) return 0;
+  const db = 20 * Math.log10(rms); // เงียบ ~ −60dB, พูด ~ −25..−10dB
+  return Math.max(0, Math.min(100, Math.round(((db + 60) / 60) * 100)));
+}
+
 export type WidgetData = {
   goal: GoalData;
   qr: QrData;
   top: TopData;
   recent: RecentData;
   timer: TimerData;
+  avatar: AvatarData;
 };
 
 /** % ความคืบหน้า goal (0–100 ปัดลง ไม่ให้ขึ้น 100 ก่อนครบจริง) */

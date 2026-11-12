@@ -2,6 +2,7 @@
 
 import {
   ListOrdered,
+  Smile,
   Loader2,
   QrCode,
   RotateCcw,
@@ -22,6 +23,7 @@ import {
   type SegmentOption,
 } from "@/components/dashboard/segmented-control";
 import {
+  AvatarWidget,
   GoalWidget,
   QrWidget,
   RecentWidget,
@@ -49,6 +51,9 @@ import {
   TOP_COUNT,
   TOP_PERIOD_LABELS,
   TOP_PERIODS,
+  AVATAR_DIM,
+  AVATAR_HEIGHT,
+  AVATAR_THRESHOLD,
   DEFAULT_STYLES,
   GOAL_WIDTH,
   SIZE_LABELS,
@@ -67,7 +72,10 @@ import {
 import { cn } from "@/lib/utils";
 import { TextField } from "@/components/dashboard/form-fields";
 
+import { useMicLevel, useSpeaking } from "@/lib/mic-level";
+
 import { UnsavedBar } from "../unsaved-bar";
+import { AvatarSetup } from "./avatar-setup";
 
 const pick = (s: OverlayWidgetSettings): OverlayWidgetInput => ({
   goalTitle: s.goalTitle,
@@ -106,6 +114,7 @@ const TABS: SegmentOption<WidgetKind>[] = [
   { value: "top", label: "อันดับ", icon: ListOrdered },
   { value: "recent", label: "ล่าสุด", icon: TextCursorInput },
   { value: "timer", label: "Subathon", icon: Timer },
+  { value: "avatar", label: "Avatar", icon: Smile },
 ];
 
 async function readError(res: Response, fallback: string) {
@@ -131,6 +140,13 @@ export function OverlaysForm({
   const [resetting, setResetting] = useState(false);
   const [active, setActive] = useState<WidgetKind>("goal");
   const timer = data.timer;
+  const [avatarUrls, setAvatarUrls] = useState({
+    idle: initial.avatarIdleUrl,
+    speak: initial.avatarSpeakUrl,
+  });
+  const [micOn, setMicOn] = useState(false);
+  const mic = useMicLevel(micOn && active === "avatar");
+  const speaking = useSpeaking(mic.level, draft.styles.avatar.threshold);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const set = <K extends keyof OverlayWidgetInput>(
@@ -599,6 +615,79 @@ export function OverlaysForm({
         </>
       ),
     },
+    avatar: {
+      icon: Smile,
+      title: "Avatar พูดได้",
+      description: "ตัวละครอ้าปากตอนพูด นิ่งตอนเงียบ — ฟังเสียงไมค์ในเครื่อง",
+      preview: (
+        <AvatarWidget
+          data={{
+            idleUrl: avatarUrls.idle,
+            speakUrl: avatarUrls.speak,
+            style: st.avatar,
+          }}
+          speaking={speaking}
+          placeholder
+        />
+      ),
+      content: (
+        <AvatarSetup
+          idleUrl={avatarUrls.idle}
+          speakUrl={avatarUrls.speak}
+          onSaved={(saved) =>
+            setAvatarUrls({
+              idle: saved.avatarIdleUrl,
+              speak: saved.avatarSpeakUrl,
+            })
+          }
+          onError={setError}
+          micOn={micOn}
+          onMicToggle={setMicOn}
+          micStatus={mic.status}
+          level={mic.level}
+          threshold={st.avatar.threshold}
+          speaking={speaking}
+        />
+      ),
+      appearance: (
+        <>
+          <RangeField
+            label="ความสูงรูป"
+            value={st.avatar.height}
+            range={AVATAR_HEIGHT}
+            step={10}
+            unit="px"
+            onChange={(v) => setStyle("avatar", "height", v)}
+          />
+          <RangeField
+            label="เกณฑ์เสียงพูด (น้อย = ไวขึ้น)"
+            value={st.avatar.threshold}
+            range={AVATAR_THRESHOLD}
+            onChange={(v) => setStyle("avatar", "threshold", v)}
+          />
+          <RangeField
+            label="ความมืดตอนเงียบ"
+            value={st.avatar.dim}
+            range={AVATAR_DIM}
+            unit="%"
+            onChange={(v) => setStyle("avatar", "dim", v)}
+          />
+          <SettingRow
+            id="avatarBounce"
+            label="เด้งตอนเริ่มพูด"
+            checked={st.avatar.bounce}
+            onChange={(v) => setStyle("avatar", "bounce", v)}
+          />
+          {st.avatar.bounce && (
+            <SizeField
+              label="ความสูงการเด้ง"
+              value={st.avatar.bounceSize}
+              onChange={(v) => setStyle("avatar", "bounceSize", v)}
+            />
+          )}
+        </>
+      ),
+    },
   } satisfies Record<
     WidgetKind,
     Omit<CardProps, "kind" | "url" | "size" | "onResetStyle">
@@ -677,7 +766,7 @@ function CommonStyle({
   setStyle,
   noText = false,
 }: {
-  kind: WidgetKind;
+  kind: Exclude<WidgetKind, "avatar">;
   styles: WidgetStyles;
   setStyle: SetStyle;
   /** สีตัวอักษรตั้งที่อื่นแล้ว (เช่น "สีชื่อ") */

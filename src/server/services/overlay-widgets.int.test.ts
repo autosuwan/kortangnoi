@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import { subscribeAsOverlay } from "../../../test/realtime";
@@ -12,7 +14,9 @@ import {
   getOverlayWidgetSettings,
   getTimer,
   getWidgetData,
+  removeAvatarImage,
   resetGoal,
+  uploadAvatarImage,
   updateOverlayWidgetSettings,
 } from "./overlay-widgets";
 import { verifySlip } from "./slip";
@@ -432,5 +436,58 @@ describe("Subathon timer", () => {
     const auto = await listRoundDonations(s.id);
     expect(auto.pendingCount).toBe(0);
     expect(auto.items).toHaveLength(3);
+  });
+});
+
+describe("Avatar", () => {
+  const png = () =>
+    new File([readFileSync("public/logo-mark.png")], "a.png", {
+      type: "image/png",
+    });
+  const exists = async (path: string) => {
+    const [dir, name] = [path.split("/")[0], path.split("/")[1]];
+    const { data } = await adminClient()
+      .storage.from("alert-media")
+      .list(dir, { search: name });
+    return (data ?? []).some((f) => f.name === name);
+  };
+  const pathOf = async (userId: string) =>
+    (
+      await adminClient()
+        .from("overlay_widgets")
+        .select("avatar_idle_path, avatar_speak_path")
+        .eq("user_id", userId)
+        .single()
+    ).data!;
+
+  it("อัปโหลด idle/speak → widget data, เปลี่ยนรูปลบไฟล์เก่า, ไฟล์ปลอม 400, ลบรูป", async () => {
+    const s = await createReadyStreamer("avatar");
+    const token = await tokenOf(s.id);
+    expect(await getWidgetData(token, "avatar")).toMatchObject({
+      idleUrl: null,
+      speakUrl: null,
+      style: DEFAULT_STYLES.avatar,
+    });
+
+    const first = await uploadAvatarImage(s.id, "idle", png());
+    expect(first.avatarIdleUrl).toMatch(/avatar-idle-.+\.png$/);
+    const firstPath = (await pathOf(s.id)).avatar_idle_path!;
+    expect(firstPath.startsWith(`${s.id}/avatar-idle-`)).toBe(true);
+    await uploadAvatarImage(s.id, "speak", png());
+
+    await uploadAvatarImage(s.id, "idle", png());
+    expect(await exists(firstPath)).toBe(false);
+    const data = await getWidgetData(token, "avatar");
+    expect(data.idleUrl).not.toBe(first.avatarIdleUrl);
+    expect(data.speakUrl).toMatch(/avatar-speak-/);
+
+    await expect(
+      uploadAvatarImage(s.id, "idle", new File(["<svg/>"], "x.png")),
+    ).rejects.toMatchObject({ status: 400, code: "MEDIA_INVALID" });
+
+    const speakPath = (await pathOf(s.id)).avatar_speak_path!;
+    const removed = await removeAvatarImage(s.id, "speak");
+    expect(removed.avatarSpeakUrl).toBeNull();
+    expect(await exists(speakPath)).toBe(false);
   });
 });

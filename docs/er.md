@@ -87,6 +87,10 @@ erDiagram
     text timer_mode "auto | manual"
     boolean timer_allow_subtract "default false"
     timestamptz timer_started_at "nullable, เริ่มรอบล่าสุด"
+    text avatar_idle_url "nullable, รูป avatar ตอนเงียบ"
+    text avatar_idle_path "nullable, path ใน alert-media"
+    text avatar_speak_url "nullable, รูป avatar ตอนพูด"
+    text avatar_speak_path "nullable"
     jsonb styles "หน้าตาต่อ widget, default {}"
     timestamptz updated_at
   }
@@ -192,9 +196,9 @@ erDiagram
 
 ## Storage
 
-| Bucket          | Public       | Path                                          | สิทธิ์                                                           |
-| --------------- | ------------ | --------------------------------------------- | ------------------------------------------------------------- |
-| `profile-media` | อ่านได้สาธารณะ | `{user_id}/{avatar\|banner}-{uuid}.{ext}`     | server เท่านั้น (ผ่าน API), ≤ 4 MB                                |
-| `alert-media`   | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`                      | server เท่านั้น (ผ่าน API), ≤ 4 MB                                |
-| `tts-audio`     | private      | `{user_id}/{uuid}.mp3`                        | server เท่านั้น, overlay ได้ signed URL 10 นาที, ลบไฟล์เก่ากว่า 1 ชม. |
-| `slips`         | private      | `{streamer_id}/{donation_id}/{attempt}.{ext}` | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที                    |
+| Bucket          | Public       | Path                                                                            | สิทธิ์                                                           |
+| --------------- | ------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `profile-media` | อ่านได้สาธารณะ | `{user_id}/{avatar\|banner}-{uuid}.{ext}`                                       | server เท่านั้น (ผ่าน API), ≤ 4 MB                                |
+| `alert-media`   | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`, avatar: `{user_id}/avatar-{idle\|speak}-{uuid}.{ext}` | server เท่านั้น (ผ่าน API), ≤ 4 MB                                |
+| `tts-audio`     | private      | `{user_id}/{uuid}.mp3`                                                          | server เท่านั้น, overlay ได้ signed URL 10 นาที, ลบไฟล์เก่ากว่า 1 ชม. |
+| `slips`         | private      | `{streamer_id}/{donation_id}/{attempt}.{ext}`                                   | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที                    |

@@ -214,6 +214,51 @@ export type Database = {
           },
         ];
       };
+      overlay_widgets: {
+        Row: {
+          goal_started_at: string;
+          goal_target_satang: number;
+          goal_title: string;
+          qr_caption: string;
+          recent_count: number;
+          top_count: number;
+          top_period: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          goal_started_at?: string;
+          goal_target_satang?: number;
+          goal_title?: string;
+          qr_caption?: string;
+          recent_count?: number;
+          top_count?: number;
+          top_period?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          goal_started_at?: string;
+          goal_target_satang?: number;
+          goal_title?: string;
+          qr_caption?: string;
+          recent_count?: number;
+          top_count?: number;
+          top_period?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "overlay_widgets_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       payment_settings: {
         Row: {
           account_name_en: string | null;

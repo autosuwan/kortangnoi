@@ -3,6 +3,7 @@
 import {
   Bell,
   House,
+  Layers,
   ReceiptText,
   ShieldCheck,
   UserRound,
@@ -54,6 +55,12 @@ const ITEMS: NavItem[] = [
     label: "ตั้งค่า alert",
     shortLabel: "Alert",
     icon: Bell,
+  },
+  {
+    href: "/dashboard/overlays",
+    label: "Overlay",
+    shortLabel: "Overlay",
+    icon: Layers,
   },
   {
     href: "/dashboard/profile",

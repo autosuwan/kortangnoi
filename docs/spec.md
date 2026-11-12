@@ -617,6 +617,61 @@ type OverlayAlert = {
 
 ---
 
+## F14 Overlay เพิ่มเติม (Goal / QR / อันดับ / โดเนทล่าสุด)
+
+### หน้าจอ `/dashboard/overlays` (เมนู "Overlay")
+
+- 1 การ์ดต่อ widget: ตั้งค่า + พรีวิวสดบนพื้นลายตาราง + ลิงก์ OBS (ซ่อน token, ปุ่มคัดลอก) + ขนาดแนะนำใน OBS
+- ลิงก์ใช้ token เดียวกับ alert (F4): `/overlay/{token}/goal`, `/qr`, `/top`, `/recent` — สร้างลิงก์ใหม่แล้วทุก widget เปลี่ยนพร้อมกัน
+- พื้นโปร่งใส ตัวหนังสือขอบดำแบบ alert ยอดสีส้ม
+
+| Widget | ตั้งค่า                                               | แสดง                                                           |
+| ------ | -------------------------------------------------- | -------------------------------------------------------------- |
+| Goal   | ชื่อเป้า 1–40 ตัว, ยอดเป้า 1–100,000 บาท, ปุ่ม "เริ่มนับใหม่" | ชื่อเป้า + หลอด + "ยอดได้ / ยอดเป้า บาท (%)"; ครบเป้า → "ครบเป้าแล้ว!" |
+| QR     | ข้อความ 1–40 ตัว (ค่าเริ่มต้น "สแกนเพื่อโดเนท")            | การ์ดขาว QR ลิงก์หน้าโดเนท + ข้อความ + ลิงก์                          |
+| อันดับ   | ช่วงเวลา วันนี้ / เดือนนี้ / ทั้งหมด, จำนวน 3–10            | "Top ผู้สนับสนุน" + อันดับ ชื่อ ยอดรวม                                 |
+| ล่าสุด   | จำนวน 3–20                                         | แถบตัวหนังสือวิ่ง "ชื่อ ยอด บาท · …"                                  |
+
+### กติกาการนับ
+
+- นับเฉพาะ `approved`; goal นับตั้งแต่ `goal_started_at`; วัน/เดือนตามเวลาไทย
+- อันดับรวมยอดตามชื่อที่ผู้บริจาคกรอก (trim, ไม่สนตัวพิมพ์ แสดงชื่อจากรายการล่าสุด) **ไม่รวม `Anonymous`**; ล่าสุดแสดง `Anonymous` ตามจริง
+- ส่งออกเฉพาะชื่อที่ผู้บริจาคกรอก + ยอด — ห้ามชื่อจริง/ข้อมูลบัญชีจากสลิป และไม่ส่งข้อความของผู้บริจาค
+
+### Realtime
+
+- widget subscribe channel เดียวกับ alert (`overlay:<hash>`, รับอย่างเดียว) → event `donation` (ไม่ใช่ test) หรือ `settings` → ดึงข้อมูลใหม่; ดึงซ้ำทุก 60 วินาทีกันพลาด; `revoked` → "ลิงก์ overlay ไม่ถูกต้อง"
+- บันทึกค่า / เริ่มนับ goal ใหม่ → broadcast `settings`
+
+### API
+
+| Method | Path                                  | Request                                                                        | Response                                     |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------- |
+| GET    | `/api/settings/overlays`              | –                                                                              | `OverlayWidgetSettings`                      |
+| PUT    | `/api/settings/overlays`              | `{ goalTitle, goalTargetSatang, qrCaption, topPeriod, topCount, recentCount }` | `OverlayWidgetSettings`                      |
+| POST   | `/api/settings/overlays/goal/reset`   | –                                                                              | `OverlayWidgetSettings`                      |
+| GET    | `/api/overlay/{token}/widgets/goal`   | –                                                                              | `{ title, targetSatang, currentSatang }`     |
+| GET    | `/api/overlay/{token}/widgets/qr`     | –                                                                              | `{ caption, donateUrl }`                     |
+| GET    | `/api/overlay/{token}/widgets/top`    | –                                                                              | `{ period, items: { name, totalSatang }[] }` |
+| GET    | `/api/overlay/{token}/widgets/recent` | –                                                                              | `{ items: { id, name, amountSatang }[] }`    |
+
+`OverlayWidgetSettings` = ค่าใน PUT + `goalStartedAt`
+
+### Error case
+
+| กรณี                   | ผล                            |
+| --------------------- | ----------------------------- |
+| token ผิด / สร้างใหม่แล้ว | 404 `OVERLAY_NOT_FOUND`       |
+| ค่าตั้งนอกช่วง / body ผิด  | 400 `OVERLAY_WIDGETS_INVALID` |
+
+### พังได้ยังไง
+
+- ผู้บริจาคใช้ชื่อซ้ำคนอื่นเพื่อแย่งอันดับ → MVP ยอมรับ (รวมตามชื่อที่กรอก ไม่มีบัญชีผู้บริจาค)
+- คำหยาบในชื่อขึ้นจอผ่านอันดับ/แถบล่าสุด → เหมือน alert; ตัวกรองคำอยู่ใน v2
+- realtime หลุด → ดึงซ้ำทุก 60 วินาที ข้อมูลช้าสุด 1 นาที
+
+---
+
 ## F12 หน้าแอดมิน
 
 ### หน้าจอ `/dashboard/admin` (เฉพาะแอดมิน)

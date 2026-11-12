@@ -8,6 +8,7 @@ erDiagram
   profiles ||--|| payment_settings : has
   profiles ||--|| alert_settings : has
   profiles ||--|| webhook_settings : has
+  profiles ||--|| overlay_widgets : has
   profiles ||--o{ donations : receives
 
   profiles {
@@ -64,6 +65,18 @@ erDiagram
     uuid user_id PK "FK profiles.id"
     boolean enabled "default false"
     text discord_webhook_url "nullable"
+    timestamptz updated_at
+  }
+
+  overlay_widgets {
+    uuid user_id PK "FK profiles.id"
+    text goal_title "1-40 ตัว"
+    int goal_target_satang "100-10,000,000, default 100000"
+    timestamptz goal_started_at "เริ่มนับ goal"
+    text qr_caption "1-40 ตัว"
+    text top_period "today | month | all"
+    smallint top_count "3-10, default 5"
+    smallint recent_count "3-20, default 10"
     timestamptz updated_at
   }
 
@@ -133,7 +146,7 @@ erDiagram
     ON donations (slip_qr_hash) WHERE status IN ('approved', 'pending_review');
   ```
   เหตุผล: ถ้าคนร้ายเอาสลิปของคนอื่นมาส่งในหน้าสตรีมเมอร์ผิดคนแล้วถูก `rejected` สลิปนั้นต้องยังใช้กับเจ้าของจริงได้
-- แถว `payment_settings`, `alert_settings`, `webhook_settings` สร้างพร้อม `profiles` (ค่าเริ่มต้น) ด้วย trigger ตอนสร้าง profile
+- แถว `payment_settings`, `alert_settings`, `webhook_settings` สร้างพร้อม `profiles` (ค่าเริ่มต้น) ด้วย trigger ตอนสร้าง profile; `overlay_widgets` (F14) สร้างด้วย trigger `after insert` บน `profiles`
 
 ## Index
 
@@ -155,6 +168,7 @@ erDiagram
 | `payment_settings` | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
 | `alert_settings`   | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
 | `webhook_settings` | –    | select / update แถวตัวเอง               | ทั้งหมด               |
+| `overlay_widgets`  | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
 | `donations`        | –    | select แถวที่ `streamer_id = auth.uid()` | ทั้งหมด               |
 | `system_errors`    | –    | –                                      | ทั้งหมด               |
 

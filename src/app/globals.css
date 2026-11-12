@@ -189,3 +189,16 @@
   paint-order: stroke fill;
   text-shadow: 0 0.08em 0.25em rgb(0 0 0 / 0.6);
 }
+
+/* F14 แถบโดเนทล่าสุด: เนื้อหาซ้ำ 2 ชุดแล้วเลื่อนครึ่งหนึ่ง = วนต่อเนื่อง */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@utility animate-marquee {
+  animation: marquee var(--marquee-duration, 30s) linear infinite;
+}

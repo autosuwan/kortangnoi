@@ -1,10 +1,10 @@
-import { toErrorResponse, unauthorized } from "@/lib/api-error";
-import { getCurrentUser } from "@/server/auth";
+import { toErrorResponse } from "@/lib/api-error";
+import { authorizeStreamer } from "@/server/auth";
 import { previewSpeech } from "@/server/services/tts";
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
 
   try {
     const body = await request.json().catch(() => null);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { requireUser } from "@/server/auth";
+import { requireStreamer } from "@/server/auth";
 import { getPaymentSettings } from "@/server/services/payment";
 import { getMe } from "@/server/services/profile";
 
@@ -26,7 +26,7 @@ export default function PaymentPage() {
 }
 
 async function LoadedForm() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
 

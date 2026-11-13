@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageTitle } from "@/components/dashboard/page-title";
-import { requireUser } from "@/server/auth";
+import { requireStreamer } from "@/server/auth";
 import { getAlertSettings } from "@/server/services/alert";
 import { getMe } from "@/server/services/profile";
 
@@ -33,7 +33,7 @@ export default function AlertPage() {
 }
 
 async function LoadedForm() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
 

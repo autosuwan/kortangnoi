@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { toErrorResponse, unauthorized } from "@/lib/api-error";
-import { getCurrentUser } from "@/server/auth";
+import { toErrorResponse } from "@/lib/api-error";
+import { authorizeStreamer } from "@/server/auth";
 import { isUsernameAvailable } from "@/server/services/profile";
 
 export async function GET(request: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
 
   const username = request.nextUrl.searchParams.get("u") ?? "";
   try {

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { PageTitle } from "@/components/dashboard/page-title";
 import { publicEnv } from "@/lib/env";
-import { requireUser } from "@/server/auth";
+import { requireStreamer } from "@/server/auth";
 import { getProfileSettings } from "@/server/services/profile";
 
 import { PageHeader } from "../page-header";
@@ -31,7 +31,7 @@ export default function ProfilePage() {
 }
 
 async function LoadedProfile() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   const profile = await getProfileSettings(user.id);
   if (!profile.username) redirect("/onboarding");
   return <ProfileForm initial={profile} siteUrl={publicEnv.siteUrl} />;

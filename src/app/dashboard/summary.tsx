@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { formatSatangNumber } from "@/lib/money";
-import { requireUser } from "@/server/auth";
+import { requireStreamer } from "@/server/auth";
 import {
   getDonationSummary,
   listDonations,
@@ -34,7 +34,7 @@ const statCard = "rounded-2xl border bg-card p-4 sm:p-5";
 
 /** หน้าหลัก dashboard (F5): ยอดวันนี้/เดือนนี้, รอตรวจ, โดเนทล่าสุด */
 export async function DashboardSummary() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   const [summary, latest] = await Promise.all([
     getDonationSummary(user.id),
     listDonations(user.id),

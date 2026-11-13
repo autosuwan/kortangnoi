@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { errorResponse, toErrorResponse, unauthorized } from "@/lib/api-error";
+import { errorResponse, toErrorResponse } from "@/lib/api-error";
 import { AVATAR_SLOTS, type AvatarSlot } from "@/lib/overlay-widgets";
-import { getCurrentUser } from "@/server/auth";
+import { authorizeStreamer } from "@/server/auth";
 import {
   removeAvatarImage,
   uploadAvatarImage,
@@ -21,8 +21,8 @@ export async function POST(
   request: Request,
   { params }: RouteContext<"/api/settings/overlays/avatar/[slot]">,
 ) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
   const kind = await kindOf(params);
   if (!kind) return errorResponse(404, "NOT_FOUND", "ไม่พบหน้านี้");
 
@@ -42,8 +42,8 @@ export async function DELETE(
   _request: Request,
   { params }: RouteContext<"/api/settings/overlays/avatar/[slot]">,
 ) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
   const kind = await kindOf(params);
   if (!kind) return errorResponse(404, "NOT_FOUND", "ไม่พบหน้านี้");
   try {

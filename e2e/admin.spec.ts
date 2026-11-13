@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { adminClient, TEST_PASSWORD } from "../test/supabase";
+import { createReadyStreamer } from "../test/streamer";
+import { adminClient, createTestUser, TEST_PASSWORD } from "../test/supabase";
 
 import { loginAsStreamer, loginWithPassword } from "./helpers";
 
@@ -55,9 +56,87 @@ test("แอดมินเห็นโควตา SlipOK สถิติ แ�
     .filter({ visible: true })
     .getByRole("link", { name: "แอดมิน" })
     .click();
+  await page.getByRole("tab", { name: "ระบบ" }).click();
   await expect(page.getByTestId("quota-remaining")).toHaveText("87");
   await expect(page.getByTestId("checks-approved")).toBeVisible();
   await expect(page.getByTestId("recent-errors")).toContainText(
     "e2e auth error",
   );
+});
+
+test("ผู้ใช้ใหม่ต้องสมัคร → แอดมินอนุมัติ → ใช้งานได้; ระงับ → หน้าโดเนทปิด", async ({
+  browser,
+}) => {
+  await ensureAdminUser();
+  const u = await createTestUser("newbie", { status: "pending_application" });
+  const realName = `สมหญิง ${u.id.slice(0, 6)}`;
+
+  // ผู้ใช้ใหม่: เข้า dashboard ไม่ได้ → /apply, API สตรีมเมอร์ 403
+  const userCtx = await browser.newContext();
+  const page = await userCtx.newPage();
+  await loginWithPassword(page, u.email);
+  await page.waitForURL(/\/apply$/);
+  const api = await page.request.get("/api/settings/payment");
+  expect(api.status()).toBe(403);
+  expect((await api.json()).error.code).toBe("STREAMER_NOT_APPROVED");
+
+  await page.getByLabel("ชื่อ-นามสกุลจริง").fill(realName);
+  await page.getByLabel("เบอร์โทรศัพท์มือถือ").fill("0898765432");
+  await page.getByLabel("ลิงก์ช่อง 1").fill("https://www.twitch.tv/somying");
+  await page.getByLabel("แนบรูปหน้าช่อง").setInputFiles("public/logo-mark.png");
+  // ยังไม่ติ๊ก PDPA
+  await page.getByRole("button", { name: "ส่งใบสมัคร" }).click();
+  await expect(page.getByText("ต้องยอมรับนโยบายความเป็นส่วนตัวก่อนส่ง")).toBeVisible();
+  await page.getByLabel(/ยินยอมให้เก็บ/).check();
+  await page.getByRole("button", { name: "ส่งใบสมัคร" }).click();
+  await expect(page.getByText("รอแอดมินตรวจสอบ")).toBeVisible();
+  await page.goto("/dashboard");
+  await page.waitForURL(/\/apply$/);
+
+  // แอดมินอนุมัติ
+  const adminCtx = await browser.newContext();
+  const adminPage = await adminCtx.newPage();
+  await loginWithPassword(adminPage, ADMIN_EMAIL);
+  await adminPage.waitForURL(/\/dashboard$/);
+  await adminPage.goto("/dashboard/admin");
+  await adminPage.getByRole("tab", { name: /คำขอสมัคร/ }).click();
+  await adminPage
+    .getByTestId("admin-user-row")
+    .filter({ hasText: realName })
+    .click();
+  await expect(
+    adminPage.getByRole("dialog").getByText(realName).first(),
+  ).toBeVisible();
+  await expect(
+    adminPage.getByRole("dialog").getByText("0898765432"),
+  ).toBeVisible();
+  await expect(
+    adminPage.getByRole("img", { name: "รูปหน้าช่อง 1" }),
+  ).toBeVisible();
+  await adminPage.getByRole("button", { name: "อนุมัติ", exact: true }).click();
+  await expect(
+    adminPage.getByRole("dialog").getByTestId("user-status"),
+  ).toHaveText("อนุมัติแล้ว");
+
+  // ผู้ใช้เข้าได้ → ตั้ง username
+  await page.goto("/apply");
+  await page.waitForURL(/\/onboarding$/);
+
+  // ระงับ → หน้าโดเนทปิด + dashboard ถูกพาไป /apply
+  const s = await createReadyStreamer("tosuspend");
+  await adminPage.goto("/dashboard/admin");
+  await adminPage.getByRole("tab", { name: "ผู้ใช้ทั้งหมด" }).click();
+  await adminPage.getByLabel("ค้นหาผู้ใช้").fill(s.username);
+  await adminPage.getByTestId("admin-user-row").first().click();
+  await adminPage.getByRole("button", { name: "ระงับบัญชี" }).click();
+  await adminPage.getByLabel("เหตุผล").fill("ทดสอบระงับ");
+  await adminPage.getByRole("button", { name: "ยืนยันระงับบัญชี" }).click();
+  await expect(
+    adminPage.getByRole("dialog").getByTestId("user-status"),
+  ).toHaveText("ระงับ");
+  await page.goto(`/${s.username}`);
+  await expect(page.getByText("ตอนนี้ปิดรับโดเนท")).toBeVisible();
+
+  await userCtx.close();
+  await adminCtx.close();
 });

@@ -4,6 +4,7 @@ import {
   CircleCheck,
   ScanLine,
   TriangleAlert,
+  Users,
 } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -14,13 +15,15 @@ import { PageTitle } from "@/components/dashboard/page-title";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { FREE_MONTHLY_QUOTA, quotaLevel } from "@/lib/slipok-quota";
+import { STREAMER_STATUS_LABELS, STREAMER_STATUSES } from "@/lib/application";
 import { cn } from "@/lib/utils";
-import { isAdmin, requireUser } from "@/server/auth";
+import { isAdmin, requireStreamer } from "@/server/auth";
 import { getSlipOkQuota } from "@/server/integrations/slipok";
-import { getAdminStats } from "@/server/services/admin";
+import { countUsersByStatus, getAdminStats } from "@/server/services/admin";
 
 import { PageHeader } from "../page-header";
 import { SummarySkeleton } from "../skeletons";
+import { AdminTabs } from "./admin-tabs";
 
 export const metadata: Metadata = {
   title: "แอดมิน · KORTANGNOI",
@@ -49,19 +52,32 @@ const fmtDate = (d: string | null) =>
     : "–";
 
 async function AdminContent() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   // ไม่ใช่แอดมิน → 404 เหมือนไม่มีหน้านี้
   if (!isAdmin(user.id)) notFound();
-  const [quota, stats] = await Promise.all([getSlipOkQuota(), getAdminStats()]);
+  const [quota, stats, counts] = await Promise.all([
+    getSlipOkQuota(),
+    getAdminStats(),
+    countUsersByStatus(),
+  ]);
   const level = quota ? quotaLevel(quota) : null;
 
-  return (
+  const system = (
     <div className="grid gap-4">
-      <PageTitle
-        title="แอดมิน"
-        description="สถานะระบบ ตรวจสลิป และ error ล่าสุด"
-        className="mb-2"
-      />
+      <SectionCard icon={Users} title="ผู้ใช้ตามสถานะ">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {STREAMER_STATUSES.map((st) => (
+            <div key={st} className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground">
+                {STREAMER_STATUS_LABELS[st]}
+              </p>
+              <p className="mt-1 font-mono text-2xl font-semibold">
+                {counts[st]}
+              </p>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
 
       <SectionCard
         icon={ScanLine}
@@ -203,6 +219,17 @@ async function AdminContent() {
           </ul>
         )}
       </SectionCard>
+    </div>
+  );
+
+  return (
+    <div className="grid gap-4">
+      <PageTitle
+        title="แอดมิน"
+        description="อนุมัติสตรีมเมอร์ จัดการผู้ใช้ และดูสถานะระบบ"
+        className="mb-2"
+      />
+      <AdminTabs pendingCount={counts.pending} system={system} />
     </div>
   );
 }

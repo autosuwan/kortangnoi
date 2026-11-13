@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicEnv } from "@/lib/env";
-import { requireUser } from "@/server/auth";
+import { requireStreamer } from "@/server/auth";
 import { getMe } from "@/server/services/profile";
 
 import { UsernameForm } from "./username-form";
@@ -48,7 +48,7 @@ export default function OnboardingPage() {
 }
 
 async function OnboardingForm() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   const me = await getMe(user.id);
   if (me.username) redirect("/dashboard");
 

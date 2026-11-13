@@ -3,6 +3,9 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
+import { errorResponse, unauthorized } from "@/lib/api-error";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 export type CurrentUser = { id: string; email: string | null };
@@ -33,4 +36,41 @@ export function isAdmin(userId: string): boolean {
     .map((id) => id.trim())
     .filter(Boolean)
     .includes(userId);
+}
+
+export type StreamerStatus = Database["public"]["Enums"]["streamer_status"];
+
+/** สถานะสตรีมเมอร์ (F15) — แอดมินถือว่าอนุมัติเสมอ */
+export async function getStreamerStatus(
+  userId: string,
+): Promise<StreamerStatus> {
+  if (isAdmin(userId)) return "approved";
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .select("streamer_status")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.streamer_status ?? "pending_application";
+}
+
+/** หน้าเว็บของสตรีมเมอร์: ไม่ได้ล็อกอิน → /login, ยังไม่อนุมัติ → /apply */
+export async function requireStreamer(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if ((await getStreamerStatus(user.id)) !== "approved") redirect("/apply");
+  return user;
+}
+
+/** route handler ของสตรีมเมอร์: user ที่อนุมัติแล้ว หรือ Response 401/403 ให้ return ทันที */
+export async function authorizeStreamer(): Promise<CurrentUser | Response> {
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
+  if ((await getStreamerStatus(user.id)) !== "approved") {
+    return errorResponse(
+      403,
+      "STREAMER_NOT_APPROVED",
+      "บัญชียังไม่ได้รับอนุมัติเป็นสตรีมเมอร์",
+    );
+  }
+  return user;
 }

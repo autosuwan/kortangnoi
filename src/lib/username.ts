@@ -14,6 +14,8 @@ export const RESERVED_USERNAMES = new Set([
   "static",
   "_next",
   "d",
+  "apply",
+  "privacy",
 ]);
 
 export const USERNAME_RULE_MESSAGE = "ใช้ได้ 3–20 ตัว เฉพาะ a–z, 0–9, _ และ -";

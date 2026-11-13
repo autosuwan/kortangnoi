@@ -9,7 +9,7 @@ import { PageTitle } from "@/components/dashboard/page-title";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { publicEnv } from "@/lib/env";
 import { cn } from "@/lib/utils";
-import { requireUser } from "@/server/auth";
+import { requireStreamer } from "@/server/auth";
 import { getOverlayUrl } from "@/server/services/overlay";
 import { getPaymentSettings } from "@/server/services/payment";
 import { getMe } from "@/server/services/profile";
@@ -35,7 +35,7 @@ export default function DashboardPage() {
 }
 
 async function Home() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
   const [payment, overlayUrl] = await Promise.all([

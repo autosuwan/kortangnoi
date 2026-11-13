@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { errorResponse, toErrorResponse, unauthorized } from "@/lib/api-error";
-import { getCurrentUser } from "@/server/auth";
+import { errorResponse, toErrorResponse } from "@/lib/api-error";
+import { authorizeStreamer } from "@/server/auth";
 import { uploadAlertMedia } from "@/server/services/alert";
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
 
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");

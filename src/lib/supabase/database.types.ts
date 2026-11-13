@@ -374,6 +374,8 @@ export type Database = {
           id: string;
           overlay_token: string;
           real_name: string;
+          status_note: string | null;
+          streamer_status: Database["public"]["Enums"]["streamer_status"];
           updated_at: string;
           username: string | null;
         };
@@ -390,6 +392,8 @@ export type Database = {
           id: string;
           overlay_token?: string;
           real_name?: string;
+          status_note?: string | null;
+          streamer_status?: Database["public"]["Enums"]["streamer_status"];
           updated_at?: string;
           username?: string | null;
         };
@@ -405,10 +409,60 @@ export type Database = {
           id?: string;
           overlay_token?: string;
           real_name?: string;
+          status_note?: string | null;
+          streamer_status?: Database["public"]["Enums"]["streamer_status"];
           updated_at?: string;
           username?: string | null;
         };
         Relationships: [];
+      };
+      streamer_applications: {
+        Row: {
+          channel_urls: string[];
+          image_paths: string[];
+          pdpa_accepted_at: string;
+          pdpa_version: string;
+          phone: string;
+          real_name: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          submitted_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          channel_urls: string[];
+          image_paths: string[];
+          pdpa_accepted_at: string;
+          pdpa_version: string;
+          phone: string;
+          real_name: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          submitted_at?: string;
+          user_id: string;
+        };
+        Update: {
+          channel_urls?: string[];
+          image_paths?: string[];
+          pdpa_accepted_at?: string;
+          pdpa_version?: string;
+          phone?: string;
+          real_name?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          submitted_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "streamer_applications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       system_errors: {
         Row: {
@@ -497,6 +551,12 @@ export type Database = {
         | "rejected"
         | "expired";
       promptpay_type: "phone" | "national_id";
+      streamer_status:
+        | "pending_application"
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "suspended";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -638,6 +698,13 @@ export const Constants = {
         "expired",
       ],
       promptpay_type: ["phone", "national_id"],
+      streamer_status: [
+        "pending_application",
+        "pending",
+        "approved",
+        "rejected",
+        "suspended",
+      ],
     },
   },
 } as const;

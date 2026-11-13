@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 
 import type { Database } from "@/lib/supabase/database.types";
 
+type StreamerStatus = Database["public"]["Enums"]["streamer_status"];
+
 /** helper สำหรับ integration/e2e test กับ Supabase ในเครื่อง (env มาจาก scripts/with-local-supabase.sh) */
 function env(name: string): string {
   const value = process.env[name];
@@ -32,7 +34,14 @@ export function anonClient() {
 }
 
 /** สร้างผู้ใช้ทดสอบ (email ยืนยันแล้ว) — trigger จะสร้าง profile + settings ให้ */
-export async function createTestUser(name = "tester") {
+/**
+ * ผู้ใช้ทดสอบ — ค่าเริ่มต้นอนุมัติเป็นสตรีมเมอร์แล้ว (F15) ให้ test เดิมใช้ dashboard ได้
+ * test เรื่องสมัคร/อนุมัติส่ง status: "pending_application"
+ */
+export async function createTestUser(
+  name = "tester",
+  { status = "approved" }: { status?: StreamerStatus } = {},
+) {
   const email = `${name}-${randomUUID().slice(0, 8)}@example.test`;
   const { data, error } = await adminClient().auth.admin.createUser({
     email,
@@ -41,6 +50,13 @@ export async function createTestUser(name = "tester") {
     user_metadata: { full_name: name },
   });
   if (error || !data.user) throw error ?? new Error("createUser failed");
+  if (status !== "pending_application") {
+    const { error: e } = await adminClient()
+      .from("profiles")
+      .update({ streamer_status: status })
+      .eq("id", data.user.id);
+    if (e) throw e;
+  }
   return { id: data.user.id, email };
 }
 

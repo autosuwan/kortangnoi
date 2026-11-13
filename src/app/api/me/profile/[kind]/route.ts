@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { errorResponse, toErrorResponse, unauthorized } from "@/lib/api-error";
+import { errorResponse, toErrorResponse } from "@/lib/api-error";
 import type { ProfileImageKind } from "@/lib/profile";
-import { getCurrentUser } from "@/server/auth";
+import { authorizeStreamer } from "@/server/auth";
 import {
   removeProfileImage,
   uploadProfileImage,
@@ -23,8 +23,8 @@ export async function POST(
   request: Request,
   { params }: RouteContext<"/api/me/profile/[kind]">,
 ) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
   const kind = await kindOf(params);
   if (!kind) return errorResponse(404, "NOT_FOUND", "ไม่พบหน้านี้");
 
@@ -44,8 +44,8 @@ export async function DELETE(
   _request: Request,
   { params }: RouteContext<"/api/me/profile/[kind]">,
 ) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
   const kind = await kindOf(params);
   if (!kind) return errorResponse(404, "NOT_FOUND", "ไม่พบหน้านี้");
   try {

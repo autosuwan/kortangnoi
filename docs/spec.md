@@ -94,7 +94,7 @@ stateDiagram-v2
 ### Validation
 
 - username: 3–20 ตัว, `^[a-z0-9_-]+$`, แปลงเป็นตัวเล็กก่อนเช็ก
-- ห้ามคำสงวน: `api, auth, login, logout, onboarding, dashboard, overlay, admin, settings, static, _next, d`
+- ห้ามคำสงวน: `api, auth, login, logout, onboarding, dashboard, overlay, admin, settings, static, _next, d, apply, privacy`
 - เปลี่ยน username ได้ (ลิงก์เก่าใช้ไม่ได้ทันที — แจ้งเตือนก่อนบันทึก)
 
 ### Error case
@@ -724,6 +724,34 @@ type OverlayAlert = {
 
 ---
 
+## F15 สมัครเป็นสตรีมเมอร์ (แอดมินอนุมัติ) + PDPA
+
+### Flow
+
+- ล็อกอินครั้งแรก → `profiles.streamer_status = pending_application` → ทุกหน้า `/dashboard/*` และ `/onboarding` redirect ไป **`/apply`**
+- `/apply` ฟอร์ม: ชื่อ-นามสกุลจริง (2–100), เบอร์มือถือ (`^0[689]\d{8}$`, รับขีด/เว้นวรรค), ลิงก์ช่อง 1–3 (`https://` ≤ 300 ตัว), รูปหน้าช่อง 1–3 รูป (png/jpg/webp ≤ 4 MB, magic bytes) + **checkbox ยอมรับนโยบายความเป็นส่วนตัว (PDPA)** บังคับ — เก็บ `pdpa_version` + `pdpa_accepted_at`
+- ส่งแล้ว → `pending` แสดง "รอแอดมินตรวจสอบ" + ข้อมูลที่ส่ง → แอดมินอนุมัติ → `approved` → `/onboarding` (ตั้ง username) → dashboard
+- ไม่อนุมัติ → `rejected` + เหตุผล → แก้แล้วส่งใหม่ได้ (ทับใบเดิม ลบรูปเก่า)
+- ระงับ → `suspended` + เหตุผล → เข้า dashboard ไม่ได้, หน้าโดเนท "ตอนนี้ปิดรับโดเนท", สร้างรายการใหม่ → 409 `DONATIONS_DISABLED`
+- ผู้ใช้เดิมก่อน F15 = `approved`; แอดมิน (`ADMIN_USER_IDS`) ผ่านเสมอ
+- `/privacy` นโยบายความเป็นส่วนตัว (แม่แบบ — เจ้าของระบบควรตรวจ/เติมช่องทางติดต่อ)
+
+### บังคับสิทธิ์
+
+- หน้าเว็บ: `requireStreamer()` (ยังไม่อนุมัติ → `/apply`); API สตรีมเมอร์ (`/api/settings/*`, `/api/donations/*`, `/api/alerts/test`, `/api/me/profile*`, `/api/me/username`): `getApprovedUser()` → ยังไม่อนุมัติ 403 `STREAMER_NOT_APPROVED`
+- ใบสมัครอยู่ตาราง `streamer_applications` (RLS เจ้าของ select เท่านั้น) รูปอยู่ bucket private `applications` — **ชื่อจริง/เบอร์/รูปไม่ออก API สาธารณะ**
+
+### API
+
+| Method | Path         | Request                                                                    | Response                                                    |
+| ------ | ------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| GET    | `/api/apply` | –                                                                          | `{ status, note, application: { ..., imageUrls } \| null }` |
+| POST   | `/api/apply` | multipart `realName, phone, channelUrls[] (≤3), images[] (1–3), pdpa=true` | เหมือน GET                                                   |
+
+ส่งได้เฉพาะสถานะ `pending_application` / `rejected` / `pending` (แก้ก่อนแอดมินตรวจ) — `approved`/`suspended` → 409 `APPLICATION_LOCKED`; ข้อมูลผิด → 400 `APPLICATION_INVALID`; ไม่ติ๊ก PDPA → 400 `PDPA_REQUIRED`
+
+---
+
 ## F12 หน้าแอดมิน
 
 ### หน้าจอ `/dashboard/admin` (เฉพาะแอดมิน)
@@ -731,6 +759,13 @@ type OverlayAlert = {
 - โควตา SlipOK คงเหลือ / ใช้เกิน / วันหมดอายุ
 - จำนวนสลิปที่ตรวจเดือนนี้ แยกตามผล (approved / pending_review / rejected)
 - รายการ error ระดับระบบล่าสุด (เช่น 1004 โควตาหมด, SlipOK timeout)
+
+### จัดการผู้ใช้ (F15)
+
+- แท็บ **คำขอสมัคร** (จำนวนรอตรวจ): ดูชื่อจริง เบอร์ ลิงก์ รูป (signed URL 10 นาที) → อนุมัติ / ไม่อนุมัติ (+เหตุผล ≤ 300)
+- แท็บ **สตรีมเมอร์**: ทุกคน — ชื่อที่แสดง, @username, สถานะ, วันที่สมัคร, ยอดเดือนนี้, เปิดรับโดเนทไหม; ค้นหา (ชื่อ/username) + กรองสถานะ; ดูใบสมัคร; ระงับ / ยกเลิกระงับ (+เหตุผล)
+- แท็บ **ระบบ**: โควตา SlipOK, สถิติสลิป, error ล่าสุด, จำนวนผู้ใช้ตามสถานะ
+- API: `GET /api/admin/users?q=&status=&page=`, `GET /api/admin/users/{id}`, `POST /api/admin/users/{id}/{approve|reject|suspend|unsuspend}` `{ note? }` — conditional update ตามสถานะเดิม (approve/reject จาก `pending`, suspend จาก `approved`, unsuspend `suspended` → `approved`) ผิดสถานะ 409 `INVALID_STATUS`; แอดมินระงับตัวเองไม่ได้
 
 ### API
 

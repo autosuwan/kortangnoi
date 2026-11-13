@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getCurrentUser, isAdmin } from "@/server/auth";
+import { getCurrentUser, isAdmin, requireStreamer } from "@/server/auth";
 
 import { DonationWatcher } from "./donation-watcher";
 import { MobileNav, SidebarNav } from "./sidebar-nav";
@@ -66,9 +66,10 @@ export default function DashboardLayout({
   );
 }
 
+/** ยังไม่อนุมัติเป็นสตรีมเมอร์ (F15) → /apply ทุกหน้าใน dashboard (หน้าแต่ละหน้าก็เช็กซ้ำ) */
 async function Watcher() {
-  const user = await getCurrentUser();
-  return user ? <DonationWatcher userId={user.id} /> : null;
+  const user = await requireStreamer();
+  return <DonationWatcher userId={user.id} />;
 }
 
 async function NavWithRole() {

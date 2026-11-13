@@ -10,6 +10,7 @@ erDiagram
   profiles ||--|| webhook_settings : has
   profiles ||--|| overlay_widgets : has
   profiles ||--o{ donations : receives
+  profiles ||--o| streamer_applications : applies
 
   profiles {
     uuid id PK "FK auth.users.id"
@@ -21,6 +22,8 @@ erDiagram
     text banner_url "nullable"
     text discord_id UK "nullable"
     text overlay_token UK "สุ่ม 32 bytes"
+    streamer_status streamer_status "default pending_application (ผู้ใช้เดิม approved)"
+    text status_note "nullable, เหตุผลไม่อนุมัติ/ระงับ ≤300"
     timestamptz created_at
     timestamptz updated_at
   }
@@ -129,6 +132,19 @@ erDiagram
     timestamptz updated_at
   }
 
+  streamer_applications {
+    uuid user_id PK "FK profiles.id"
+    text real_name "2-100 ตัว, ส่วนตัว"
+    text phone "^0[689]d{8}, ส่วนตัว"
+    text_arr channel_urls "1-3 ลิงก์ https"
+    text_arr image_paths "1-3 รูป ใน bucket applications"
+    text pdpa_version
+    timestamptz pdpa_accepted_at
+    timestamptz submitted_at
+    timestamptz reviewed_at "nullable"
+    uuid reviewed_by "nullable, แอดมิน"
+  }
+
   system_errors {
     bigint id PK
     text source "slipok | klipy | discord | ..."
@@ -147,6 +163,7 @@ erDiagram
 | `promptpay_type`   | `phone`, `national_id`                                                            |
 | `alert_media_type` | `default`, `gif`, `upload`                                                        |
 | `approval_method`  | `auto`, `manual`                                                                  |
+| `streamer_status`  | `pending_application`, `pending`, `approved`, `rejected`, `suspended`             |
 
 ## Constraint สำคัญ
 
@@ -180,15 +197,16 @@ erDiagram
 
 เปิด RLS ทุกตาราง ค่าเริ่มต้นคือปฏิเสธทั้งหมด
 
-| ตาราง              | anon | เจ้าของ (authenticated)                 | server (secret key) |
-| ------------------ | ---- | -------------------------------------- | ------------------- |
-| `profiles`         | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
-| `payment_settings` | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
-| `alert_settings`   | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
-| `webhook_settings` | –    | select / update แถวตัวเอง               | ทั้งหมด               |
-| `overlay_widgets`  | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
-| `donations`        | –    | select แถวที่ `streamer_id = auth.uid()` | ทั้งหมด               |
-| `system_errors`    | –    | –                                      | ทั้งหมด               |
+| ตาราง                   | anon | เจ้าของ (authenticated)                 | server (secret key) |
+| ----------------------- | ---- | -------------------------------------- | ------------------- |
+| `profiles`              | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
+| `payment_settings`      | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
+| `alert_settings`        | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
+| `webhook_settings`      | –    | select / update แถวตัวเอง               | ทั้งหมด               |
+| `overlay_widgets`       | –    | select แถวตัวเอง (แก้ผ่าน API เท่านั้น)      | ทั้งหมด               |
+| `donations`             | –    | select แถวที่ `streamer_id = auth.uid()` | ทั้งหมด               |
+| `system_errors`         | –    | –                                      | ทั้งหมด               |
+| `streamer_applications` | –    | select แถวตัวเอง (เขียนผ่าน API)          | ทั้งหมด               |
 
 - หน้าโดเนท, overlay และการตรวจสลิปไม่ให้ client อ่าน DB ตรง ทุกอย่างผ่าน API ของเราที่ใช้ service role
 - `select` ของเจ้าของบน `donations` ทำให้ dashboard ใช้ Realtime `postgres_changes` แจ้งรายการรอตรวจใหม่ได้
@@ -201,4 +219,5 @@ erDiagram
 | `profile-media` | อ่านได้สาธารณะ | `{user_id}/{avatar\|banner}-{uuid}.{ext}`                                       | server เท่านั้น (ผ่าน API), ≤ 4 MB                                |
 | `alert-media`   | อ่านได้สาธารณะ | `{user_id}/{uuid}.{ext}`, avatar: `{user_id}/avatar-{idle\|speak}-{uuid}.{ext}` | server เท่านั้น (ผ่าน API), ≤ 4 MB                                |
 | `tts-audio`     | private      | `{user_id}/{uuid}.mp3`                                                          | server เท่านั้น, overlay ได้ signed URL 10 นาที, ลบไฟล์เก่ากว่า 1 ชม. |
+| `applications`  | private      | `{user_id}/{uuid}.{ext}`                                                        | server เท่านั้น, เจ้าของ/แอดมินดูผ่าน signed URL 10 นาที              |
 | `slips`         | private      | `{streamer_id}/{donation_id}/{attempt}.{ext}`                                   | server เท่านั้น, เจ้าของดูผ่าน signed URL 10 นาที                    |

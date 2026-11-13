@@ -17,7 +17,7 @@ export default function DonationsPage() {
           title="ประวัติโดเนท"
           description="กดรายการเพื่อดูสลิป และอนุมัติรายการที่รอตรวจ"
         />
-        {/* useSearchParams ต้องอยู่ใน Suspense; สิทธิ์ตรวจที่ API (requireUser ใน route) */}
+        {/* useSearchParams ต้องอยู่ใน Suspense; สิทธิ์ตรวจที่ API (authorizeStreamer ใน route) + layout redirect */}
         <Suspense fallback={null}>
           <DonationsView />
         </Suspense>

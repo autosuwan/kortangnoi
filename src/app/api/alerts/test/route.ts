@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { toErrorResponse, unauthorized } from "@/lib/api-error";
-import { getCurrentUser } from "@/server/auth";
+import { toErrorResponse } from "@/lib/api-error";
+import { authorizeStreamer } from "@/server/auth";
 import { sendTestAlert } from "@/server/services/overlay";
 
 export async function POST() {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await authorizeStreamer();
+  if (user instanceof Response) return user;
 
   try {
     return NextResponse.json(await sendTestAlert(user.id));

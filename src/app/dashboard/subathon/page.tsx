@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageTitle } from "@/components/dashboard/page-title";
-import { requireUser } from "@/server/auth";
+import { requireStreamer } from "@/server/auth";
 import { getOverlayToken } from "@/server/realtime/overlay";
 import { overlayUrl } from "@/server/services/overlay";
 import {
@@ -37,7 +37,7 @@ export default function SubathonPage() {
 }
 
 async function Loaded() {
-  const user = await requireUser();
+  const user = await requireStreamer();
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
   const token = await getOverlayToken(user.id);

@@ -157,7 +157,7 @@ export function ProfileForm({
             {profile.realName || "–"}
           </p>
           <p className="mt-3 text-xs text-muted-foreground">
-            รหัสผู้ใช้ (ใช้ตั้งสิทธิ์แอดมิน):{" "}
+            รหัสผู้ใช้:{" "}
             <code
               data-testid="user-id"
               className="font-mono break-all select-all"

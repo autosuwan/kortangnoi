@@ -20,7 +20,7 @@ import {
 } from "@/lib/payment-settings";
 import type { PromptpayType } from "@/lib/promptpay";
 import { startNavigationProgress } from "@/lib/navigation-progress";
-import { SETUP_STEPS } from "@/lib/setup-steps";
+import { SETUP_STEPS, type SetupProgress } from "@/lib/setup-steps";
 import { cn } from "@/lib/utils";
 
 import { SetupNextBar, SetupSteps } from "../setup-steps";
@@ -43,12 +43,12 @@ const TYPE_OPTIONS: { value: PromptpayType; label: string }[] = [
 export function PaymentForm({
   initial,
   streamerName,
-  setup = false,
+  setup = null,
 }: {
   initial: PaymentSettings;
   streamerName: string;
   /** ตั้งค่าครั้งแรก: เปิดรับโดเนทไว้ให้ + บันทึกแล้วไปขั้นต่อไป */
-  setup?: boolean;
+  setup?: SetupProgress | null;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
@@ -120,7 +120,7 @@ export function PaymentForm({
 
   return (
     <div className="pb-24">
-      {setup && <SetupSteps current={1} />}
+      {setup && <SetupSteps current={1} done={setup.done} />}
       <PageTitle
         title="ช่องทางรับเงิน"
         description="เงินโดเนทโอนตรงเข้าพร้อมเพย์ของคุณ ระบบไม่ได้ถือเงินไว้"

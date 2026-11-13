@@ -4,11 +4,22 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { SETUP_STEPS, type SetupStep } from "@/lib/setup-steps";
+import {
+  SETUP_STEPS,
+  type SetupProgress,
+  type SetupStep,
+} from "@/lib/setup-steps";
 import { cn } from "@/lib/utils";
 
 /** แถบขั้นตอนด้านบนของแต่ละขั้น */
-export function SetupSteps({ current }: { current: SetupStep }) {
+export function SetupSteps({
+  current,
+  done,
+}: {
+  current: SetupStep;
+  /** ขั้นที่ทำเสร็จจริง (ไม่ใช่ตามลำดับ) */
+  done: SetupProgress["done"];
+}) {
   return (
     <nav
       aria-label="ขั้นตอนตั้งค่า"
@@ -31,7 +42,7 @@ export function SetupSteps({ current }: { current: SetupStep }) {
       <ol className="mt-3 grid grid-cols-3 gap-2">
         {SETUP_STEPS.map((step, i) => {
           const n = i + 1;
-          const done = n < current;
+          const isDone = done[i];
           const active = n === current;
           return (
             <li key={step.href}>
@@ -45,12 +56,14 @@ export function SetupSteps({ current }: { current: SetupStep }) {
                     "flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-xs",
                     active &&
                       "border-primary bg-primary text-primary-foreground",
-                    done && "border-green-600 bg-green-600 text-white",
-                    !active && !done && "text-muted-foreground",
+                    !active &&
+                      isDone &&
+                      "border-green-600 bg-green-600 text-white",
+                    !active && !isDone && "text-muted-foreground",
                   )}
                   aria-hidden
                 >
-                  {done ? <Check className="size-4" /> : n}
+                  {isDone ? <Check className="size-4" /> : n}
                 </span>
                 <span
                   className={cn(
@@ -58,6 +71,7 @@ export function SetupSteps({ current }: { current: SetupStep }) {
                   )}
                 >
                   {step.title}
+                  {isDone && <span className="sr-only"> (เสร็จแล้ว)</span>}
                 </span>
               </Link>
             </li>

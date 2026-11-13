@@ -120,6 +120,7 @@ export async function updateAlertSettings(
   const { data, error } = await createAdminClient()
     .from("alert_settings")
     .update({
+      customized_at: new Date().toISOString(),
       duration_sec: durationSec,
       sound_enabled: soundEnabled,
       volume,
@@ -189,6 +190,7 @@ export async function uploadAlertMedia(
   const { data, error } = await admin
     .from("alert_settings")
     .update({
+      customized_at: new Date().toISOString(),
       media_type: "upload",
       media_url: mediaUrl,
       media_storage_path: path,

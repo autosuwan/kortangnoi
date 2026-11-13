@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,14 @@ async function readError(res: Response, fallback: string) {
 export function TestAlertButton({
   hint = "ใช้ค่าที่บันทึกแล้ว · ใส่ลิงก์ OBS จากหน้าหลักก่อน",
   className,
+  refreshOnSent = false,
 }: {
   hint?: string;
   className?: string;
+  /** ส่งแล้วโหลดข้อมูลหน้าใหม่ (ติ๊กขั้นตั้งค่า) */
+  refreshOnSent?: boolean;
 }) {
+  const router = useRouter();
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -33,6 +38,7 @@ export function TestAlertButton({
         return;
       }
       setState("sent");
+      if (refreshOnSent) router.refresh();
       setTimeout(() => setState("idle"), 3000);
     } catch {
       setMessage("ส่งไม่สำเร็จ ลองใหม่อีกครั้ง");

@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { requireStreamer } from "@/server/auth";
 import { getPaymentSettings } from "@/server/services/payment";
 import { getMe } from "@/server/services/profile";
+import { getSetupProgress } from "@/server/services/setup";
 
 import { PageHeader } from "../page-header";
 import { PaymentFormSkeleton } from "../skeletons";
@@ -37,11 +38,12 @@ async function LoadedForm({
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
 
+  const progress = setup ? await getSetupProgress(user.id) : null;
   return (
     <PaymentForm
       initial={await getPaymentSettings(user.id)}
       streamerName={me.displayName || me.username}
-      setup={setup}
+      setup={progress}
     />
   );
 }

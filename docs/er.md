@@ -25,6 +25,7 @@ erDiagram
     streamer_status streamer_status "default pending_application (ผู้ใช้เดิม approved)"
     text status_note "nullable, เหตุผลไม่อนุมัติ/ระงับ ≤300"
     boolean is_admin "default false, ให้โดยเจ้าของระบบ"
+    timestamptz setup_done_at "nullable, จบ/ซ่อนการตั้งค่าครั้งแรก"
     timestamptz created_at
     timestamptz updated_at
   }
@@ -62,6 +63,7 @@ erDiagram
     text tts_voice "allowlist, default translate"
     smallint tts_volume "0-100, default 100"
     timestamptz tts_preview_at "nullable, rate limit ฟังตัวอย่าง"
+    timestamptz customized_at "nullable, เคยบันทึก/เปลี่ยนรูป alert (ติ๊กขั้นตั้งค่า)"
     timestamptz updated_at
   }
 

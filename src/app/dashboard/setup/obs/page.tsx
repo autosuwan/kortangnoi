@@ -10,6 +10,7 @@ import { publicEnv } from "@/lib/env";
 import { requireStreamer } from "@/server/auth";
 import { getOverlayUrl } from "@/server/services/overlay";
 import { getMe } from "@/server/services/profile";
+import { getSetupProgress } from "@/server/services/setup";
 
 import { ObsLinkCard } from "../../obs-link-card";
 import { PageHeader } from "../../page-header";
@@ -26,11 +27,6 @@ export default function SetupObsPage() {
     <>
       <PageHeader title="เชื่อม OBS" />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 pb-32 md:px-6">
-        <SetupSteps current={3} />
-        <PageTitle
-          title="เชื่อม OBS"
-          description="ใส่ลิงก์ในโปรแกรมไลฟ์ แล้วลองส่ง alert ทดสอบให้ขึ้นจอ"
-        />
         <Suspense fallback={<SummarySkeleton />}>
           <Content />
         </Suspense>
@@ -44,17 +40,30 @@ async function Content() {
   const user = await requireStreamer();
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
-  const overlayUrl = await getOverlayUrl(user.id);
+  const [overlayUrl, progress] = await Promise.all([
+    getOverlayUrl(user.id),
+    getSetupProgress(user.id),
+  ]);
   const donateUrl = `${publicEnv.siteUrl.replace(/\/$/, "")}/${me.username}`;
 
   return (
-    <div className="mt-6 grid gap-4">
+    <div className="grid gap-4">
+      <SetupSteps current={3} done={progress.done} />
+      <PageTitle
+        title="เชื่อม OBS"
+        description="ใส่ลิงก์ในโปรแกรมไลฟ์ แล้วลองส่ง alert ทดสอบให้ขึ้นจอ"
+        className="mb-2"
+      />
       <ObsLinkCard initialUrl={overlayUrl} testBelow />
       <SectionCard
         title="ทดสอบ alert"
         description="ใส่ลิงก์ใน OBS แล้วกดปุ่มนี้ ถ้า alert ขึ้นจอแปลว่าพร้อมไลฟ์"
       >
-        <TestAlertButton className="mt-0 px-0" hint="ใช้หน้าตา alert ที่บันทึกไว้" />
+        <TestAlertButton
+          className="mt-0 px-0"
+          hint="ใช้หน้าตา alert ที่บันทึกไว้"
+          refreshOnSent
+        />
       </SectionCard>
       <SectionCard
         icon={Link2}

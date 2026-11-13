@@ -6,6 +6,7 @@ import { PageTitle } from "@/components/dashboard/page-title";
 import { requireStreamer } from "@/server/auth";
 import { getAlertSettings } from "@/server/services/alert";
 import { getMe } from "@/server/services/profile";
+import { getSetupProgress } from "@/server/services/setup";
 
 import { PageHeader } from "../page-header";
 import { SetupSteps } from "../setup-steps";
@@ -43,7 +44,10 @@ async function SetupBanner({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  return (await searchParams).setup === "1" ? <SetupSteps current={2} /> : null;
+  if ((await searchParams).setup !== "1") return null;
+  const user = await requireStreamer();
+  const { done } = await getSetupProgress(user.id);
+  return <SetupSteps current={2} done={done} />;
 }
 
 async function LoadedForm({

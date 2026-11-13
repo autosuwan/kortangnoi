@@ -36,6 +36,7 @@ export type Database = {
     Tables: {
       alert_settings: {
         Row: {
+          customized_at: string | null;
           donor_can_pick_color: boolean;
           donor_can_pick_image: boolean;
           donor_can_pick_support_text: boolean;
@@ -59,6 +60,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          customized_at?: string | null;
           donor_can_pick_color?: boolean;
           donor_can_pick_image?: boolean;
           donor_can_pick_support_text?: boolean;
@@ -81,6 +83,7 @@ export type Database = {
           volume?: number;
         };
         Update: {
+          customized_at?: string | null;
           donor_can_pick_color?: boolean;
           donor_can_pick_image?: boolean;
           donor_can_pick_support_text?: boolean;
@@ -375,6 +378,7 @@ export type Database = {
           is_admin: boolean;
           overlay_token: string;
           real_name: string;
+          setup_done_at: string | null;
           status_note: string | null;
           streamer_status: Database["public"]["Enums"]["streamer_status"];
           updated_at: string;
@@ -394,6 +398,7 @@ export type Database = {
           is_admin?: boolean;
           overlay_token?: string;
           real_name?: string;
+          setup_done_at?: string | null;
           status_note?: string | null;
           streamer_status?: Database["public"]["Enums"]["streamer_status"];
           updated_at?: string;
@@ -412,6 +417,7 @@ export type Database = {
           is_admin?: boolean;
           overlay_token?: string;
           real_name?: string;
+          setup_done_at?: string | null;
           status_note?: string | null;
           streamer_status?: Database["public"]["Enums"]["streamer_status"];
           updated_at?: string;

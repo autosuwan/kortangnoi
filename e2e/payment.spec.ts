@@ -40,17 +40,54 @@ test("ตั้งค่าครั้งแรกทีละขั้น: พ
   await page.getByLabel("ชื่อบัญชี (ภาษาอังกฤษ)").fill("somchai jaidee");
   await bar.getByRole("button", { name: "บันทึกและไปขั้นต่อไป" }).click();
 
-  // ขั้น 2: ไม่แก้อะไรก็ไปต่อได้
+  // ขั้น 2: ขั้น 1 ติ๊กถูกแล้ว, ไม่แก้อะไรก็ไปต่อได้ (แต่ไม่ติ๊ก)
   await expect(page).toHaveURL(/\/dashboard\/alert\?setup=1$/);
   await expect(steps.getByText("ขั้นที่ 2 จาก 3")).toBeVisible();
+  await expect(
+    steps.getByRole("link", { name: "ช่องทางรับเงิน (เสร็จแล้ว)" }),
+  ).toBeVisible();
   await bar.getByRole("button", { name: "ใช้ค่านี้ ไปขั้นต่อไป" }).click();
 
-  // ขั้น 3: ลิงก์ OBS + เสร็จ
+  // ขั้น 3: ทดสอบ alert → ติ๊กขั้น 3, ขั้น 2 ยังไม่ติ๊ก
   await expect(page).toHaveURL(/\/dashboard\/setup\/obs$/);
   await expect(page.getByTestId("overlay-url")).toBeVisible();
+  await expect(
+    steps.getByRole("link", { name: "หน้าตา alert", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "ทดสอบ alert ใน OBS" }).click();
+  await expect(
+    steps.getByRole("link", { name: "เชื่อม OBS (เสร็จแล้ว)" }),
+  ).toBeVisible();
+
+  // ข้ามไว้ก่อน → หน้าหลักติ๊กตามจริง + "ทำต่อ" พาไปขั้นที่ยังไม่เสร็จ
+  await steps.getByRole("link", { name: "ข้ามไว้ก่อน" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByTestId("setup-step")).toHaveCount(3);
+  await expect(page.getByTestId("setup-step").nth(0)).toHaveAttribute(
+    "data-done",
+    "true",
+  );
+  await expect(page.getByTestId("setup-step").nth(1)).toHaveAttribute(
+    "data-done",
+    "false",
+  );
+  await expect(page.getByTestId("setup-step").nth(2)).toHaveAttribute(
+    "data-done",
+    "true",
+  );
+  await page.getByRole("link", { name: /ทำต่อ/ }).click();
+  await expect(page).toHaveURL(/\/dashboard\/alert\?setup=1$/);
+  await page.getByLabel("คำสนับสนุน", { exact: true }).fill("ให้ค่าขนม");
+  await bar.getByRole("button", { name: "บันทึกและไปขั้นต่อไป" }).click();
+
+  await expect(page).toHaveURL(/\/dashboard\/setup\/obs$/);
+  await expect(
+    steps.getByRole("link", { name: "หน้าตา alert (เสร็จแล้ว)" }),
+  ).toBeVisible();
   await bar.getByRole("button", { name: "เสร็จแล้ว ไปหน้าหลัก" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByText("เปิดรับโดเนทแล้ว")).toBeVisible();
+  await expect(page.getByTestId("setup-step")).toHaveCount(0);
 
   // ค่าที่บันทึกไว้ยังอยู่ (นอกโหมดตั้งค่าใช้แถบ "ยังไม่บันทึก" แบบเดิม)
   await page.goto("/dashboard/payment");
@@ -135,4 +172,13 @@ test("เปิดบริจาคไม่เปิดเผยชื่อ �
     .eq("streamer_id", s.id)
     .single();
   expect(data?.donor_name).toBe("Anonymous");
+});
+
+test("ซ่อนการ์ดเริ่มต้นใช้งานบนหน้าหลัก", async ({ page }) => {
+  await loginAsStreamer(page, "setup-hide");
+  await expect(page.getByTestId("setup-step")).toHaveCount(3);
+  await page.getByRole("button", { name: "ซ่อน" }).click();
+  await expect(page.getByTestId("setup-step")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("setup-step")).toHaveCount(0);
 });

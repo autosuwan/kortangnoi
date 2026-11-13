@@ -8,7 +8,7 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   try {
-    assertAdmin(user.id);
+    await assertAdmin(user.id);
     return NextResponse.json(await getAdminStats());
   } catch (error) {
     return toErrorResponse(error);

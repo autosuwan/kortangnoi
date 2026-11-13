@@ -17,7 +17,7 @@ import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { FREE_MONTHLY_QUOTA, quotaLevel } from "@/lib/slipok-quota";
 import { STREAMER_STATUS_LABELS, STREAMER_STATUSES } from "@/lib/application";
 import { cn } from "@/lib/utils";
-import { isAdmin, requireStreamer } from "@/server/auth";
+import { isAdmin, isOwner, requireStreamer } from "@/server/auth";
 import { getSlipOkQuota } from "@/server/integrations/slipok";
 import { countUsersByStatus, getAdminStats } from "@/server/services/admin";
 
@@ -54,7 +54,7 @@ const fmtDate = (d: string | null) =>
 async function AdminContent() {
   const user = await requireStreamer();
   // ไม่ใช่แอดมิน → 404 เหมือนไม่มีหน้านี้
-  if (!isAdmin(user.id)) notFound();
+  if (!(await isAdmin(user.id))) notFound();
   const [quota, stats, counts] = await Promise.all([
     getSlipOkQuota(),
     getAdminStats(),
@@ -229,7 +229,11 @@ async function AdminContent() {
         description="อนุมัติสตรีมเมอร์ จัดการผู้ใช้ และดูสถานะระบบ"
         className="mb-2"
       />
-      <AdminTabs pendingCount={counts.pending} system={system} />
+      <AdminTabs
+        pendingCount={counts.pending}
+        system={system}
+        viewerIsOwner={isOwner(user.id)}
+      />
     </div>
   );
 }

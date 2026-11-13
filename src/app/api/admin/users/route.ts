@@ -11,13 +11,16 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const status = params.get("status");
   try {
-    assertAdmin(user.id);
+    await assertAdmin(user.id);
     return NextResponse.json(
       await listUsers({
         q: params.get("q") ?? "",
-        status: STREAMER_STATUSES.includes(status as StreamerStatus)
-          ? (status as StreamerStatus)
-          : null,
+        status:
+          status === "admin"
+            ? "admin"
+            : STREAMER_STATUSES.includes(status as StreamerStatus)
+              ? (status as StreamerStatus)
+              : null,
         page: Number(params.get("page") ?? 1),
       }),
       { headers: { "cache-control": "no-store" } },

@@ -4,12 +4,20 @@ import { AppError } from "@/lib/api-error";
 import { bangkokPeriodStarts } from "@/lib/bangkok-time";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { STATUS_NOTE_MAX } from "@/lib/application";
-import { isAdmin, type StreamerStatus } from "@/server/auth";
+import {
+  adminRole,
+  isAdmin,
+  isOwner,
+  type AdminRole,
+  type StreamerStatus,
+} from "@/server/auth";
 import { readApplication } from "@/server/services/application";
 
 /** ไม่ใช่แอดมิน → 404 (ไม่บอกว่ามีหน้านี้) */
-export function assertAdmin(userId: string) {
-  if (!isAdmin(userId)) throw new AppError(404, "NOT_FOUND", "ไม่พบหน้านี้");
+export async function assertAdmin(userId: string) {
+  if (!(await isAdmin(userId))) {
+    throw new AppError(404, "NOT_FOUND", "ไม่พบหน้านี้");
+  }
 }
 
 export type AdminStats = {
@@ -71,6 +79,7 @@ export type AdminUserRow = {
   displayName: string | null;
   username: string | null;
   status: StreamerStatus;
+  role: AdminRole;
   note: string | null;
   createdAt: string;
   submittedAt: string | null;
@@ -90,7 +99,7 @@ export async function listUsers(
     page = 1,
   }: {
     q?: string;
-    status?: StreamerStatus | null;
+    status?: StreamerStatus | "admin" | null;
     page?: number;
   },
   now = new Date(),
@@ -101,12 +110,22 @@ export async function listUsers(
   let query = admin
     .from("profiles")
     .select(
-      "id, display_name, username, streamer_status, status_note, created_at, streamer_applications(submitted_at, real_name), payment_settings(enabled)",
+      "id, display_name, username, streamer_status, status_note, is_admin, created_at, streamer_applications(submitted_at, real_name), payment_settings(enabled)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })
     .range(from, from + USERS_PAGE_SIZE - 1);
-  if (status) query = query.eq("streamer_status", status);
+  if (status === "admin") {
+    const owners = (process.env.ADMIN_USER_IDS ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    query = owners.length
+      ? query.or(`is_admin.eq.true,id.in.(${owners.join(",")})`)
+      : query.eq("is_admin", true);
+  } else if (status) {
+    query = query.eq("streamer_status", status);
+  }
   // ค้นหาด้วยชื่อที่แสดง/username (ตัด , ( ) ที่มีความหมายใน filter ของ PostgREST)
   const term = q
     .trim()
@@ -144,7 +163,8 @@ export async function listUsers(
       id: u.id,
       displayName: u.display_name,
       username: u.username,
-      status: isAdmin(u.id) ? "approved" : u.streamer_status,
+      status: isOwner(u.id) ? "approved" : u.streamer_status,
+      role: adminRole(u.id, u.is_admin),
       note: u.status_note,
       createdAt: u.created_at,
       submittedAt: one(u.streamer_applications)?.submitted_at ?? null,
@@ -187,7 +207,7 @@ export async function getUserDetail(id: string) {
   const { data, error } = await createAdminClient()
     .from("profiles")
     .select(
-      "id, display_name, username, real_name, streamer_status, status_note, created_at",
+      "id, display_name, username, real_name, streamer_status, status_note, is_admin, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -198,12 +218,12 @@ export async function getUserDetail(id: string) {
     displayName: data.display_name,
     username: data.username,
     accountName: data.real_name,
-    status: (isAdmin(data.id)
+    status: (isOwner(data.id)
       ? "approved"
       : data.streamer_status) as StreamerStatus,
     note: data.status_note,
     createdAt: data.created_at,
-    isAdmin: isAdmin(data.id),
+    role: adminRole(data.id, data.is_admin),
     application: await readApplication(data.id),
   };
 }
@@ -217,7 +237,42 @@ export const USER_ACTIONS = {
   string,
   { from: StreamerStatus[]; to: StreamerStatus }
 >;
-export type UserAction = keyof typeof USER_ACTIONS;
+export const ROLE_ACTIONS = ["grant_admin", "revoke_admin"] as const;
+export type RoleAction = (typeof ROLE_ACTIONS)[number];
+export type UserAction = keyof typeof USER_ACTIONS | RoleAction;
+
+/** ให้/ถอนสิทธิ์แอดมิน — เจ้าของระบบเท่านั้น */
+async function setAdminRole(
+  actorId: string,
+  userId: string,
+  action: RoleAction,
+) {
+  if (!isOwner(actorId)) {
+    throw new AppError(403, "OWNER_ONLY", "ให้/ถอนสิทธิ์แอดมินได้เฉพาะเจ้าของระบบ");
+  }
+  if (isOwner(userId) || userId === actorId) {
+    throw new AppError(409, "INVALID_STATUS", "เปลี่ยนสิทธิ์ของเจ้าของระบบไม่ได้");
+  }
+  const grant = action === "grant_admin";
+  let query = createAdminClient()
+    .from("profiles")
+    .update({ is_admin: grant })
+    .eq("id", userId)
+    .eq("is_admin", !grant);
+  // ให้สิทธิ์ได้เฉพาะคนที่อนุมัติแล้ว
+  if (grant) query = query.eq("streamer_status", "approved");
+  const { data, error } = await query.select("id");
+  if (error && error.code !== "22P02") throw error;
+  if (!data?.length) {
+    await getUserDetail(userId); // ไม่มีผู้ใช้ → 404
+    throw new AppError(
+      409,
+      "INVALID_STATUS",
+      grant ? "ให้สิทธิ์ได้เฉพาะผู้ใช้ที่อนุมัติแล้วและยังไม่เป็นแอดมิน" : "ผู้ใช้นี้ไม่ได้เป็นแอดมินแล้ว",
+    );
+  }
+  return getUserDetail(userId);
+}
 
 /** เปลี่ยนสถานะผู้ใช้แบบ conditional (กดซ้ำ/พร้อมกันสำเร็จครั้งเดียว) */
 export async function changeUserStatus(
@@ -226,11 +281,15 @@ export async function changeUserStatus(
   action: string,
   input: unknown,
 ) {
+  if ((ROLE_ACTIONS as readonly string[]).includes(action)) {
+    return setAdminRole(adminId, userId, action as RoleAction);
+  }
   if (!(action in USER_ACTIONS)) {
     throw new AppError(404, "NOT_FOUND", "ไม่พบหน้านี้");
   }
-  const rule = USER_ACTIONS[action as UserAction];
-  if (isAdmin(userId) || userId === adminId) {
+  const rule = USER_ACTIONS[action as keyof typeof USER_ACTIONS];
+  // แอดมินระงับ/เปลี่ยนสถานะไม่ได้ (ถอนสิทธิ์ก่อน)
+  if (userId === adminId || (await isAdmin(userId))) {
     throw new AppError(409, "INVALID_STATUS", "เปลี่ยนสถานะแอดมินไม่ได้");
   }
   const raw = (input as { note?: unknown } | null)?.note;

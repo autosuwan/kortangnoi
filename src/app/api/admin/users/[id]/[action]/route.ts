@@ -13,7 +13,7 @@ export async function POST(
   if (!user) return unauthorized();
   const { id, action } = await params;
   try {
-    assertAdmin(user.id);
+    await assertAdmin(user.id);
     const body = await request.json().catch(() => null);
     return NextResponse.json(await changeUserStatus(user.id, id, action, body));
   } catch (error) {

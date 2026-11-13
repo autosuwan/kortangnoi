@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { detectImageType } from "@/lib/image-type";
 import { validateProfileUpdate, type ProfileImageKind } from "@/lib/profile";
 import { checkUsername } from "@/lib/username";
-import { isAdmin } from "@/server/auth";
+import { isOwner } from "@/server/auth";
 
 export type Me = {
   id: string;
@@ -22,7 +22,7 @@ const PG_UNIQUE_VIOLATION = "23505";
 export async function getMe(userId: string): Promise<Me> {
   const { data, error } = await createAdminClient()
     .from("profiles")
-    .select("id, username, display_name, discord_id")
+    .select("id, username, display_name, discord_id, is_admin")
     .eq("id", userId)
     .single();
   if (error || !data)
@@ -33,7 +33,7 @@ export async function getMe(userId: string): Promise<Me> {
     username: data.username,
     displayName: data.display_name,
     discordId: data.discord_id,
-    isAdmin: isAdmin(data.id),
+    isAdmin: isOwner(data.id) || data.is_admin,
   };
 }
 

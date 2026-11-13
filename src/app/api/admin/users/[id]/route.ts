@@ -12,7 +12,7 @@ export async function GET(
   if (!user) return unauthorized();
   const { id } = await params;
   try {
-    assertAdmin(user.id);
+    await assertAdmin(user.id);
     return NextResponse.json(await getUserDetail(id), {
       headers: { "cache-control": "no-store" },
     });

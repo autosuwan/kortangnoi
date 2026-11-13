@@ -24,6 +24,7 @@ erDiagram
     text overlay_token UK "สุ่ม 32 bytes"
     streamer_status streamer_status "default pending_application (ผู้ใช้เดิม approved)"
     text status_note "nullable, เหตุผลไม่อนุมัติ/ระงับ ≤300"
+    boolean is_admin "default false, ให้โดยเจ้าของระบบ"
     timestamptz created_at
     timestamptz updated_at
   }

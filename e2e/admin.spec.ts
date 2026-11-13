@@ -127,7 +127,10 @@ test("ผู้ใช้ใหม่ต้องสมัคร → แอดม
   await adminPage.goto("/dashboard/admin");
   await adminPage.getByRole("tab", { name: "ผู้ใช้ทั้งหมด" }).click();
   await adminPage.getByLabel("ค้นหาผู้ใช้").fill(s.username);
-  await adminPage.getByTestId("admin-user-row").first().click();
+  await adminPage
+    .getByTestId("admin-user-row")
+    .filter({ hasText: s.username })
+    .click();
   await adminPage.getByRole("button", { name: "ระงับบัญชี" }).click();
   await adminPage.getByLabel("เหตุผล").fill("ทดสอบระงับ");
   await adminPage.getByRole("button", { name: "ยืนยันระงับบัญชี" }).click();
@@ -139,4 +142,54 @@ test("ผู้ใช้ใหม่ต้องสมัคร → แอดม
 
   await userCtx.close();
   await adminCtx.close();
+});
+
+test("เจ้าของระบบให้สิทธิ์แอดมิน → ผู้ใช้เห็นเมนูแอดมิน → ถอน → หาย", async ({
+  browser,
+}) => {
+  await ensureAdminUser();
+  const s = await createReadyStreamer("helperadm");
+
+  const ownerCtx = await browser.newContext();
+  const owner = await ownerCtx.newPage();
+  await loginWithPassword(owner, ADMIN_EMAIL);
+  await owner.waitForURL(/\/dashboard$/);
+  await owner.goto("/dashboard/admin");
+  await owner.getByRole("tab", { name: "ผู้ใช้ทั้งหมด" }).click();
+  await owner.getByLabel("ค้นหาผู้ใช้").fill(s.username);
+  await owner
+    .getByTestId("admin-user-row")
+    .filter({ hasText: s.username })
+    .click();
+  const sheet = owner.getByRole("dialog");
+  await sheet.getByRole("button", { name: "ให้สิทธิ์แอดมิน" }).click();
+  await sheet.getByRole("button", { name: "ยืนยันให้สิทธิ์แอดมิน" }).click();
+  await expect(sheet.getByTestId("user-role")).toHaveText("แอดมิน");
+  // แอดมินระงับไม่ได้ (ไม่มีปุ่ม)
+  await expect(sheet.getByRole("button", { name: "ระงับบัญชี" })).toHaveCount(0);
+
+  const userCtx = await browser.newContext();
+  const page = await userCtx.newPage();
+  await loginWithPassword(page, s.email);
+  await page.waitForURL(/\/dashboard$/);
+  const nav = page
+    .getByRole("navigation", { name: "เมนูหลัก" })
+    .filter({ visible: true });
+  await expect(nav.getByRole("link", { name: "แอดมิน" })).toBeVisible();
+  // แอดมินที่ได้สิทธิ์ให้สิทธิ์ต่อไม่ได้
+  const res = await page.request.post(`/api/admin/users/${s.id}/revoke_admin`, {
+    data: {},
+  });
+  expect(res.status()).toBe(403);
+
+  await sheet.getByRole("button", { name: "ถอนสิทธิ์แอดมิน" }).click();
+  await sheet.getByRole("button", { name: "ยืนยันถอนสิทธิ์แอดมิน" }).click();
+  await expect(sheet.getByTestId("user-role")).toHaveCount(0);
+  await page.reload();
+  await expect(nav.getByRole("link", { name: "แอดมิน" })).toHaveCount(0);
+  await page.goto("/dashboard/admin");
+  await expect(page.getByText("ไม่พบหน้านี้")).toBeVisible();
+
+  await ownerCtx.close();
+  await userCtx.close();
 });

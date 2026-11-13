@@ -9,7 +9,7 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   try {
-    assertAdmin(user.id);
+    await assertAdmin(user.id);
     const quota = await getSlipOkQuota();
     if (!quota) {
       return errorResponse(502, "SLIPOK_UNAVAILABLE", "ดึงข้อมูลโควตาไม่ได้");

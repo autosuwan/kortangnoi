@@ -74,10 +74,10 @@ async function Watcher() {
 
 async function NavWithRole() {
   const user = await getCurrentUser();
-  return <SidebarNav isAdmin={user ? isAdmin(user.id) : false} />;
+  return <SidebarNav isAdmin={user ? await isAdmin(user.id) : false} />;
 }
 
 async function MobileNavWithRole() {
   const user = await getCurrentUser();
-  return <MobileNav isAdmin={user ? isAdmin(user.id) : false} />;
+  return <MobileNav isAdmin={user ? await isAdmin(user.id) : false} />;
 }

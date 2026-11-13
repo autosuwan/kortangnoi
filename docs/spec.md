@@ -764,8 +764,9 @@ type OverlayAlert = {
 
 - แท็บ **คำขอสมัคร** (จำนวนรอตรวจ): ดูชื่อจริง เบอร์ ลิงก์ รูป (signed URL 10 นาที) → อนุมัติ / ไม่อนุมัติ (+เหตุผล ≤ 300)
 - แท็บ **สตรีมเมอร์**: ทุกคน — ชื่อที่แสดง, @username, สถานะ, วันที่สมัคร, ยอดเดือนนี้, เปิดรับโดเนทไหม; ค้นหา (ชื่อ/username) + กรองสถานะ; ดูใบสมัคร; ระงับ / ยกเลิกระงับ (+เหตุผล)
+- **สิทธิ์แอดมิน:** เจ้าของระบบ = `ADMIN_USER_IDS` (ถอนจากเว็บไม่ได้); แอดมิน = `profiles.is_admin` ให้/ถอนจากแผงข้อมูลผู้ใช้ **โดยเจ้าของระบบเท่านั้น** (`grant_admin`/`revoke_admin`, คนอื่น → 403 `OWNER_ONLY`) — ให้ได้เฉพาะคนที่อนุมัติแล้ว, ถอนตัวเอง/เจ้าของไม่ได้, แอดมินระงับไม่ได้ (ถอนสิทธิ์ก่อน); ทั้งสองแบบใช้หน้าแอดมินได้เท่ากัน; ตัวกรอง "แอดมิน" ในผู้ใช้ทั้งหมด
 - แท็บ **ระบบ**: โควตา SlipOK, สถิติสลิป, error ล่าสุด, จำนวนผู้ใช้ตามสถานะ
-- API: `GET /api/admin/users?q=&status=&page=`, `GET /api/admin/users/{id}`, `POST /api/admin/users/{id}/{approve|reject|suspend|unsuspend}` `{ note? }` — conditional update ตามสถานะเดิม (approve/reject จาก `pending`, suspend จาก `approved`, unsuspend `suspended` → `approved`) ผิดสถานะ 409 `INVALID_STATUS`; แอดมินระงับตัวเองไม่ได้
+- API: `GET /api/admin/users?q=&status=&page=`, `GET /api/admin/users/{id}`, `POST /api/admin/users/{id}/{approve|reject|suspend|unsuspend|grant_admin|revoke_admin}` `{ note? }` — conditional update ตามสถานะเดิม (approve/reject จาก `pending`, suspend จาก `approved`, unsuspend `suspended` → `approved`) ผิดสถานะ 409 `INVALID_STATUS`; แอดมินระงับตัวเองไม่ได้
 
 ### API
 
@@ -776,7 +777,7 @@ type OverlayAlert = {
 
 ### Validation
 
-- แอดมินกำหนดด้วย env `ADMIN_USER_IDS` (คั่นด้วย comma) ไม่มีหน้าตั้งแอดมินใน MVP
+- เจ้าของระบบกำหนดด้วย env `ADMIN_USER_IDS` (คั่นด้วย comma); แอดมินเพิ่มเติมให้สิทธิ์จากหน้าแอดมิน (`profiles.is_admin`)
 - ไม่ใช่แอดมิน → 404 (ไม่บอกว่าหน้านี้มีอยู่)
 - cache ผลโควตา 60 วินาที (`GET https://api.slipok.com/api/line/apikey/<BRANCH_ID>/quota`, `SLIPOK_PROVIDER=fake` คืนค่าจำลอง)
 - เมนู "แอดมิน" แสดงเฉพาะแอดมิน; สถิตินับเฉพาะรายการที่แนบสลิปแล้ว (`slip_attempts > 0`) เดือนนี้ตามเวลาไทย ทุกสตรีมเมอร์

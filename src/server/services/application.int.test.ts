@@ -8,8 +8,13 @@ import {
   createTestUser,
   signedInClient,
 } from "../../../test/supabase";
-import { getStreamerStatus } from "../auth";
-import { changeUserStatus, getUserDetail, listUsers } from "./admin";
+import { getStreamerStatus, isAdmin } from "../auth";
+import {
+  assertAdmin,
+  changeUserStatus,
+  getUserDetail,
+  listUsers,
+} from "./admin";
 import { getMyApplication, submitApplication } from "./application";
 import { createDonation, getPublicStreamer } from "./donation";
 
@@ -143,5 +148,74 @@ describe("F15 สมัครเป็นสตรีมเมอร์", () => 
 
     const files = await client.storage.from("applications").list(a.id);
     expect(files.data ?? []).toHaveLength(0);
+  });
+
+  it("เจ้าของให้/ถอนสิทธิ์แอดมิน; แอดมินที่ได้สิทธิ์ให้ต่อไม่ได้", async () => {
+    const owner = await createTestUser("owner");
+    const prev = process.env.ADMIN_USER_IDS;
+    process.env.ADMIN_USER_IDS = owner.id;
+    try {
+      const helper = await createTestUser("helper");
+      const other = await createTestUser("other");
+      const newbie = await createTestUser("newbie2", {
+        status: "pending_application",
+      });
+
+      await expect(assertAdmin(helper.id)).rejects.toMatchObject({
+        status: 404,
+      });
+      const granted = await changeUserStatus(
+        owner.id,
+        helper.id,
+        "grant_admin",
+        {},
+      );
+      expect(granted.role).toBe("admin");
+      expect(await isAdmin(helper.id)).toBe(true);
+      await assertAdmin(helper.id);
+      const admins = await listUsers({ status: "admin" });
+      const ids = admins.items.map((r) => r.id);
+      expect(ids).toContain(helper.id);
+      expect(ids).toContain(owner.id);
+
+      // แอดมินทำงานแอดมินได้ แต่ให้/ถอนสิทธิ์ไม่ได้
+      await expect(
+        changeUserStatus(helper.id, other.id, "grant_admin", {}),
+      ).rejects.toMatchObject({ status: 403, code: "OWNER_ONLY" });
+      await expect(
+        changeUserStatus(helper.id, owner.id, "suspend", {}),
+      ).rejects.toMatchObject({ status: 409 });
+      // ให้สิทธิ์คนยังไม่อนุมัติไม่ได้, ระงับแอดมินไม่ได้, ให้ซ้ำ 409
+      await expect(
+        changeUserStatus(owner.id, newbie.id, "grant_admin", {}),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(
+        changeUserStatus(owner.id, helper.id, "suspend", {}),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(
+        changeUserStatus(owner.id, helper.id, "grant_admin", {}),
+      ).rejects.toMatchObject({ status: 409 });
+
+      // client แก้ is_admin ตรงไม่ได้
+      const client = await signedInClient(other.email);
+      await client
+        .from("profiles")
+        .update({ is_admin: true })
+        .eq("id", other.id);
+      expect(await isAdmin(other.id)).toBe(false);
+
+      const revoked = await changeUserStatus(
+        owner.id,
+        helper.id,
+        "revoke_admin",
+        {},
+      );
+      expect(revoked.role).toBeNull();
+      await expect(assertAdmin(helper.id)).rejects.toMatchObject({
+        status: 404,
+      });
+    } finally {
+      process.env.ADMIN_USER_IDS = prev;
+    }
   });
 });

@@ -35,6 +35,7 @@ import {
 import { formatBangkokDateTime } from "@/lib/bangkok-time";
 import { formatSatangNumber } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import type { AdminRole } from "@/server/auth";
 import type {
   AdminUserRow,
   getUserDetail,
@@ -75,9 +76,12 @@ function StatusPill({ status }: { status: StreamerStatusValue }) {
 export function AdminTabs({
   pendingCount,
   system,
+  viewerIsOwner,
 }: {
   pendingCount: number;
   system: React.ReactNode;
+  /** เจ้าของระบบ (ADMIN_USER_IDS) — ให้/ถอนสิทธิ์แอดมินได้ */
+  viewerIsOwner: boolean;
 }) {
   const [tab, setTab] = useState<Tab>(pendingCount > 0 ? "pending" : "users");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -113,6 +117,7 @@ export function AdminTabs({
       )}
       <UserSheet
         id={openId}
+        viewerIsOwner={viewerIsOwner}
         onClose={() => setOpenId(null)}
         onChanged={() => {
           setVersion((v) => v + 1);
@@ -131,7 +136,9 @@ function UsersPanel({
   onOpen: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<StreamerStatusValue | "all">("all");
+  const [status, setStatus] = useState<StreamerStatusValue | "all" | "admin">(
+    "all",
+  );
   const [page, setPage] = useState(1);
   const [list, setList] = useState<List | null>(null);
 
@@ -187,11 +194,14 @@ function UsersPanel({
             className="h-9 rounded-lg border bg-background px-2 text-sm"
             value={status}
             onChange={(e) => {
-              setStatus(e.target.value as StreamerStatusValue | "all");
+              setStatus(
+                e.target.value as StreamerStatusValue | "all" | "admin",
+              );
               setPage(1);
             }}
           >
             <option value="all">ทุกสถานะ</option>
+            <option value="admin">แอดมิน</option>
             {STREAMER_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STREAMER_STATUS_LABELS[s]}
@@ -249,7 +259,10 @@ function UsersPanel({
                       ` · เดือนนี้ ${formatSatangNumber(u.monthSatang)} บาท (${u.monthCount} รายการ)${u.donationsEnabled ? "" : " · ปิดรับโดเนท"}`}
                   </span>
                 </span>
-                <StatusPill status={u.status} />
+                <span className="flex items-center gap-1.5">
+                  <RolePill role={u.role} />
+                  <StatusPill status={u.status} />
+                </span>
               </button>
             </li>
           ))}
@@ -288,14 +301,38 @@ const ACTION_LABEL: Record<UserAction, string> = {
   reject: "ไม่อนุมัติ",
   suspend: "ระงับบัญชี",
   unsuspend: "ยกเลิกระงับ",
+  grant_admin: "ให้สิทธิ์แอดมิน",
+  revoke_admin: "ถอนสิทธิ์แอดมิน",
 };
+/** ต้องกดยืนยันก่อน (reject/suspend ใส่เหตุผลได้) */
+const CONFIRM: UserAction[] = [
+  "reject",
+  "suspend",
+  "grant_admin",
+  "revoke_admin",
+];
+const NEEDS_NOTE: UserAction[] = ["reject", "suspend"];
+
+function RolePill({ role }: { role: AdminRole }) {
+  if (!role) return null;
+  return (
+    <span
+      data-testid="user-role"
+      className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-primary"
+    >
+      {role === "owner" ? "เจ้าของระบบ" : "แอดมิน"}
+    </span>
+  );
+}
 
 function UserSheet({
   id,
+  viewerIsOwner,
   onClose,
   onChanged,
 }: {
   id: string | null;
+  viewerIsOwner: boolean;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -341,15 +378,25 @@ function UserSheet({
     }
   }
 
-  const actions: UserAction[] = !detail
-    ? []
-    : detail.status === "pending"
-      ? ["reject", "approve"]
-      : detail.status === "approved" && !detail.isAdmin
-        ? ["suspend"]
-        : detail.status === "suspended"
-          ? ["unsuspend"]
+  const statusActions: UserAction[] =
+    !detail || detail.role
+      ? []
+      : detail.status === "pending"
+        ? ["reject", "approve"]
+        : detail.status === "approved"
+          ? ["suspend"]
+          : detail.status === "suspended"
+            ? ["unsuspend"]
+            : [];
+  const roleActions: UserAction[] =
+    !detail || !viewerIsOwner
+      ? []
+      : detail.role === "admin"
+        ? ["revoke_admin"]
+        : !detail.role && detail.status === "approved"
+          ? ["grant_admin"]
           : [];
+  const actions = [...roleActions, ...statusActions];
   const a = detail?.application;
 
   return (
@@ -388,7 +435,10 @@ function UserSheet({
                     </a>
                   )}
                 </div>
-                <StatusPill status={detail.status} />
+                <span className="flex flex-col items-end gap-1">
+                  <StatusPill status={detail.status} />
+                  <RolePill role={detail.role} />
+                </span>
               </div>
               {detail.note && (
                 <p className="rounded-lg bg-muted p-3 text-muted-foreground">
@@ -465,7 +515,7 @@ function UserSheet({
                 </p>
               )}
 
-              {noteFor && (
+              {noteFor && NEEDS_NOTE.includes(noteFor) && (
                 <div className="grid gap-1.5">
                   <Textarea
                     aria-label="เหตุผล"
@@ -493,7 +543,9 @@ function UserSheet({
                         ยกเลิก
                       </Button>
                       <Button
-                        variant="destructive"
+                        variant={
+                          noteFor === "grant_admin" ? "default" : "destructive"
+                        }
                         className="flex-1"
                         disabled={busy !== null}
                         onClick={() => act(noteFor)}
@@ -504,16 +556,15 @@ function UserSheet({
                     </>
                   ) : (
                     actions.map((action) => {
-                      const needsNote =
-                        action === "reject" || action === "suspend";
+                      const confirm = CONFIRM.includes(action);
                       return (
                         <Button
                           key={action}
                           className="flex-1"
-                          variant={needsNote ? "outline" : "default"}
+                          variant={confirm ? "outline" : "default"}
                           disabled={busy !== null}
                           onClick={() =>
-                            needsNote ? setNoteFor(action) : act(action)
+                            confirm ? setNoteFor(action) : act(action)
                           }
                         >
                           {busy === action && (

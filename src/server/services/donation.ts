@@ -18,7 +18,7 @@ import {
 import { buildPromptpayPayload } from "@/lib/promptpay";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
-import { isAdmin } from "@/server/auth";
+import { isOwner } from "@/server/auth";
 import { getAlertSettings } from "@/server/services/alert";
 import { getPaymentSettings } from "@/server/services/payment";
 import { getPublicTimerInfo } from "@/server/services/overlay-widgets";
@@ -83,7 +83,7 @@ async function findStreamer(username: string) {
     bannerUrl: data.banner_url,
     bio: data.bio,
     // F15: ระงับ/ยังไม่อนุมัติ → ปิดรับโดเนท (แอดมินผ่านเสมอ)
-    active: data.streamer_status === "approved" || isAdmin(data.id),
+    active: data.streamer_status === "approved" || isOwner(data.id),
   };
 }
 

@@ -30,7 +30,8 @@ export async function requireUser(): Promise<CurrentUser> {
   return user;
 }
 
-export function isAdmin(userId: string): boolean {
+/** เจ้าของระบบ = ADMIN_USER_IDS (ถอนจากหน้าเว็บไม่ได้ เป็นคนให้/ถอนสิทธิ์แอดมิน) */
+export function isOwner(userId: string): boolean {
   return (process.env.ADMIN_USER_IDS ?? "")
     .split(",")
     .map((id) => id.trim())
@@ -38,13 +39,32 @@ export function isAdmin(userId: string): boolean {
     .includes(userId);
 }
 
+export type AdminRole = "owner" | "admin" | null;
+
+export function adminRole(userId: string, isAdminFlag: boolean): AdminRole {
+  if (isOwner(userId)) return "owner";
+  return isAdminFlag ? "admin" : null;
+}
+
+/** แอดมิน = เจ้าของระบบ หรือได้รับสิทธิ์จากหน้าเว็บ (profiles.is_admin) */
+export async function isAdmin(userId: string): Promise<boolean> {
+  if (isOwner(userId)) return true;
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.is_admin ?? false;
+}
+
 export type StreamerStatus = Database["public"]["Enums"]["streamer_status"];
 
-/** สถานะสตรีมเมอร์ (F15) — แอดมินถือว่าอนุมัติเสมอ */
+/** สถานะสตรีมเมอร์ (F15) — เจ้าของระบบถือว่าอนุมัติเสมอ */
 export async function getStreamerStatus(
   userId: string,
 ): Promise<StreamerStatus> {
-  if (isAdmin(userId)) return "approved";
+  if (isOwner(userId)) return "approved";
   const { data, error } = await createAdminClient()
     .from("profiles")
     .select("streamer_status")

@@ -372,6 +372,7 @@ export type Database = {
           discord_id: string | null;
           display_name: string;
           id: string;
+          is_admin: boolean;
           overlay_token: string;
           real_name: string;
           status_note: string | null;
@@ -390,6 +391,7 @@ export type Database = {
           discord_id?: string | null;
           display_name?: string;
           id: string;
+          is_admin?: boolean;
           overlay_token?: string;
           real_name?: string;
           status_note?: string | null;
@@ -407,6 +409,7 @@ export type Database = {
           discord_id?: string | null;
           display_name?: string;
           id?: string;
+          is_admin?: boolean;
           overlay_token?: string;
           real_name?: string;
           status_note?: string | null;

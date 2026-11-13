@@ -71,7 +71,7 @@ export function UsernameForm({ siteUrl }: { siteUrl: string }) {
       return;
     }
     startNavigationProgress();
-    router.replace("/dashboard");
+    router.replace("/dashboard/payment?setup=1");
     router.refresh();
   }
 

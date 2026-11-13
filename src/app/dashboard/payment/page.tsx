@@ -12,20 +12,27 @@ import { PaymentForm } from "./payment-form";
 
 export const metadata: Metadata = { title: "ช่องทางรับเงิน · KORTANGNOI" };
 
-export default function PaymentPage() {
+export default function PaymentPage({
+  searchParams,
+}: PageProps<"/dashboard/payment">) {
   return (
     <>
       <PageHeader title="ช่องทางรับเงิน" />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:px-6">
         <Suspense fallback={<PaymentFormSkeleton />}>
-          <LoadedForm />
+          <LoadedForm searchParams={searchParams} />
         </Suspense>
       </main>
     </>
   );
 }
 
-async function LoadedForm() {
+async function LoadedForm({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const setup = (await searchParams).setup === "1";
   const user = await requireStreamer();
   const me = await getMe(user.id);
   if (!me.username) redirect("/onboarding");
@@ -34,6 +41,7 @@ async function LoadedForm() {
     <PaymentForm
       initial={await getPaymentSettings(user.id)}
       streamerName={me.displayName || me.username}
+      setup={setup}
     />
   );
 }

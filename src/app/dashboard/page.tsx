@@ -1,4 +1,4 @@
-import { ArrowRight, CircleCheck, Circle, Link2, Rocket } from "lucide-react";
+import { ArrowRight, Circle, Link2, Rocket } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,7 +8,6 @@ import { CopyButton } from "@/components/dashboard/copy-button";
 import { PageTitle } from "@/components/dashboard/page-title";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { publicEnv } from "@/lib/env";
-import { cn } from "@/lib/utils";
 import { requireStreamer } from "@/server/auth";
 import { getOverlayUrl } from "@/server/services/overlay";
 import { getPaymentSettings } from "@/server/services/payment";
@@ -16,6 +15,7 @@ import { getMe } from "@/server/services/profile";
 
 import { ObsLinkCard } from "./obs-link-card";
 import { PageHeader } from "./page-header";
+import { SETUP_STEPS } from "@/lib/setup-steps";
 import { SummarySkeleton } from "./skeletons";
 import { DashboardSummary } from "./summary";
 
@@ -59,7 +59,7 @@ async function Home() {
         }
       />
 
-      {!payment.enabled && <GettingStarted paymentDone={false} />}
+      {!payment.enabled && <GettingStarted />}
 
       <DashboardSummary />
 
@@ -93,17 +93,8 @@ async function Home() {
   );
 }
 
-const STEPS = [
-  {
-    title: "ตั้งค่าพร้อมเพย์และเปิดรับโดเนท",
-    href: "/dashboard/payment",
-  },
-  { title: "ปรับหน้าตา alert", href: "/dashboard/alert" },
-  { title: "ใส่ลิงก์ OBS ในโปรแกรมไลฟ์", href: "#obs" },
-];
-
-/** แสดงจนกว่าจะเปิดรับโดเนท — พาสตรีมเมอร์ใหม่ตั้งค่าครบ 3 ขั้น */
-function GettingStarted({ paymentDone }: { paymentDone: boolean }) {
+/** แสดงจนกว่าจะเปิดรับโดเนท — พาสตรีมเมอร์ใหม่ตั้งค่าทีละขั้น (`?setup=1`) */
+function GettingStarted() {
   return (
     <SectionCard
       icon={Rocket}
@@ -112,44 +103,40 @@ function GettingStarted({ paymentDone }: { paymentDone: boolean }) {
       className="border-primary/30"
     >
       <Link
-        href="/dashboard/payment"
+        href={SETUP_STEPS[0].href}
         className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 text-sm hover:bg-primary/10"
       >
         <span>
           <span className="font-medium">ยังไม่เปิดรับโดเนท</span>
           <span className="block text-muted-foreground">
-            ตั้งค่าพร้อมเพย์ก่อน ผู้ชมถึงจะโอนได้
+            เริ่มตั้งค่าทีละขั้น ใช้เวลาไม่กี่นาที
           </span>
         </span>
-        <ArrowRight className="size-4 shrink-0 text-primary" aria-hidden />
+        <span className="inline-flex shrink-0 items-center gap-1 font-medium text-primary">
+          เริ่มตั้งค่า
+          <ArrowRight className="size-4" aria-hidden />
+        </span>
       </Link>
       <ol className="grid gap-2 text-sm sm:grid-cols-3">
-        {STEPS.map((step, i) => {
-          const done = i === 0 && paymentDone;
-          const Icon = done ? CircleCheck : Circle;
-          return (
-            <li key={step.title}>
-              <Link
-                href={step.href}
-                className="flex h-full items-start gap-2 rounded-lg border bg-background p-3 hover:border-primary/50"
-              >
-                <Icon
-                  className={cn(
-                    "mt-0.5 size-4 shrink-0",
-                    done ? "text-green-600" : "text-muted-foreground",
-                  )}
-                  aria-hidden
-                />
-                <span>
-                  <span className="text-xs text-muted-foreground">
-                    ขั้นที่ {i + 1}
-                  </span>
-                  <span className="block">{step.title}</span>
+        {SETUP_STEPS.map((step, i) => (
+          <li key={step.href}>
+            <Link
+              href={step.href}
+              className="flex h-full items-start gap-2 rounded-lg border bg-background p-3 hover:border-primary/50"
+            >
+              <Circle
+                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <span>
+                <span className="text-xs text-muted-foreground">
+                  ขั้นที่ {i + 1}
                 </span>
-              </Link>
-            </li>
-          );
-        })}
+                <span className="block">{step.title}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
       </ol>
     </SectionCard>
   );

@@ -1,7 +1,10 @@
 "use client";
 
+import { useState, type ComponentProps } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { commitIntegerText, sanitizeIntegerText } from "@/lib/integer-input";
 import { TIMER_INITIAL_SEC, WIDGET_TEXT_MAX } from "@/lib/overlay-widgets";
 
 export function TextField({
@@ -36,6 +39,52 @@ export function TextField({
   );
 }
 
+/**
+ * ช่องจำนวนเต็ม: เก็บข้อความที่พิมพ์เอง (ลบจนว่างแล้วพิมพ์ใหม่ได้ ไม่มี 0 แทรก)
+ * ส่งค่าออกทุกครั้งที่พิมพ์ (ไม่เกิน max) และปัดเข้าช่วง min–max ตอนออกจากช่อง
+ */
+export function IntegerInput({
+  value,
+  min,
+  max,
+  onChange,
+  onBlur,
+  ...props
+}: Omit<
+  ComponentProps<typeof Input>,
+  "value" | "onChange" | "type" | "min" | "max"
+> & {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  // ระหว่างโฟกัสแสดงข้อความที่พิมพ์ ไม่โฟกัสแสดงค่าจริง (ปุ่ม −/+ เปลี่ยนแล้วตามทัน)
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <Input
+      {...props}
+      inputMode="numeric"
+      value={text ?? String(value)}
+      onFocus={(e) => {
+        setText(String(value));
+        props.onFocus?.(e);
+      }}
+      onChange={(e) => {
+        const t = sanitizeIntegerText(e.target.value);
+        setText(t);
+        if (t !== "") onChange(Math.min(max, Number(t)));
+      }}
+      onBlur={(e) => {
+        const n = commitIntegerText(text ?? String(value), min, max);
+        setText(null);
+        if (n !== value) onChange(n);
+        onBlur?.(e);
+      }}
+    />
+  );
+}
+
 export function NumberInput({
   ariaLabel,
   value,
@@ -50,18 +99,13 @@ export function NumberInput({
   onChange: (v: number) => void;
 }) {
   return (
-    <Input
+    <IntegerInput
       aria-label={ariaLabel}
-      inputMode="numeric"
       className="h-9 w-24 text-center font-mono"
-      value={String(value)}
-      onChange={(e) => {
-        const n = Number(e.target.value.replace(/\D/g, "") || 0);
-        onChange(Math.min(max, n));
-      }}
-      onBlur={() => {
-        if (value < min) onChange(min);
-      }}
+      value={value}
+      min={min}
+      max={max}
+      onChange={onChange}
     />
   );
 }

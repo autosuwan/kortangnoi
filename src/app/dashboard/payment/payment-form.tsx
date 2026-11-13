@@ -4,6 +4,7 @@ import { Minus, Plus, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { IntegerInput } from "@/components/dashboard/form-fields";
 import { PageTitle } from "@/components/dashboard/page-title";
 import { SectionCard } from "@/components/dashboard/section-card";
 import { SegmentedControl } from "@/components/dashboard/segmented-control";
@@ -18,8 +19,11 @@ import {
   type PaymentSettings,
 } from "@/lib/payment-settings";
 import type { PromptpayType } from "@/lib/promptpay";
+import { startNavigationProgress } from "@/lib/navigation-progress";
+import { SETUP_STEPS } from "@/lib/setup-steps";
 import { cn } from "@/lib/utils";
 
+import { SetupNextBar, SetupSteps } from "../setup-steps";
 import { UnsavedBar } from "../unsaved-bar";
 import { QrPreviewCard } from "./qr-preview-card";
 
@@ -39,13 +43,18 @@ const TYPE_OPTIONS: { value: PromptpayType; label: string }[] = [
 export function PaymentForm({
   initial,
   streamerName,
+  setup = false,
 }: {
   initial: PaymentSettings;
   streamerName: string;
+  /** ตั้งค่าครั้งแรก: เปิดรับโดเนทไว้ให้ + บันทึกแล้วไปขั้นต่อไป */
+  setup?: boolean;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
-  const [draft, setDraft] = useState(initial);
+  const [draft, setDraft] = useState(() =>
+    setup ? { ...initial, enabled: true } : initial,
+  );
   const [error, setError] = useState<FieldError | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -64,12 +73,13 @@ export function PaymentForm({
     );
   }
 
-  async function save() {
+  /** คืน true เมื่อบันทึกสำเร็จ */
+  async function save(): Promise<boolean> {
     // เช็กฝั่ง client ก่อนเพื่อชี้ช่องที่ผิด — server ตรวจซ้ำเป็นตัวตัดสิน
     const local = validatePaymentSettings(draft);
     if (!local.ok) {
       setError({ field: local.field, message: local.message });
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -85,16 +95,24 @@ export function PaymentForm({
           field: FIELD_BY_CODE[body.error?.code],
           message: body.error?.message ?? "บันทึกไม่สำเร็จ",
         });
-        return;
+        return false;
       }
       setSaved(body);
       setDraft(body);
       router.refresh();
+      return true;
     } catch {
       setError({ message: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง" });
+      return false;
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveAndNext() {
+    if (dirty && !(await save())) return;
+    startNavigationProgress();
+    router.push(SETUP_STEPS[1].href);
   }
 
   const errorFor = (field: Field) =>
@@ -102,6 +120,7 @@ export function PaymentForm({
 
   return (
     <div className="pb-24">
+      {setup && <SetupSteps current={1} />}
       <PageTitle
         title="ช่องทางรับเงิน"
         description="เงินโดเนทโอนตรงเข้าพร้อมเพย์ของคุณ ระบบไม่ได้ถือเงินไว้"
@@ -150,19 +169,15 @@ export function PaymentForm({
                   <Minus />
                 </Button>
                 <div className="relative w-32">
-                  <Input
+                  <IntegerInput
                     id="minAmount"
                     aria-label="ยอดขั้นต่ำ (บาท)"
-                    inputMode="numeric"
                     className="h-9 pr-10 text-center font-mono"
-                    value={String(draft.minAmountSatang / 100)}
+                    value={draft.minAmountSatang / 100}
+                    min={MIN_AMOUNT_SATANG.min / 100}
+                    max={MIN_AMOUNT_SATANG.max / 100}
                     aria-invalid={Boolean(errorFor("minAmountSatang"))}
-                    onChange={(e) => {
-                      const baht = Number(
-                        e.target.value.replace(/\D/g, "") || 0,
-                      );
-                      set("minAmountSatang", baht * 100);
-                    }}
+                    onChange={(baht) => set("minAmountSatang", baht * 100)}
                   />
                   <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
                     บาท
@@ -286,15 +301,24 @@ export function PaymentForm({
         />
       </div>
 
-      {dirty && (
-        <UnsavedBar
-          saving={saving}
-          onCancel={() => {
-            setDraft(saved);
-            setError(null);
-          }}
-          onSave={save}
+      {setup ? (
+        <SetupNextBar
+          current={1}
+          busy={saving}
+          nextLabel={dirty ? "บันทึกและไปขั้นต่อไป" : "ไปขั้นต่อไป"}
+          onNext={saveAndNext}
         />
+      ) : (
+        dirty && (
+          <UnsavedBar
+            saving={saving}
+            onCancel={() => {
+              setDraft(saved);
+              setError(null);
+            }}
+            onSave={save}
+          />
+        )
       )}
     </div>
   );

@@ -4,27 +4,56 @@ import { adminClient } from "../test/supabase";
 
 import { loginAsStreamer } from "./helpers";
 
-test("ตั้งค่าพร้อมเพย์ → บันทึก → reload ค่ายังอยู่", async ({ page }) => {
+test("ตั้งค่าครั้งแรกทีละขั้น: พร้อมเพย์ → alert → OBS → หน้าหลัก", async ({ page }) => {
   await loginAsStreamer(page, "pay-e2e");
-  await expect(page.getByText("ยังไม่เปิดรับโดเนท")).toBeVisible();
-  await page.getByText("ยังไม่เปิดรับโดเนท").click();
-  await expect(page).toHaveURL(/\/dashboard\/payment$/);
+  await page.getByRole("link", { name: /ยังไม่เปิดรับโดเนท/ }).click();
+  await expect(page).toHaveURL(/\/dashboard\/payment\?setup=1$/);
+  const steps = page.getByRole("navigation", { name: "ขั้นตอนตั้งค่า" });
+  await expect(steps.getByText("ขั้นที่ 1 จาก 3")).toBeVisible();
+  // โหมดตั้งค่าเปิดรับโดเนทไว้ให้
+  await expect(page.getByRole("switch", { name: "เปิดรับโดเนท" })).toBeChecked();
 
-  const unsaved = page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" });
-  await expect(unsaved).toBeHidden();
+  const bar = page.getByRole("region", { name: "ไปขั้นต่อไป" });
+  // ข้อมูลไม่ครบ → ไม่ไปต่อ แสดง error
+  await bar.getByRole("button", { name: "บันทึกและไปขั้นต่อไป" }).click();
+  await expect(
+    page.getByText("กรอกเลขพร้อมเพย์และชื่อบัญชีให้ครบก่อนเปิดรับโดเนท"),
+  ).toBeVisible();
 
+  // ช่องยอดขั้นต่ำ: ลบหมดแล้วพิมพ์ใหม่ได้ตรงตามที่พิมพ์
+  const min = page.getByLabel("ยอดขั้นต่ำ (บาท)");
+  await min.fill("");
+  await expect(min).toHaveValue("");
+  await min.pressSequentially("1");
+  await expect(min).toHaveValue("1");
+  await min.pressSequentially("5");
+  await expect(min).toHaveValue("15");
   await page.getByRole("button", { name: "เพิ่มยอดขั้นต่ำ" }).click();
-  await expect(page.getByLabel("ยอดขั้นต่ำ (บาท)")).toHaveValue("30");
+  await expect(min).toHaveValue("25");
+  await min.fill("");
+  await min.blur();
+  await expect(min).toHaveValue("1");
+  await min.fill("30");
+
   await page.getByLabel("เบอร์พร้อมเพย์").fill("081-234-5678");
   await page.getByLabel("ชื่อบัญชี (ภาษาไทย)").fill("นาย สมชาย ใจดี");
   await page.getByLabel("ชื่อบัญชี (ภาษาอังกฤษ)").fill("somchai jaidee");
-  await page.getByRole("switch", { name: "เปิดรับโดเนท" }).click();
+  await bar.getByRole("button", { name: "บันทึกและไปขั้นต่อไป" }).click();
 
-  await expect(unsaved).toBeVisible();
-  await unsaved.getByRole("button", { name: "บันทึก" }).click();
-  await expect(unsaved).toBeHidden();
+  // ขั้น 2: ไม่แก้อะไรก็ไปต่อได้
+  await expect(page).toHaveURL(/\/dashboard\/alert\?setup=1$/);
+  await expect(steps.getByText("ขั้นที่ 2 จาก 3")).toBeVisible();
+  await bar.getByRole("button", { name: "ใช้ค่านี้ ไปขั้นต่อไป" }).click();
 
-  await page.reload();
+  // ขั้น 3: ลิงก์ OBS + เสร็จ
+  await expect(page).toHaveURL(/\/dashboard\/setup\/obs$/);
+  await expect(page.getByTestId("overlay-url")).toBeVisible();
+  await bar.getByRole("button", { name: "เสร็จแล้ว ไปหน้าหลัก" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByText("เปิดรับโดเนทแล้ว")).toBeVisible();
+
+  // ค่าที่บันทึกไว้ยังอยู่ (นอกโหมดตั้งค่าใช้แถบ "ยังไม่บันทึก" แบบเดิม)
+  await page.goto("/dashboard/payment");
   await expect(page.getByLabel("ยอดขั้นต่ำ (บาท)")).toHaveValue("30");
   await expect(page.getByLabel("เบอร์พร้อมเพย์")).toHaveValue("0812345678");
   await expect(page.getByLabel("ชื่อบัญชี (ภาษาไทย)")).toHaveValue("สมชาย ใจดี");
@@ -32,9 +61,12 @@ test("ตั้งค่าพร้อมเพย์ → บันทึก �
     "SOMCHAI JAIDEE",
   );
   await expect(page.getByRole("switch", { name: "เปิดรับโดเนท" })).toBeChecked();
-
-  await page.goto("/dashboard");
-  await expect(page.getByText("เปิดรับโดเนทแล้ว")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "การแก้ไขที่ยังไม่บันทึก" }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("navigation", { name: "ขั้นตอนตั้งค่า" }),
+  ).toBeHidden();
 });
 
 test("เลขผิดและข้อมูลไม่ครบแสดง error, ยกเลิกคืนค่าเดิม", async ({ page }) => {

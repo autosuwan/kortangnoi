@@ -30,6 +30,9 @@ test("ผู้ใช้ใหม่: ล็อกอิน → ตั้ง use
   await expect(page.getByText(`localhost:3100/${username}`)).toBeVisible();
   await page.getByRole("button", { name: "บันทึกและไปต่อ" }).click();
 
+  // ตั้ง username แล้วเข้าโหมดตั้งค่าครั้งแรก ขั้นที่ 1 — ข้ามไว้ก่อนได้
+  await expect(page).toHaveURL(/\/dashboard\/payment\?setup=1$/);
+  await page.getByRole("link", { name: "ข้ามไว้ก่อน" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByTestId("donate-url")).toHaveText(
     `http://localhost:3100/${username}`,
@@ -55,7 +58,7 @@ test("username ที่มีคนใช้แล้วกดบันทึ�
   await loginWithPassword(firstPage, first.email);
   await firstPage.getByLabel("ชื่อผู้ใช้").fill(taken);
   await firstPage.getByRole("button", { name: "บันทึกและไปต่อ" }).click();
-  await expect(firstPage).toHaveURL(/\/dashboard$/);
+  await expect(firstPage).toHaveURL(/\/dashboard\/payment/);
   await firstContext.close();
 
   const second = await createTestUser("second");

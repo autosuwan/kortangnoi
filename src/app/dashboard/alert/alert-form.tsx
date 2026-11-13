@@ -10,16 +10,17 @@ import {
   Play,
   RotateCcw,
   Search,
-  Send,
   Timer,
   Type,
   UsersRound,
   Volume2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AlertCard } from "@/components/alert-card";
 import { ColorWheel } from "@/components/color-wheel";
+import { IntegerInput } from "@/components/dashboard/form-fields";
 import { SectionCard } from "@/components/dashboard/section-card";
 import {
   SegmentedControl,
@@ -54,8 +55,12 @@ import {
   TTS_VOICES,
   type TtsVoice,
 } from "@/lib/tts";
+import { startNavigationProgress } from "@/lib/navigation-progress";
+import { SETUP_STEPS } from "@/lib/setup-steps";
 import { cn } from "@/lib/utils";
 
+import { SetupNextBar } from "../setup-steps";
+import { TestAlertButton } from "../test-alert-button";
 import { UnsavedBar } from "../unsaved-bar";
 
 type Editable = Pick<
@@ -129,10 +134,14 @@ const sliderValue = (v: number | readonly number[]) =>
 export function AlertForm({
   initial,
   userId,
+  setup = false,
 }: {
   initial: AlertSettings;
   userId: string;
+  /** ตั้งค่าครั้งแรก: บันทึกแล้วไปขั้นต่อไป */
+  setup?: boolean;
 }) {
+  const router = useRouter();
   const [media, setMedia] = useState<Media>(initial);
   const [saved, setSaved] = useState<Editable>(pick(initial));
   const [draft, setDraft] = useState<Editable>(pick(initial));
@@ -154,7 +163,8 @@ export function AlertForm({
     setError(null);
   }
 
-  async function save() {
+  /** คืน true เมื่อบันทึกสำเร็จ */
+  async function save(): Promise<boolean> {
     setSaving(true);
     setError(null);
     try {
@@ -165,16 +175,24 @@ export function AlertForm({
       });
       if (!res.ok) {
         setError(await readError(res, "บันทึกไม่สำเร็จ"));
-        return;
+        return false;
       }
       const next: AlertSettings = await res.json();
       setSaved(pick(next));
       setDraft(pick(next));
+      return true;
     } catch {
       setError("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+      return false;
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveAndNext() {
+    if (dirty && !(await save())) return;
+    startNavigationProgress();
+    router.push(SETUP_STEPS[2].href);
   }
 
   async function upload(file: File) {
@@ -466,15 +484,24 @@ export function AlertForm({
         onPlay={() => draft.soundEnabled && playSound()}
       />
 
-      {dirty && (
-        <UnsavedBar
-          saving={saving}
-          onCancel={() => {
-            setDraft(saved);
-            setError(null);
-          }}
-          onSave={save}
+      {setup ? (
+        <SetupNextBar
+          current={2}
+          busy={saving}
+          nextLabel={dirty ? "บันทึกและไปขั้นต่อไป" : "ใช้ค่านี้ ไปขั้นต่อไป"}
+          onNext={saveAndNext}
         />
+      ) : (
+        dirty && (
+          <UnsavedBar
+            saving={saving}
+            onCancel={() => {
+              setDraft(saved);
+              setError(null);
+            }}
+            onSave={save}
+          />
+        )
       )}
     </div>
   );
@@ -549,56 +576,6 @@ function AlertPreview({
       </div>
       <TestAlertButton />
     </SectionCard>
-  );
-}
-
-/** ส่ง alert ตัวอย่างไป overlay จริงใน OBS (ใช้ค่าที่บันทึกแล้ว) */
-function TestAlertButton() {
-  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
-  const [message, setMessage] = useState<string | null>(null);
-
-  async function send() {
-    setState("sending");
-    setMessage(null);
-    try {
-      const res = await fetch("/api/alerts/test", { method: "POST" });
-      if (!res.ok) {
-        setMessage(await readError(res, "ส่งไม่สำเร็จ"));
-        setState("idle");
-        return;
-      }
-      setState("sent");
-      setTimeout(() => setState("idle"), 3000);
-    } catch {
-      setMessage("ส่งไม่สำเร็จ ลองใหม่อีกครั้ง");
-      setState("idle");
-    }
-  }
-
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-2 px-2">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={state === "sending"}
-        onClick={send}
-      >
-        {state === "sending" ? <Loader2 className="animate-spin" /> : <Send />}
-        ทดสอบ alert ใน OBS
-      </Button>
-      <span
-        role="status"
-        className={cn(
-          "text-xs",
-          message ? "text-destructive" : "text-muted-foreground",
-        )}
-      >
-        {message ??
-          (state === "sent"
-            ? "ส่งแล้ว ดูที่ OBS ได้เลย"
-            : "ใช้ค่าที่บันทึกแล้ว · ใส่ลิงก์ OBS จากหน้าหลักก่อน")}
-      </span>
-    </div>
   );
 }
 
@@ -688,25 +665,14 @@ function TtsCard({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label htmlFor="ttsMinAmount">อ่านเมื่อยอดตั้งแต่ (บาท)</Label>
-            <Input
+            <IntegerInput
               id="ttsMinAmount"
-              inputMode="numeric"
               disabled={off}
               className="font-mono"
-              value={String(draft.ttsMinAmountSatang / 100)}
-              onChange={(e) => {
-                // ให้ลบแล้วพิมพ์ใหม่ได้ ค่อยปัดขึ้นขั้นต่ำตอนออกจากช่อง
-                const baht = Number(e.target.value.replace(/\D/g, "") || 0);
-                set(
-                  "ttsMinAmountSatang",
-                  Math.min(TTS_MIN_AMOUNT.max, baht * 100),
-                );
-              }}
-              onBlur={() => {
-                if (draft.ttsMinAmountSatang < TTS_MIN_AMOUNT.min) {
-                  set("ttsMinAmountSatang", TTS_MIN_AMOUNT.min);
-                }
-              }}
+              value={draft.ttsMinAmountSatang / 100}
+              min={TTS_MIN_AMOUNT.min / 100}
+              max={TTS_MIN_AMOUNT.max / 100}
+              onChange={(baht) => set("ttsMinAmountSatang", baht * 100)}
             />
           </div>
           <div className="grid gap-1.5">

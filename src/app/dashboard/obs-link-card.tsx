@@ -16,7 +16,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
+export function ObsLinkCard({
+  initialUrl,
+  testBelow = false,
+}: {
+  initialUrl: string;
+  /** หน้าตั้งค่าขั้น 3 มีปุ่มทดสอบอยู่ด้านล่างแล้ว */
+  testBelow?: boolean;
+}) {
   const [url, setUrl] = useState(initialUrl);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -64,16 +71,20 @@ export function ObsLinkCard({ initialUrl }: { initialUrl: string }) {
       <ol className="mt-4 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
         <li>ใน OBS กด + ที่ Sources แล้วเลือก Browser</li>
         <li>วางลิงก์ในช่อง URL ตั้งความกว้าง 800 สูง 600</li>
-        <li>
-          ไปที่หน้า{" "}
-          <Link
-            href="/dashboard/alert"
-            className="underline underline-offset-2"
-          >
-            ตั้งค่า alert
-          </Link>{" "}
-          แล้วกด &ldquo;ทดสอบ alert ใน OBS&rdquo;
-        </li>
+        {testBelow ? (
+          <li>กด &ldquo;ทดสอบ alert ใน OBS&rdquo; ด้านล่าง</li>
+        ) : (
+          <li>
+            ไปที่หน้า{" "}
+            <Link
+              href="/dashboard/alert"
+              className="underline underline-offset-2"
+            >
+              ตั้งค่า alert
+            </Link>{" "}
+            แล้วกด &ldquo;ทดสอบ alert ใน OBS&rdquo;
+          </li>
+        )}
       </ol>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
